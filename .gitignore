@@ -1,0 +1,7 @@
+.DS_Store
+__MACOSX/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.tmp

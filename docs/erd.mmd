@@ -1,0 +1,45 @@
+```mermaid
+erDiagram
+    ENTITIES ||--o{ MEASUREMENTS : "is measured in"
+    METRICS ||--o{ MEASUREMENTS : "quantifies"
+    PERIODS ||--o{ MEASUREMENTS : "occurs during"
+    SOURCES ||--o{ MEASUREMENTS : "provides evidence for"
+
+    ENTITIES {
+        int id PK
+        string entity_type
+        string name
+    }
+
+    METRICS {
+        int id PK
+        int framework_id FK
+        string code
+        string name
+        string unit
+    }
+
+    PERIODS {
+        int id PK
+        string kind
+        string date_value
+        int year_value
+        float time_value
+    }
+
+    SOURCES {
+        int id PK
+        string name
+        string url
+    }
+
+    MEASUREMENTS {
+        int id PK
+        int entity_id FK
+        int metric_id FK
+        int period_id FK
+        int source_id FK
+        float value
+        float confidence
+    }
+```
