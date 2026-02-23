@@ -8,7 +8,7 @@ Catalyst Data is the shared relational layer for the Catalyst Suite. It models *
 
 - `schema.sql` — SQLite schema (tables, constraints, indexes, and views)
 - `queries.sql` — demo queries (and optional seed data, if included)
-- `DESIGN.md` — CS50 SQL design document
+- `DESIGN.md` — SQL design document
 - `docs/erd.svg` — ER diagram (rendered)
 - `docs/erd.mmd` — ER diagram source (Mermaid)
 
