@@ -2,8 +2,6 @@
 
 By Tariq Ahmad
 
-Video overview: (Add your final YouTube URL here)
-
 ---
 
 ## Scope
