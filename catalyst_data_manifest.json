@@ -1,0 +1,22 @@
+{
+  "name": "Catalyst Data",
+  "version": "1.0.0",
+  "module_type": "shared data and provenance layer",
+  "method_path": [
+    "entity",
+    "indicator",
+    "period",
+    "measurement",
+    "source",
+    "confidence",
+    "review"
+  ],
+  "wordpress_shortcode": "[catalyst_data_demo]",
+  "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
+  "boundaries": [
+    "educational",
+    "open-source",
+    "not compliance certification",
+    "not professional advice"
+  ]
+}

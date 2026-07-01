@@ -1,14 +1,10 @@
 ## Repo hygiene
 
-This repository intentionally does **not** commit the generated SQLite database file (`*.db`).
-Recreate the database locally by running:
+Generated local databases are not the source of truth. Recreate local SQLite files by running:
 
-```sql
-.read schema.sql
+```bash
+sqlite3 catalyst_data.db < schema.sql
+sqlite3 catalyst_data.db < queries.sql
 ```
 
-Optionally load demo queries:
-
-```sql
-.read queries.sql
-```
+The durable source files are the schema, seed queries, sample CSVs, JSON examples, docs, tests, and WordPress plugin source.

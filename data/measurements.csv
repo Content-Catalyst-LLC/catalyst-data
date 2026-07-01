@@ -1,0 +1,3 @@
+entity,indicator,period,value,baseline_value,source,confidence,method,assumptions
+Urban Tree Canopy Program,Data completeness score,2026-Q2,78,62,Internal program tracker + field verification notes,72,Current value combines verified site records with program-reported updates.,Not all locations have third-party verification.
+Supplier Energy Transition Program,Estimated CO2e avoided,2026-Q3,168,120,Supplier energy reports + procurement audit sample,68,Supplier reported values sampled against procurement records.,Estimates require broader third-party verification before external claims.

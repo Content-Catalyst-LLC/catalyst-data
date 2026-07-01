@@ -1,0 +1,27 @@
+name: Catalyst Data Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dev requirements
+        run: pip install -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q
+      - name: Validate SQLite schema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+          sqlite3 /tmp/catalyst_data.db < schema.sql
+          sqlite3 /tmp/catalyst_data.db < queries.sql
+          sqlite3 /tmp/catalyst_data.db "SELECT COUNT(*) FROM measurement_review;"

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalyst Data Export",
+  "type": "object",
+  "required": [
+    "entity",
+    "indicator",
+    "period",
+    "values",
+    "source",
+    "confidence",
+    "review_status",
+    "trace_path"
+  ],
+  "properties": {
+    "entity": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "indicator": {
+      "type": "object",
+      "required": [
+        "name",
+        "unit",
+        "direction"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "higher",
+            "lower",
+            "neutral"
+          ]
+        }
+      }
+    },
+    "period": {
+      "type": "string"
+    },
+    "values": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "current",
+        "percent_change"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "number"
+        },
+        "current": {
+          "type": "number"
+        },
+        "percent_change": {
+          "type": "number"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "review_status": {
+      "type": "string"
+    },
+    "method_notes": {
+      "type": "string"
+    },
+    "trace_path": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

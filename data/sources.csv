@@ -1,0 +1,4 @@
+name,source_type,publisher,retrieved_at,notes
+Internal program tracker + field verification notes,internal record,Catalyst Demo Organization,2026-07-01,Synthetic example source.
+Supplier energy reports + procurement audit sample,internal record,Catalyst Demo Organization,2026-07-01,Synthetic example source.
+Public energy benchmark dataset,third-party dataset,Example Publisher,2026-07-01,Placeholder source for demo purposes.

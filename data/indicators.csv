@@ -1,0 +1,5 @@
+code,name,framework,unit,direction,description
+DATA-COMPLETE,Data completeness score,Catalyst,score,higher,"Completeness of required records, provenance, and method notes."
+CO2E-AVOIDED,Estimated CO2e avoided,Impact,tCO2e,higher,"Estimated avoided emissions, subject to method assumptions."
+ENERGY-INTENSITY,Energy intensity,Energy,kWh / sq ft,lower,Energy consumed per square foot.
+PARTICIPATION,Participation rate,Program,%,higher,Percentage of eligible participants engaged.

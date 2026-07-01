@@ -1,0 +1,22 @@
+{
+  "entity": {
+    "name": "Urban Tree Canopy Program",
+    "type": "project"
+  },
+  "indicator": {
+    "name": "Data completeness score",
+    "unit": "score",
+    "direction": "higher"
+  },
+  "period": "2026-Q2",
+  "values": {
+    "baseline": 62,
+    "current": 78
+  },
+  "source": {
+    "name": "Internal program tracker + field verification notes",
+    "type": "internal record"
+  },
+  "confidence": 72,
+  "method_notes": "Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification."
+}
