@@ -1,6 +1,6 @@
 {
   "name": "Catalyst Data",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "module_type": "shared data and provenance layer",
   "method_path": [
     "entity",
@@ -18,5 +18,16 @@
     "open-source",
     "not compliance certification",
     "not professional advice"
-  ]
+  ],
+  "release": "Repository Integrity and Package Contract Repair",
+  "version_source": "VERSION",
+  "review_contract": "contracts/review_contract.json",
+  "generated_contract_artifacts": [
+    "python/catalyst_data/_contract.py",
+    "python/catalyst_data/_version.py",
+    "wordpress/catalyst-data-demo/assets/catalyst-data-contract.js",
+    "schema.sql review views"
+  ],
+  "build_command": "python3 scripts/build_release.py",
+  "validation_command": "python3 scripts/check_release.py"
 }

@@ -2,24 +2,51 @@
 /**
  * Plugin Name: Catalyst Data Demo
  * Description: Browser-based demo for the Catalyst Data module. Adds the [catalyst_data_demo] shortcode.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Content Catalyst LLC
  * License: MIT
+ * Requires at least: 6.0
+ * Requires PHP: 7.4
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
+define('CATALYST_DATA_DEMO_VERSION', '1.0.1');
+
 function catalyst_data_demo_register_assets() {
     $base_url = plugin_dir_url(__FILE__);
-    wp_register_style('catalyst-data-demo-style', $base_url . 'assets/catalyst-data-demo.css', array(), '1.0.0');
-    wp_register_script('catalyst-data-demo-script', $base_url . 'assets/catalyst-data-demo.js', array(), '1.0.0', true);
+    wp_register_style(
+        'catalyst-data-demo-style',
+        $base_url . 'assets/catalyst-data-demo.css',
+        array(),
+        CATALYST_DATA_DEMO_VERSION
+    );
+    wp_register_script(
+        'catalyst-data-demo-contract',
+        $base_url . 'assets/catalyst-data-contract.js',
+        array(),
+        CATALYST_DATA_DEMO_VERSION,
+        true
+    );
+    wp_register_script(
+        'catalyst-data-demo-script',
+        $base_url . 'assets/catalyst-data-demo.js',
+        array('catalyst-data-demo-contract'),
+        CATALYST_DATA_DEMO_VERSION,
+        true
+    );
 }
 add_action('wp_enqueue_scripts', 'catalyst_data_demo_register_assets');
 
 function catalyst_data_demo_shortcode($atts = array()) {
+    static $instance = 0;
+    $instance++;
+    $id = 'cdata-' . $instance;
+
     wp_enqueue_style('catalyst-data-demo-style');
+    wp_enqueue_script('catalyst-data-demo-contract');
     wp_enqueue_script('catalyst-data-demo-script');
 
     ob_start();
@@ -37,13 +64,13 @@ function catalyst_data_demo_shortcode($atts = array()) {
         <div class="cdata-demo__grid">
             <form class="cdata-demo__form" aria-label="Catalyst Data demo form">
                 <div class="cdata-demo__field">
-                    <label for="cdata-entity">Entity or project</label>
-                    <input id="cdata-entity" name="entity" type="text" value="Urban Tree Canopy Program" />
+                    <label for="<?php echo esc_attr($id); ?>-entity">Entity or project</label>
+                    <input id="<?php echo esc_attr($id); ?>-entity" name="entity" type="text" value="Urban Tree Canopy Program" />
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-type">Entity type</label>
-                    <select id="cdata-type" name="entityType">
+                    <label for="<?php echo esc_attr($id); ?>-type">Entity type</label>
+                    <select id="<?php echo esc_attr($id); ?>-type" name="entityType">
                         <option value="project" selected>Project</option>
                         <option value="organization">Organization</option>
                         <option value="program">Program</option>
@@ -53,8 +80,8 @@ function catalyst_data_demo_shortcode($atts = array()) {
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-indicator">Indicator</label>
-                    <select id="cdata-indicator" name="indicator">
+                    <label for="<?php echo esc_attr($id); ?>-indicator">Indicator</label>
+                    <select id="<?php echo esc_attr($id); ?>-indicator" name="indicator">
                         <option value="Data completeness score" data-unit="score" selected>Data completeness score</option>
                         <option value="Estimated CO2e avoided" data-unit="tCO2e">Estimated CO2e avoided</option>
                         <option value="Energy intensity" data-unit="kWh / sq ft">Energy intensity</option>
@@ -64,8 +91,8 @@ function catalyst_data_demo_shortcode($atts = array()) {
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-period">Reporting period</label>
-                    <select id="cdata-period" name="period">
+                    <label for="<?php echo esc_attr($id); ?>-period">Reporting period</label>
+                    <select id="<?php echo esc_attr($id); ?>-period" name="period">
                         <option value="2026-Q1">2026-Q1</option>
                         <option value="2026-Q2" selected>2026-Q2</option>
                         <option value="2026-Q3">2026-Q3</option>
@@ -75,23 +102,23 @@ function catalyst_data_demo_shortcode($atts = array()) {
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-baseline">Baseline value</label>
-                    <input id="cdata-baseline" name="baseline" type="number" step="0.01" value="62" />
+                    <label for="<?php echo esc_attr($id); ?>-baseline">Baseline value</label>
+                    <input id="<?php echo esc_attr($id); ?>-baseline" name="baseline" type="number" step="0.01" value="62" />
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-current">Current value</label>
-                    <input id="cdata-current" name="current" type="number" step="0.01" value="78" />
+                    <label for="<?php echo esc_attr($id); ?>-current">Current value</label>
+                    <input id="<?php echo esc_attr($id); ?>-current" name="current" type="number" step="0.01" value="78" />
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-unit">Unit</label>
-                    <input id="cdata-unit" name="unit" type="text" value="score" />
+                    <label for="<?php echo esc_attr($id); ?>-unit">Unit</label>
+                    <input id="<?php echo esc_attr($id); ?>-unit" name="unit" type="text" value="score" />
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-direction">Better direction</label>
-                    <select id="cdata-direction" name="direction">
+                    <label for="<?php echo esc_attr($id); ?>-direction">Better direction</label>
+                    <select id="<?php echo esc_attr($id); ?>-direction" name="direction">
                         <option value="higher" selected>Higher is better</option>
                         <option value="lower">Lower is better</option>
                         <option value="neutral">Neutral / descriptive</option>
@@ -99,13 +126,13 @@ function catalyst_data_demo_shortcode($atts = array()) {
                 </div>
 
                 <div class="cdata-demo__field cdata-demo__field--wide">
-                    <label for="cdata-source">Source</label>
-                    <input id="cdata-source" name="source" type="text" value="Internal program tracker + field verification notes" />
+                    <label for="<?php echo esc_attr($id); ?>-source">Source</label>
+                    <input id="<?php echo esc_attr($id); ?>-source" name="source" type="text" value="Internal program tracker + field verification notes" />
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-source-type">Source type</label>
-                    <select id="cdata-source-type" name="sourceType">
+                    <label for="<?php echo esc_attr($id); ?>-source-type">Source type</label>
+                    <select id="<?php echo esc_attr($id); ?>-source-type" name="sourceType">
                         <option value="internal record" selected>Internal record</option>
                         <option value="third-party dataset">Third-party dataset</option>
                         <option value="survey">Survey</option>
@@ -115,14 +142,14 @@ function catalyst_data_demo_shortcode($atts = array()) {
                 </div>
 
                 <div class="cdata-demo__field">
-                    <label for="cdata-confidence">Confidence</label>
-                    <input id="cdata-confidence" name="confidence" type="range" min="0" max="100" value="72" />
+                    <label for="<?php echo esc_attr($id); ?>-confidence">Confidence</label>
+                    <input id="<?php echo esc_attr($id); ?>-confidence" name="confidence" type="range" min="0" max="100" value="72" />
                     <output class="cdata-demo__confidence" data-confidence-output>72%</output>
                 </div>
 
                 <div class="cdata-demo__field cdata-demo__field--wide">
-                    <label for="cdata-notes">Method and assumption notes</label>
-                    <textarea id="cdata-notes" name="notes" rows="4">Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification.</textarea>
+                    <label for="<?php echo esc_attr($id); ?>-notes">Method and assumption notes</label>
+                    <textarea id="<?php echo esc_attr($id); ?>-notes" name="notes" rows="4">Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification.</textarea>
                 </div>
 
                 <div class="cdata-demo__actions">
@@ -140,17 +167,18 @@ function catalyst_data_demo_shortcode($atts = array()) {
                     <div><span>Change</span><strong data-cdata-change>—</strong></div>
                     <div><span>Confidence</span><strong data-cdata-confidence>—</strong></div>
                     <div><span>Review status</span><strong data-cdata-status>—</strong></div>
+                    <div><span>Signal status</span><strong data-cdata-signal>—</strong></div>
                 </div>
 
                 <div class="cdata-demo__trace">
                     <strong>Trace path</strong>
-                    <span data-cdata-trace>entity → indicator → period → value → source → confidence → review</span>
+                    <span data-cdata-trace>entity → indicator → period → measurement → source → confidence → review</span>
                 </div>
 
                 <div class="cdata-demo__brief" data-cdata-brief></div>
 
-                <label class="cdata-demo__json-label" for="cdata-json-output">Structured JSON export</label>
-                <textarea id="cdata-json-output" class="cdata-demo__json" data-cdata-json rows="12" readonly></textarea>
+                <label class="cdata-demo__json-label" for="<?php echo esc_attr($id); ?>-json-output">Structured JSON export</label>
+                <textarea id="<?php echo esc_attr($id); ?>-json-output" class="cdata-demo__json" data-cdata-json rows="12" readonly></textarea>
             </aside>
         </div>
 

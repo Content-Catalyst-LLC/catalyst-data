@@ -19,7 +19,8 @@
     "type": "internal record"
   },
   "confidence": 72.0,
-  "review_status": "strong signal",
+  "review_status": "reviewable",
+  "signal_status": "improving",
   "method_notes": "Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification.",
   "trace_path": [
     "entity",

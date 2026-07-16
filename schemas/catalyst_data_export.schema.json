@@ -1,7 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.0.1.json",
   "title": "Catalyst Data Export",
+  "description": "Catalyst Data v1.0.1 traceable measurement export.",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "entity",
     "indicator",
@@ -10,26 +13,41 @@
     "source",
     "confidence",
     "review_status",
+    "signal_status",
     "trace_path"
   ],
   "properties": {
     "entity": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "name",
         "type"
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "type": {
-          "type": "string"
+          "enum": [
+            "country",
+            "organization",
+            "project",
+            "program",
+            "site",
+            "policy",
+            "persona",
+            "experiment",
+            "dataset",
+            "other"
+          ]
         }
       }
     },
     "indicator": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "name",
         "unit",
@@ -37,10 +55,12 @@
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "unit": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "direction": {
           "enum": [
@@ -52,10 +72,12 @@
       }
     },
     "period": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "values": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "baseline",
         "current",
@@ -69,22 +91,28 @@
           "type": "number"
         },
         "percent_change": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ]
         }
       }
     },
     "source": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "name",
         "type"
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -94,16 +122,53 @@
       "maximum": 100
     },
     "review_status": {
-      "type": "string"
+      "enum": [
+        "missing source",
+        "needs evidence",
+        "reviewable with caution",
+        "reviewable"
+      ]
+    },
+    "signal_status": {
+      "enum": [
+        "indeterminate",
+        "improving",
+        "declining",
+        "unchanged",
+        "descriptive"
+      ]
     },
     "method_notes": {
       "type": "string"
     },
     "trace_path": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "prefixItems": [
+        {
+          "const": "entity"
+        },
+        {
+          "const": "indicator"
+        },
+        {
+          "const": "period"
+        },
+        {
+          "const": "measurement"
+        },
+        {
+          "const": "source"
+        },
+        {
+          "const": "confidence"
+        },
+        {
+          "const": "review"
+        }
+      ],
+      "items": false,
+      "minItems": 7,
+      "maxItems": 7
     }
   }
 }

@@ -9,7 +9,8 @@
 - **Percent change:** 25.81%
 - **Source:** Internal program tracker + field verification notes
 - **Confidence:** 72.0%
-- **Review status:** strong signal
+- **Review status:** reviewable
+- **Signal status:** improving
 
 ## Trace Path
 

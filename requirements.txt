@@ -1,2 +1,2 @@
 # Catalyst Data runtime requirements
-# Current Python utilities use only the standard library.
+# The v1.0.1 Python utilities use only the standard library.

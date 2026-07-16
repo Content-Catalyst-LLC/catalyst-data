@@ -1,87 +1,186 @@
-(function(){
-  function n(value){ var x = Number(value); return Number.isFinite(x) ? x : 0; }
-  function pct(x){ if (!Number.isFinite(x)) return '—'; return (x > 0 ? '+' : '') + x.toFixed(1) + '%'; }
-  function classify(confidence, change, direction){
-    if (confidence < 40) return 'Needs evidence';
-    if (direction === 'neutral') return confidence >= 70 ? 'Reviewable' : 'Caution';
-    var improving = direction === 'higher' ? change >= 0 : change <= 0;
-    if (confidence >= 70 && improving) return 'Strong signal';
-    if (confidence >= 55) return 'Reviewable';
-    return 'Caution';
+(function(root){
+  'use strict';
+
+  var contract = root.CatalystDataReviewContract;
+  if (!contract) {
+    throw new Error('Catalyst Data review contract was not loaded.');
   }
-  function esc(str){ return String(str).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
-  function build(root){
-    var indicator = root.querySelector('[name="indicator"]');
+
+  function numberValue(value){
+    var result = Number(value);
+    return Number.isFinite(result) ? result : 0;
+  }
+
+  function percentChange(baseline, current){
+    var baselineValue = numberValue(baseline);
+    var currentValue = numberValue(current);
+    if (baselineValue === 0) return null;
+    return Number((((currentValue - baselineValue) / Math.abs(baselineValue)) * 100).toFixed(2));
+  }
+
+  function sourceIsMissing(sourceName){
+    var normalized = sourceName == null ? '' : String(sourceName).trim();
+    return contract.missing_source_names.indexOf(normalized) !== -1;
+  }
+
+  function classifyReview(confidence, sourceName){
+    var value = numberValue(confidence);
+    if (sourceIsMissing(sourceName)) return 'missing source';
+    if (value < contract.confidence.needs_evidence_below) return 'needs evidence';
+    if (value < contract.confidence.caution_below) return 'reviewable with caution';
+    return 'reviewable';
+  }
+
+  function classifySignal(change, direction){
+    if (change === null) return 'indeterminate';
+    if (change === 0) return 'unchanged';
+    if (direction === 'neutral') return 'descriptive';
+    var improving = direction === 'higher' ? change > 0 : change < 0;
+    return improving ? 'improving' : 'declining';
+  }
+
+  function formatPercent(value){
+    if (value === null || !Number.isFinite(value)) return '—';
+    return (value > 0 ? '+' : '') + value.toFixed(1) + '%';
+  }
+
+  function escapeHtml(value){
+    return String(value).replace(/[&<>"]/g, function(character){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character];
+    });
+  }
+
+  function buildRecord(container){
+    var indicator = container.querySelector('[name="indicator"]');
     var selected = indicator.options[indicator.selectedIndex];
-    var baseline = n(root.querySelector('[name="baseline"]').value);
-    var current = n(root.querySelector('[name="current"]').value);
-    var change = baseline === 0 ? 0 : ((current - baseline) / Math.abs(baseline)) * 100;
-    var confidence = n(root.querySelector('[name="confidence"]').value);
-    var direction = root.querySelector('[name="direction"]').value;
+    var baseline = numberValue(container.querySelector('[name="baseline"]').value);
+    var current = numberValue(container.querySelector('[name="current"]').value);
+    var change = percentChange(baseline, current);
+    var confidence = numberValue(container.querySelector('[name="confidence"]').value);
+    var direction = container.querySelector('[name="direction"]').value;
+    var sourceName = container.querySelector('[name="source"]').value.trim() || 'Unspecified source';
+
     return {
-      entity: { name: root.querySelector('[name="entity"]').value.trim() || 'Unnamed entity', type: root.querySelector('[name="entityType"]').value },
-      indicator: { name: indicator.value, unit: root.querySelector('[name="unit"]').value.trim() || selected.getAttribute('data-unit') || 'unit', direction: direction },
-      period: root.querySelector('[name="period"]').value,
-      values: { baseline: baseline, current: current, percent_change: Number(change.toFixed(2)) },
-      source: { name: root.querySelector('[name="source"]').value.trim() || 'Unspecified source', type: root.querySelector('[name="sourceType"]').value },
+      entity: {
+        name: container.querySelector('[name="entity"]').value.trim() || 'Unnamed entity',
+        type: container.querySelector('[name="entityType"]').value
+      },
+      indicator: {
+        name: indicator.value,
+        unit: container.querySelector('[name="unit"]').value.trim() || selected.getAttribute('data-unit') || 'unit',
+        direction: direction
+      },
+      period: container.querySelector('[name="period"]').value,
+      values: {
+        baseline: baseline,
+        current: current,
+        percent_change: change
+      },
+      source: {
+        name: sourceName,
+        type: container.querySelector('[name="sourceType"]').value
+      },
       confidence: confidence,
-      review_status: classify(confidence, change, direction),
-      method_notes: root.querySelector('[name="notes"]').value.trim(),
-      trace_path: ['entity','indicator','period','measurement','source','confidence','review']
+      review_status: classifyReview(confidence, sourceName),
+      signal_status: classifySignal(change, direction),
+      method_notes: container.querySelector('[name="notes"]').value.trim(),
+      trace_path: contract.trace_path.slice()
     };
   }
-  function update(root){
-    var r = build(root);
-    root.querySelector('[data-confidence-output]').textContent = r.confidence + '%';
-    root.querySelector('[data-cdata-title]').textContent = r.entity.name;
-    root.querySelector('[data-cdata-change]').textContent = pct(r.values.percent_change);
-    root.querySelector('[data-cdata-confidence]').textContent = r.confidence + '%';
-    root.querySelector('[data-cdata-status]').textContent = r.review_status;
-    root.querySelector('[data-cdata-trace]').textContent = r.trace_path.join(' → ');
-    root.querySelector('[data-cdata-brief]').innerHTML = '<p><strong>' + esc(r.indicator.name) + '</strong> for <strong>' + esc(r.entity.name) + '</strong> moved from ' + r.values.baseline + ' to ' + r.values.current + ' ' + esc(r.indicator.unit) + ' during ' + esc(r.period) + '.</p><p>The record is tied to <strong>' + esc(r.source.name) + '</strong> with confidence of <strong>' + r.confidence + '%</strong>. Review status: <strong>' + esc(r.review_status) + '</strong>.</p>';
-    root.querySelector('[data-cdata-json]').value = JSON.stringify(r, null, 2);
+
+  function update(container){
+    var record = buildRecord(container);
+    container.querySelector('[data-confidence-output]').textContent = record.confidence + '%';
+    container.querySelector('[data-cdata-title]').textContent = record.entity.name;
+    container.querySelector('[data-cdata-change]').textContent = formatPercent(record.values.percent_change);
+    container.querySelector('[data-cdata-confidence]').textContent = record.confidence + '%';
+    container.querySelector('[data-cdata-status]').textContent = record.review_status;
+    container.querySelector('[data-cdata-signal]').textContent = record.signal_status;
+    container.querySelector('[data-cdata-trace]').textContent = record.trace_path.join(' → ');
+
+    var changeSentence = record.values.percent_change === null
+      ? 'Percent change is indeterminate because the baseline is zero.'
+      : 'The calculated change is <strong>' + escapeHtml(formatPercent(record.values.percent_change)) + '</strong>.';
+
+    container.querySelector('[data-cdata-brief]').innerHTML =
+      '<p><strong>' + escapeHtml(record.indicator.name) + '</strong> for <strong>' +
+      escapeHtml(record.entity.name) + '</strong> moved from ' + record.values.baseline + ' to ' +
+      record.values.current + ' ' + escapeHtml(record.indicator.unit) + ' during ' +
+      escapeHtml(record.period) + '. ' + changeSentence + '</p><p>The record is tied to <strong>' +
+      escapeHtml(record.source.name) + '</strong> with confidence of <strong>' + record.confidence +
+      '%</strong>. Review status: <strong>' + escapeHtml(record.review_status) +
+      '</strong>. Signal status: <strong>' + escapeHtml(record.signal_status) + '</strong>.</p>';
+
+    container.querySelector('[data-cdata-json]').value = JSON.stringify(record, null, 2);
   }
-  function setSample(root){
-    root.querySelector('[name="entity"]').value = 'Supplier Energy Transition Program';
-    root.querySelector('[name="entityType"]').value = 'program';
-    root.querySelector('[name="indicator"]').value = 'Estimated CO2e avoided';
-    root.querySelector('[name="period"]').value = '2026-Q3';
-    root.querySelector('[name="baseline"]').value = '120';
-    root.querySelector('[name="current"]').value = '168';
-    root.querySelector('[name="unit"]').value = 'tCO2e';
-    root.querySelector('[name="direction"]').value = 'higher';
-    root.querySelector('[name="source"]').value = 'Supplier energy reports + procurement audit sample';
-    root.querySelector('[name="sourceType"]').value = 'internal record';
-    root.querySelector('[name="confidence"]').value = '68';
-    root.querySelector('[name="notes"]').value = 'Reported supplier data was sampled against procurement records. Confidence remains moderate until broader third-party verification is available.';
-    update(root);
+
+  function setSample(container){
+    container.querySelector('[name="entity"]').value = 'Supplier Energy Transition Program';
+    container.querySelector('[name="entityType"]').value = 'program';
+    container.querySelector('[name="indicator"]').value = 'Estimated CO2e avoided';
+    container.querySelector('[name="period"]').value = '2026-Q3';
+    container.querySelector('[name="baseline"]').value = '120';
+    container.querySelector('[name="current"]').value = '168';
+    container.querySelector('[name="unit"]').value = 'tCO2e';
+    container.querySelector('[name="direction"]').value = 'higher';
+    container.querySelector('[name="source"]').value = 'Supplier energy reports + procurement audit sample';
+    container.querySelector('[name="sourceType"]').value = 'internal record';
+    container.querySelector('[name="confidence"]').value = '68';
+    container.querySelector('[name="notes"]').value = 'Reported supplier data was sampled against procurement records. Confidence remains moderate until broader third-party verification is available.';
+    update(container);
   }
-  function copyJson(root){
-    var text = root.querySelector('[data-cdata-json]').value;
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
-    else { var area = root.querySelector('[data-cdata-json]'); area.focus(); area.select(); document.execCommand('copy'); }
+
+  function copyJson(container){
+    var area = container.querySelector('[data-cdata-json]');
+    var text = area.value;
+    if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) {
+      root.navigator.clipboard.writeText(text);
+    } else if (root.document) {
+      area.focus();
+      area.select();
+      root.document.execCommand('copy');
+    }
   }
-  function downloadJson(root){
-    var blob = new Blob([root.querySelector('[data-cdata-json]').value], {type:'application/json'});
+
+  function downloadJson(container){
+    if (!root.document) return;
+    var blob = new Blob([container.querySelector('[data-cdata-json]').value], {type:'application/json'});
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'catalyst-data-record.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    var anchor = root.document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'catalyst-data-record.json';
+    root.document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('[data-catalyst-data-demo]').forEach(function(root){
-      root.querySelectorAll('input, select, textarea').forEach(function(el){
-        el.addEventListener('input', function(){ update(root); });
-        el.addEventListener('change', function(){
-          if (el.name === 'indicator') {
-            root.querySelector('[name="unit"]').value = el.options[el.selectedIndex].getAttribute('data-unit') || '';
+
+  function initialize(){
+    root.document.querySelectorAll('[data-catalyst-data-demo]').forEach(function(container){
+      container.querySelectorAll('input, select, textarea').forEach(function(element){
+        element.addEventListener('input', function(){ update(container); });
+        element.addEventListener('change', function(){
+          if (element.name === 'indicator') {
+            container.querySelector('[name="unit"]').value = element.options[element.selectedIndex].getAttribute('data-unit') || '';
           }
-          update(root);
+          update(container);
         });
       });
-      root.querySelector('[data-cdata-sample]').addEventListener('click', function(){ setSample(root); });
-      root.querySelector('[data-cdata-copy]').addEventListener('click', function(){ copyJson(root); });
-      root.querySelector('[data-cdata-download]').addEventListener('click', function(){ downloadJson(root); });
-      update(root);
+      container.querySelector('[data-cdata-sample]').addEventListener('click', function(){ setSample(container); });
+      container.querySelector('[data-cdata-copy]').addEventListener('click', function(){ copyJson(container); });
+      container.querySelector('[data-cdata-download]').addEventListener('click', function(){ downloadJson(container); });
+      update(container);
     });
+  }
+
+  root.CatalystDataDemoEngine = Object.freeze({
+    percentChange: percentChange,
+    sourceIsMissing: sourceIsMissing,
+    classifyReview: classifyReview,
+    classifySignal: classifySignal
   });
-})();
+
+  if (root.document) {
+    root.document.addEventListener('DOMContentLoaded', initialize);
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : this);

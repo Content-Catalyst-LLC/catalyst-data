@@ -105,7 +105,12 @@ CREATE INDEX IF NOT EXISTS idx_measurements_period ON measurements(period_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_source ON measurements(source_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_confidence ON measurements(confidence);
 
-CREATE VIEW IF NOT EXISTS measurement_review AS
+-- BEGIN GENERATED REVIEW CONTRACT
+DROP VIEW IF EXISTS low_confidence_measurements;
+DROP VIEW IF EXISTS provenance_gaps;
+DROP VIEW IF EXISTS measurement_review;
+
+CREATE VIEW measurement_review AS
 SELECT
     m.id AS measurement_id,
     e.name AS entity,
@@ -130,6 +135,14 @@ SELECT
         WHEN m.confidence < 70 THEN 'reviewable with caution'
         ELSE 'reviewable'
     END AS review_status,
+    CASE
+        WHEN m.baseline_value IS NULL OR m.baseline_value = 0 THEN 'indeterminate'
+        WHEN m.value = m.baseline_value THEN 'unchanged'
+        WHEN i.direction = 'neutral' THEN 'descriptive'
+        WHEN i.direction = 'higher' AND m.value > m.baseline_value THEN 'improving'
+        WHEN i.direction = 'lower' AND m.value < m.baseline_value THEN 'improving'
+        ELSE 'declining'
+    END AS signal_status,
     m.method,
     m.assumptions
 FROM measurements m
@@ -138,10 +151,14 @@ JOIN indicators i ON i.id = m.indicator_id
 JOIN periods p ON p.id = m.period_id
 LEFT JOIN sources s ON s.id = m.source_id;
 
-CREATE VIEW IF NOT EXISTS provenance_gaps AS
+CREATE VIEW provenance_gaps AS
 SELECT * FROM measurement_review
-WHERE source IS NULL OR confidence < 40 OR method IS NULL OR LENGTH(TRIM(COALESCE(method, ''))) = 0;
+WHERE source IS NULL
+   OR confidence < 40
+   OR method IS NULL
+   OR LENGTH(TRIM(COALESCE(method, ''))) = 0;
 
-CREATE VIEW IF NOT EXISTS low_confidence_measurements AS
+CREATE VIEW low_confidence_measurements AS
 SELECT * FROM measurement_review
 WHERE confidence < 70;
+-- END GENERATED REVIEW CONTRACT

@@ -1,4 +1,4 @@
-name: Catalyst Data Tests
+name: Catalyst Data Release Contract
 
 on:
   push:
@@ -9,19 +9,24 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Install dev requirements
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install development requirements
         run: pip install -r requirements-dev.txt
-      - name: Run tests
-        run: pytest -q
-      - name: Validate SQLite schema
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y sqlite3
-          sqlite3 /tmp/catalyst_data.db < schema.sql
-          sqlite3 /tmp/catalyst_data.db < queries.sql
-          sqlite3 /tmp/catalyst_data.db "SELECT COUNT(*) FROM measurement_review;"
+      - name: Install Catalyst Data
+        run: pip install -e .
+      - name: Build deterministic artifacts
+        run: python scripts/build_release.py
+      - name: Verify generated files are committed
+        run: git diff --exit-code
+      - name: Run release contract
+        run: python scripts/check_release.py

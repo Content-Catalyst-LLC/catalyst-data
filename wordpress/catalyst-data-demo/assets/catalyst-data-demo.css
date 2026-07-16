@@ -41,7 +41,7 @@
 .cdata-demo__button:hover,
 .cdata-demo__button:focus-visible { background:var(--cdata-black); color:var(--cdata-white); }
 .cdata-demo__output h3 { margin:0 0 14px; color:var(--cdata-black); font-size:1.25rem; line-height:1.15; font-weight:900; }
-.cdata-demo__stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.cdata-demo__stat-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
 .cdata-demo__stat-grid div { padding:12px; background:var(--cdata-cream); border:1px solid var(--cdata-border); }
 .cdata-demo__stat-grid span { display:block; margin-bottom:5px; color:var(--cdata-muted); font-size:.72rem; font-weight:900; letter-spacing:.09em; text-transform:uppercase; }
 .cdata-demo__stat-grid strong { display:block; color:var(--cdata-black); font-size:1rem; line-height:1.1; }
