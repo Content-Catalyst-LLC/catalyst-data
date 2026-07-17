@@ -1,6 +1,7 @@
-"""Catalyst Data canonical record utilities."""
+"""Catalyst Data canonical records and persistent repository services."""
 
 from ._version import __version__
+from .database import DatabaseHealth
 from .engine import (
     brief_markdown,
     build_record,
@@ -14,23 +15,18 @@ from .engine import (
     validate_payload,
     validate_record_semantics,
 )
+from .exporter import export_repository
+from .importer import ImportPipelineError, ImportService, ImportSummary
+from .migrations import MigrationError, MigrationManager, discover_migrations
+from .repository import CatalystRepository, RepositoryError
+from .service import CatalystDataService
 from .validation import RecordValidationError, jsonschema_available, schema, validate_record
 
 __all__ = [
-    "__version__",
-    "RecordValidationError",
-    "brief_markdown",
-    "build_record",
-    "classify_record",
-    "classify_review",
-    "classify_signal",
-    "convert_legacy_record",
-    "is_canonical_record",
-    "jsonschema_available",
-    "percent_change",
-    "schema",
-    "stable_id",
-    "validate_payload",
-    "validate_record",
-    "validate_record_semantics",
+    "__version__", "CatalystDataService", "CatalystRepository", "DatabaseHealth",
+    "ImportPipelineError", "ImportService", "ImportSummary", "MigrationError", "MigrationManager",
+    "RecordValidationError", "RepositoryError", "brief_markdown", "build_record", "classify_record",
+    "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
+    "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
+    "stable_id", "validate_payload", "validate_record", "validate_record_semantics",
 ]

@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.1.0",
+    "version": "1.3.0",
     "component": "python-engine"
   },
   "entity": {
@@ -76,5 +76,84 @@
     "org.sustainablecatalyst.demo": {
       "sample": true
     }
+  },
+  "evidence_chain": {
+    "schema_version": "catalyst-data-evidence-chain/1.0",
+    "sources": [
+      {
+        "role": "primary",
+        "source": {
+          "id": "source:internal-program-tracker-field-verification-notes:6885f250599e",
+          "name": "Internal program tracker + field verification notes",
+          "type": "internal record",
+          "url": "https://sustainablecatalyst.com/records/urban-tree-canopy-2026-q2",
+          "publisher": "Content Catalyst LLC",
+          "license": "Internal review record",
+          "retrieved_at": "2026-07-16T11:30:00Z",
+          "citation": "Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.",
+          "checksum": "sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a",
+          "access_notes": "Public example derived from a fictional program record."
+        },
+        "locator": {
+          "page": null,
+          "section": "Quarterly completeness worksheet",
+          "quote": null,
+          "fragment": null
+        },
+        "supports": [
+          "measurement.baseline",
+          "measurement.current"
+        ],
+        "notes": "Primary program record."
+      },
+      {
+        "role": "supporting",
+        "source": {
+          "id": "source:municipal-canopy-inventory-2026:a5e585b37b75",
+          "name": "Municipal canopy inventory 2026",
+          "type": "public registry",
+          "url": "https://example.org/canopy-inventory-2026",
+          "publisher": "City Forestry Office",
+          "license": "Open Data Commons Attribution License",
+          "retrieved_at": "2026-07-16T11:45:00Z",
+          "citation": "City Forestry Office. Municipal canopy inventory 2026.",
+          "checksum": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "access_notes": "Fictional public-registry example used for release validation."
+        },
+        "locator": {
+          "page": null,
+          "section": "Verified planting sites",
+          "quote": null,
+          "fragment": null
+        },
+        "supports": [
+          "measurement.current"
+        ],
+        "notes": "Corroborates a subset of site records."
+      }
+    ],
+    "relationships": [
+      {
+        "subject_source_id": "source:municipal-canopy-inventory-2026:a5e585b37b75",
+        "predicate": "corroborates",
+        "object_source_id": "source:internal-program-tracker-field-verification-notes:6885f250599e",
+        "notes": "Registry entries corroborate verified sites."
+      }
+    ],
+    "transformations": [
+      {
+        "id": "transformation:ee376da183937f2f579e",
+        "operation": "weighted aggregation",
+        "description": "Combined verified site records with program-reported updates using the documented completeness rubric.",
+        "software": "Catalyst Data Python engine",
+        "parameters": {
+          "verified_weight": 0.7,
+          "reported_weight": 0.3
+        },
+        "occurred_at": "2026-07-16T12:00:00Z"
+      }
+    ],
+    "gaps": [],
+    "completeness_score": 100
   }
 }

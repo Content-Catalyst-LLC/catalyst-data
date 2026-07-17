@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.1.0",
-  "module_type": "canonical data contract and validation engine",
+  "version": "1.3.0",
+  "module_type": "sources, provenance, and evidence chain",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -10,7 +10,7 @@
     "indicator",
     "period",
     "measurement",
-    "source",
+    "evidence chain",
     "confidence",
     "review"
   ],
@@ -22,7 +22,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Canonical Data Contract and Validation Engine",
+  "release": "Sources, Provenance, and Evidence Chain",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -37,5 +37,29 @@
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
   "build_command": "python3 scripts/build_release.py",
-  "release_validation_command": "python3 scripts/check_release.py"
+  "release_validation_command": "python3 scripts/check_release.py",
+  "database": "SQLite",
+  "migration_path": "python/catalyst_data/migrations",
+  "repository_commands": [
+    "init",
+    "migrate",
+    "rollback",
+    "status",
+    "import",
+    "export",
+    "inspect",
+    "review",
+    "sources",
+    "provenance",
+    "evidence"
+  ],
+  "import_formats": [
+    "json",
+    "csv"
+  ],
+  "initialization_command": "catalyst-data init catalyst-data.sqlite3",
+  "import_command": "catalyst-data import catalyst-data.sqlite3 records.json",
+  "export_command": "catalyst-data export catalyst-data.sqlite3 records.json",
+  "evidence_contract": "catalyst-data-evidence-chain/1.0",
+  "evidence_schema": "schemas/catalyst_data_evidence_chain_1_0.schema.json"
 }

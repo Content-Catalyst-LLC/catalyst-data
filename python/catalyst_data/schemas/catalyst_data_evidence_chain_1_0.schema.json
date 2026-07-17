@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-evidence-chain-1.0.json",
+  "title": "Catalyst Data Evidence Chain 1.0",
+  "description": "Multiple-source evidence links, relationships, transformations, gaps, and completeness metadata.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sources",
+    "relationships",
+    "transformations",
+    "gaps",
+    "completeness_score"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "catalyst-data-evidence-chain/1.0"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "source",
+          "locator",
+          "supports",
+          "notes"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "primary",
+              "supporting",
+              "conflicting",
+              "derived",
+              "contextual"
+            ]
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "type",
+              "url",
+              "publisher",
+              "license",
+              "retrieved_at",
+              "citation",
+              "checksum",
+              "access_notes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": [
+                  "internal record",
+                  "third-party dataset",
+                  "survey",
+                  "public registry",
+                  "model estimate",
+                  "publication",
+                  "sensor",
+                  "api",
+                  "other",
+                  "unspecified"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              },
+              "publisher": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "license": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retrieved_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "citation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "checksum": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "access_notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "locator": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "page",
+              "section",
+              "quote",
+              "fragment"
+            ],
+            "properties": {
+              "page": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "section": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "quote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fragment": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "supports": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject_source_id",
+          "predicate",
+          "object_source_id",
+          "notes"
+        ],
+        "properties": {
+          "subject_source_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "predicate": {
+            "enum": [
+              "corroborates",
+              "conflicts_with",
+              "derived_from",
+              "supersedes",
+              "duplicates",
+              "contextualizes"
+            ]
+          },
+          "object_source_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "transformations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "operation",
+          "description",
+          "software",
+          "parameters",
+          "occurred_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "software": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "occurred_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "description"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "missing-source",
+              "missing-citation",
+              "missing-license",
+              "missing-retrieval-date",
+              "missing-checksum",
+              "missing-method",
+              "low-confidence",
+              "conflicting-evidence",
+              "restricted-source",
+              "stale-source"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "completeness_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

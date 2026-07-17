@@ -1,14 +1,24 @@
 # Local Demo
 
-## SQLite
+## Persistent SQLite repository
 
 ```bash
-sqlite3 catalyst_data.db < schema.sql
-sqlite3 catalyst_data.db < queries.sql
-sqlite3 catalyst_data.db "SELECT * FROM measurement_review;"
+catalyst-data init catalyst-data.sqlite3
+catalyst-data import catalyst-data.sqlite3 examples/imports/records.json
+catalyst-data status catalyst-data.sqlite3
+catalyst-data review catalyst-data.sqlite3
+catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
 ```
 
-## Python
+The supported repository workflow uses ordered migrations. `schema.sql` remains a current-schema reference and SQL review demo:
+
+```bash
+sqlite3 catalyst_data-demo.db < schema.sql
+sqlite3 catalyst_data-demo.db < queries.sql
+sqlite3 catalyst_data-demo.db "SELECT * FROM measurement_review;"
+```
+
+## Record utilities
 
 ```bash
 python3 -m venv .venv
@@ -23,4 +33,4 @@ catalyst-data upgrade examples/sample_legacy_v1_0_record.json outputs/upgraded_l
 
 ## WordPress
 
-Install `dist/catalyst-data-demo.zip`, activate the plugin, and add `[catalyst_data_demo]` to a page.
+Install `dist/catalyst-data-demo.zip`, activate the plugin, and add `[catalyst_data_demo]` to a page. The shortcode is a browser-only contract demonstration and does not persist records.

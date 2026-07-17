@@ -1,6 +1,6 @@
 # Catalyst Data Design Document
 
-Catalyst Data is the canonical evidence and measurement record layer for Sustainable Catalyst.
+Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst.
 
 It exists to answer these practical questions:
 
@@ -11,6 +11,7 @@ It exists to answer these practical questions:
 5. How confident is the record, and why?
 6. What evidence-readiness and directional judgments have been derived?
 7. Which versioned contract and stable identifiers allow the record to move safely between products?
+8. Which repository, migration, and import run stored or changed the record?
 
 ## Contract architecture
 
@@ -20,14 +21,31 @@ It exists to answer these practical questions:
 - Python and browser artifacts are generated from those contracts.
 - Cross-field semantic validation verifies derived percentage change and review judgments.
 
+## Persistence architecture
+
+The canonical JSON payload is the contract source of truth. The SQLite repository stores that payload and its SHA-256 digest in `data_records`, then synchronizes searchable fields into normalized entity, indicator, period, source, and measurement tables.
+
+Stable canonical IDs govern idempotent upserts. Re-importing an unchanged record is a skip; changing the payload while retaining the record ID is an update.
+
+## Migration architecture
+
+Ordered `.up.sql` and `.down.sql` files are packaged with the Python distribution. Versions must be contiguous and are recorded in `schema_migrations`. Fresh repositories always migrate from version 0 to the latest supported schema.
+
+## Import architecture
+
+JSON and CSV imports run through the same canonical record builder and validator. Imports support:
+
+- dry-run rollback;
+- atomic all-or-nothing operation;
+- non-atomic valid-row commits;
+- row-level error reports;
+- import-run and record-action ledgers; and
+- deterministic file-based timestamps when authoring inputs omit timestamps.
+
 ## Extension boundary
 
 The core schema rejects unknown fields. Product-specific metadata belongs under namespaced `extensions` keys so integrations can add context without mutating the canonical meaning of core fields.
 
-## Scope
+## Scope boundary
 
-Catalyst Data supports structured measurement, provenance discipline, strict validation, legacy conversion, and reviewable exports. It is designed to interoperate with Knowledge Library, Research Librarian, Site Intelligence, Workbench, Research Lab, Catalyst Analytics R, Catalyst Canvas, Decision Studio, and Platform Core through later typed handoffs.
-
-## Boundary
-
-Catalyst Data validates record structure and derived contract logic. It does not verify source truth, certify compliance, or guarantee impact.
+v1.3.0 supports local persistence, governed ingestion, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.

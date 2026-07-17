@@ -11,3 +11,5 @@ __pycache__/
 *.tmp
 build/
 *.egg-info/
+.release-check-pycache/
+*.dist-info/

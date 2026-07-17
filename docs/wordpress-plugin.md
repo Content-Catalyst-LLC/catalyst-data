@@ -12,7 +12,7 @@ python3 scripts/build_release.py
 
 Do not edit files inside the ZIP directly.
 
-## v1.1.0 behavior
+## v1.3.0 behavior
 
 - Loads generated review and record contracts before the demo engine.
 - Emits `catalyst-data-record/1.0` with stable semantic IDs.
@@ -23,3 +23,5 @@ Do not edit files inside the ZIP directly.
 - Treats a missing or zero baseline as an indeterminate percentage change.
 - Rejects malformed URLs, checksums, unsupported quality flags, and invalid numeric values in the browser output.
 - Generates unique field IDs when the shortcode appears more than once on a page.
+
+The WordPress component remains a browser-only demonstration. Persistent repository operations are provided by the Python CLI and service layer, not by the shortcode.

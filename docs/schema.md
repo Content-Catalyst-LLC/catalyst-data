@@ -1,15 +1,32 @@
-# Schema Guide
+# Relational Schema
 
-Catalyst Data has two complementary schemas.
+Catalyst Data v1.3.0 maintains a normalized SQLite repository alongside the complete canonical JSON record.
 
-## Canonical record schema
+## Core tables
 
-`schemas/catalyst_data_record_1_0.schema.json` governs records exchanged between applications. It uses strict objects, complete provenance fields, stable identifiers, structured review and method metadata, and namespaced extensions.
+- `entities`
+- `indicators`
+- `periods`
+- `sources`
+- `measurements`
+- `measurement_notes`
+- `tags` and tag joins
 
-The same schema is packaged at `python/catalyst_data/schemas/` for installed Python validation. Both copies are generated from `contracts/record_contract.json` and must remain byte-identical.
+Each core object can carry a canonical stable ID. `data_records` maps the canonical `record_id` to the normalized entity, indicator, period, source, and measurement rows while preserving the complete validated payload and SHA-256 digest.
 
-## Relational SQLite schema
+## Repository tables
 
-`schema.sql` provides the local normalized storage demonstration centered on measurements. Core tables include entities, indicators, periods, sources, measurements, notes, and tags. Review views include `measurement_review`, `provenance_gaps`, and `low_confidence_measurements`.
+- `schema_migrations` records ordered migration state.
+- `repository_metadata` identifies the local repository.
+- `data_records` stores canonical JSON and normalized row links.
+- `import_runs` records import execution summaries.
+- `import_records` records inserted, updated, and skipped records.
+- `import_row_errors` records row-level failures.
 
-The relational schema remains a local prototype in v1.1.0. Database migrations and a persistent repository service are scheduled for v1.2.0.
+## Review views
+
+- `measurement_review`
+- `provenance_gaps`
+- `low_confidence_measurements`
+
+`schema.sql` is a current-schema reference and demo fixture. Applications must initialize repositories through the migration manager rather than treating `schema.sql` as a migration substitute.

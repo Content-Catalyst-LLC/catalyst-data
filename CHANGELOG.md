@@ -1,6 +1,34 @@
 # Changelog
 
+## 1.3.0 — Sources, Provenance, and Evidence Chain
+
+- Added the backward-compatible `catalyst-data-evidence-chain/1.0` contract.
+- Added multiple evidence roles, locators, source relationships, transformations, gaps, and completeness scoring.
+- Added immutable source versions, source snapshots, record revisions, and provenance events.
+- Added migration 003, evidence views, evidence-aware import/export, repository APIs, and CLI inspection commands.
+- Added automatic evidence-storage backfill for existing v1.2.0 records and repaired populated migration rollback ordering.
+- Expanded release validation and tests for immutability, versioning, lineage, gaps, and upgrade safety.
+
+## 1.2.0 — Persistent Repository, Migrations, and Import Pipeline
+
+- Added a local-first SQLite repository with synchronized normalized tables and canonical JSON records.
+- Added ordered, contiguous, reversible SQL migrations and migration status reporting.
+- Added repository and application service layers.
+- Added stable-ID and payload-checksum based inserts, updates, and duplicate skips.
+- Added JSON and CSV imports with deterministic authoring timestamps, dry runs, row-level errors, atomic rollback, and partial-import mode.
+- Added import run, imported-record, and import-error ledgers.
+- Added JSON and CSV repository exports.
+- Added `init`, `migrate`, `rollback`, `status`, `import`, `export`, `inspect`, and `review` CLI commands.
+- Added repository health, SQLite integrity, schema-version, statistics, and review-queue checks.
+- Packaged migration SQL inside the installable Python distribution.
+- Expanded migration, persistence, import, export, CLI, transaction, and release tests.
+
 ## 1.1.0 — Canonical Data Contract and Validation Engine
+
+### Installer reliability repair
+
+- Prevented stale v1.0.x Python bytecode from being reused during an in-place v1.1.0 upgrade.
+- Isolated release validation bytecode lookups from repository caches.
 
 - Added the canonical `catalyst-data-record/1.0` schema and contract metadata.
 - Added strict JSON Schema validation with unknown-field rejection and format checks.

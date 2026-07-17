@@ -17,6 +17,9 @@ from ._record_contract import (
     RECORD_TYPES,
     SOURCE_CHECKSUM_PATTERN,
     SOURCE_TYPES,
+    EVIDENCE_CONTRACT,
+    EVIDENCE_ROLES,
+    SOURCE_RELATIONSHIPS,
 )
 from ._contract import DIRECTIONS, REVIEW_STATUSES, SIGNAL_STATUSES
 
@@ -56,7 +59,7 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         "producer", "entity", "indicator", "period", "measurement", "source", "confidence",
         "review", "method", "extensions"
     }
-    unknown = set(record) - required
+    unknown = set(record) - (required | {"evidence_chain"})
     missing = required - set(record)
     if missing:
         raise RecordValidationError(f"record is missing required fields: {', '.join(sorted(missing))}")
@@ -118,6 +121,25 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
     flags = record["method"]["quality_flags"]
     if not isinstance(flags, list) or len(flags) != len(set(flags)) or any(flag not in QUALITY_FLAGS for flag in flags):
         raise RecordValidationError("method.quality_flags is invalid")
+    chain = record.get("evidence_chain")
+    if chain is not None:
+        if not isinstance(chain, Mapping) or chain.get("schema_version") != EVIDENCE_CONTRACT:
+            raise RecordValidationError("evidence_chain schema version is invalid")
+        expected = {"schema_version", "sources", "relationships", "transformations", "gaps", "completeness_score"}
+        if set(chain) != expected:
+            raise RecordValidationError("evidence_chain has invalid fields")
+        if not isinstance(chain["sources"], list) or not chain["sources"]:
+            raise RecordValidationError("evidence_chain.sources must contain at least one source")
+        for link in chain["sources"]:
+            if not isinstance(link, Mapping) or link.get("role") not in EVIDENCE_ROLES:
+                raise RecordValidationError("evidence_chain source role is invalid")
+        for relationship in chain["relationships"]:
+            if relationship.get("predicate") not in SOURCE_RELATIONSHIPS:
+                raise RecordValidationError("evidence_chain relationship is invalid")
+        score = chain["completeness_score"]
+        if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
+            raise RecordValidationError("evidence_chain.completeness_score must be an integer from 0 to 100")
+
     extensions = record["extensions"]
     if not isinstance(extensions, Mapping):
         raise RecordValidationError("extensions must be an object")

@@ -6,7 +6,7 @@
 - **Record ID:** `measurement:entity-project-5ada7e550380:f71a831661c3`
 - **Created:** 2026-07-16T12:00:00Z
 - **Updated:** 2026-07-16T12:00:00Z
-- **Producer:** Catalyst Data v1.1.0 (python-engine)
+- **Producer:** Catalyst Data v1.3.0 (python-engine)
 
 ## Measurement
 
@@ -27,6 +27,9 @@
 - **Citation:** Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.
 - **Retrieved:** 2026-07-16T11:30:00Z
 - **Checksum:** sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a
+- **Evidence sources:** 2
+- **Evidence completeness:** 100%
+- **Open evidence gaps:** 0
 
 ## Method
 

@@ -108,6 +108,33 @@
     return flags;
   }
 
+  function evidenceChain(source, method, confidence){
+    var gaps = [];
+    function gap(code, severity, description){ gaps.push({code: code, severity: severity, description: description}); }
+    if (!source.citation) gap('missing-citation', 'warning', 'The linked source lacks a citation.');
+    if (!source.license) gap('missing-license', 'warning', 'The linked source lacks license metadata.');
+    if (!source.retrieved_at) gap('missing-retrieval-date', 'warning', 'The linked source lacks a retrieval timestamp.');
+    if (!source.checksum) gap('missing-checksum', 'info', 'The linked source lacks a content checksum.');
+    if (!method.notes) gap('missing-method', 'warning', 'The measurement has no method description.');
+    if (confidence.score < 40) gap('low-confidence', 'warning', 'Confidence is below the evidence-readiness threshold.');
+    var score = 20;
+    if (source.citation) score += 15;
+    if (source.license) score += 10;
+    if (source.retrieved_at) score += 10;
+    if (source.checksum) score += 10;
+    if (method.notes) score += 15;
+    if (confidence.score >= 40) score += 10;
+    score += 5;
+    return {
+      schema_version: recordContract.evidence_contract,
+      sources: [{role: 'primary', source: source, locator: {page: null, section: null, quote: null, fragment: null}, supports: ['measurement.baseline', 'measurement.current'], notes: null}],
+      relationships: [],
+      transformations: [],
+      gaps: gaps,
+      completeness_score: Math.min(score, 100)
+    };
+  }
+
   function buildRecord(values, now){
     var entityName = String(values.entity || '').trim() || 'Unnamed entity';
     var entityType = values.entityType || 'other';
@@ -131,7 +158,17 @@
     var periodId = stableId('period', periodLabel);
     var timestamp = isoDateTime(now || new Date()) || new Date().toISOString().replace('.000Z', 'Z');
     var createdAt = isoDateTime(values.createdAt || timestamp);
-    var confidence = numberValue(values.confidence, 'confidence.score');
+    var confidenceValue = numberValue(values.confidence, 'confidence.score');
+    var sourceRecord = {
+      id: sourceId, name: sourceName, type: values.sourceType || 'unspecified', url: sourceUrl,
+      publisher: sourcePublisher, license: nullableText(values.sourceLicense), retrieved_at: isoDateTime(values.retrievedAt),
+      citation: nullableText(values.citation), checksum: validateChecksum(nullableText(values.checksum)), access_notes: nullableText(values.accessNotes)
+    };
+    var confidenceRecord = {score: confidenceValue, scale: '0-100', basis: nullableText(values.confidenceBasis)};
+    var methodRecord = {
+      notes: String(values.notes || '').trim(), assumptions: textList(values.assumptions), limitations: textList(values.limitations),
+      uncertainty: nullableText(values.uncertainty), quality_flags: qualityFlags(values.qualityFlags)
+    };
 
     return {
       '$schema': recordContract.schema_uri,
@@ -170,35 +207,15 @@
         current: current,
         percent_change: change
       },
-      source: {
-        id: sourceId,
-        name: sourceName,
-        type: values.sourceType || 'unspecified',
-        url: sourceUrl,
-        publisher: sourcePublisher,
-        license: nullableText(values.sourceLicense),
-        retrieved_at: isoDateTime(values.retrievedAt),
-        citation: nullableText(values.citation),
-        checksum: validateChecksum(nullableText(values.checksum)),
-        access_notes: nullableText(values.accessNotes)
-      },
-      confidence: {
-        score: confidence,
-        scale: '0-100',
-        basis: nullableText(values.confidenceBasis)
-      },
+      source: sourceRecord,
+      evidence_chain: evidenceChain(sourceRecord, methodRecord, confidenceRecord),
+      confidence: confidenceRecord,
       review: {
-        status: classifyReview(confidence, sourceName),
+        status: classifyReview(confidenceValue, sourceName),
         signal_status: classifySignal(change, direction),
         reviewer_notes: String(values.reviewerNotes || '').trim()
       },
-      method: {
-        notes: String(values.notes || '').trim(),
-        assumptions: textList(values.assumptions),
-        limitations: textList(values.limitations),
-        uncertainty: nullableText(values.uncertainty),
-        quality_flags: qualityFlags(values.qualityFlags)
-      },
+      method: methodRecord,
       extensions: {
         'org.sustainablecatalyst.demo': {sample: Boolean(values.sample)}
       }

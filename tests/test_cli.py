@@ -51,3 +51,51 @@ def test_legacy_two_argument_cli_is_preserved(tmp_path):
     result = run_cli(ROOT / "examples/sample_project.json", markdown)
     assert result.returncode == 0, result.stdout + result.stderr
     assert markdown.with_suffix(".json").exists()
+
+
+def test_repository_cli_workflow(tmp_path):
+    database = tmp_path / "repository.db"
+    source = tmp_path / "records.json"
+    source.write_text(json.dumps({"records": [json.loads((ROOT / "examples/sample_project.json").read_text(encoding="utf-8"))]}), encoding="utf-8")
+    result = run_cli("init", database)
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = run_cli("import", database, source)
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = run_cli("status", database, "--json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    status = json.loads(result.stdout)
+    assert status["healthy"] is True
+    assert status["record_count"] == 1
+    export = tmp_path / "export.json"
+    result = run_cli("export", database, export)
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(export.read_text(encoding="utf-8"))
+    assert payload["record_count"] == 1
+    result = run_cli("review", database)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Urban Tree Canopy Program" in result.stdout
+
+
+def test_evidence_cli_commands_in_process(tmp_path, capsys):
+    from catalyst_data.cli import main
+    from catalyst_data.importer import ImportService
+    from catalyst_data.repository import CatalystRepository
+
+    database = tmp_path / "evidence.db"
+    repository = CatalystRepository(database)
+    source = tmp_path / "records.json"
+    source.write_text(json.dumps({"records": [json.loads((ROOT / "examples/sample_project.json").read_text(encoding="utf-8"))]}), encoding="utf-8")
+    ImportService(repository).run(source)
+    record = repository.list_records(limit=1)[0]
+
+    assert main(["sources", str(database), "--source-id", record["source"]["id"], "--limit", "1"]) == 0
+    output = capsys.readouterr().out
+    assert "Internal program tracker" in output
+
+    assert main(["provenance", str(database), record["record_id"]]) == 0
+    output = capsys.readouterr().out
+    assert "record_created" in output
+
+    assert main(["evidence", str(database), record["record_id"]]) == 0
+    output = capsys.readouterr().out
+    assert "completeness_score" in output

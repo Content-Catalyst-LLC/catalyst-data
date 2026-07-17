@@ -1,83 +1,112 @@
 # Catalyst Data
 
-Catalyst Data is the canonical evidence and measurement record layer for Sustainable Catalyst. It connects entities, indicators, periods, measurements, sources, confidence, review judgments, and method limitations in a versioned structure that can move safely between applications.
+Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst. It connects canonical records, normalized relational tables, provenance, confidence, review logic, migrations, imports, exports, and local analytical workflows without requiring paid infrastructure.
 
 ## Current release
 
-**v1.1.0 — Canonical Data Contract and Validation Engine**
+**v1.3.0 — Sources, Provenance, and Evidence Chain**
 
-The release introduces `catalyst-data-record/1.0`: a strict, versioned JSON contract with stable identifiers, timestamps, producer metadata, complete source provenance, structured uncertainty, and explicit extension rules.
+The release adds a versioned multi-source evidence system to the persistent repository: immutable source versions and snapshots, append-only record revisions and provenance events, role-bearing evidence links, source relationships, transformation lineage, evidence gaps, and completeness scoring.
 
-## Canonical record
+## Core capabilities
 
-Every canonical record contains:
-
-- `$schema` and `schema_version`
-- stable `record_id`
-- record type, creation time, update time, and producer
-- identified entity, indicator, and period
-- baseline, current value, and derived percentage change
-- source URL, publisher, license, retrieval time, citation, checksum, and access notes
-- confidence score and basis
-- review readiness and signal status
-- method notes, assumptions, limitations, uncertainty, and quality flags
-- namespaced extensions
-
-Unknown core fields are rejected. Extensions must use a namespaced key such as `org.sustainablecatalyst.project`.
+- Strict `catalyst-data-record/1.0` validation.
+- Backward-compatible `catalyst-data-evidence-chain/1.0` records.
+- Multiple evidence sources with primary, supporting, conflicting, derived, and contextual roles.
+- Immutable source versions, snapshots, record revisions, and provenance events.
+- Source relationships, evidence locators, supported fields, and transformation lineage.
+- Derived evidence gaps and deterministic completeness scoring.
+- Stable semantic IDs and payload checksums.
+- SQLite persistence with normalized tables and complete canonical JSON records.
+- Ordered `.up.sql` and `.down.sql` migrations, including populated evidence-history rollback.
+- Automatic evidence-table backfill when an existing v1.2.0 repository reaches migration 003.
+- Idempotent inserts, updates, and duplicate skips.
+- JSON and CSV imports with dry runs and row-level errors.
+- Atomic rollback or controlled partial-import mode.
+- Import-run and imported-record ledgers.
+- JSON and CSV exports.
+- Review queues, repository statistics, integrity checks, and schema-version reporting.
 
 ## Repository contents
 
-- `contracts/record_contract.json` — canonical enums, ID rules, and extension policy.
-- `contracts/review_contract.json` — canonical confidence and signal rules.
-- `schemas/catalyst_data_record_1_0.schema.json` — normative JSON Schema.
-- `python/catalyst_data/` — validation, conversion, typed mappings, and brief generation.
-- `examples/sample_project.json` — v1.0-style authoring input upgraded during build.
-- `examples/sample_legacy_v1_0_record.json` — legacy browser export fixture.
-- `outputs/sample_export.json` — canonical validated export.
-- `wordpress/catalyst-data-demo/` — browser demo that emits the canonical record.
-- `scripts/` — contract generation, deterministic packaging, smoke tests, and release checks.
+- `python/catalyst_data/migrations/` — ordered, reversible SQL migrations.
+- `python/catalyst_data/repository.py` — normalized and canonical record persistence.
+- `python/catalyst_data/importer.py` — JSON/CSV ingestion and import reporting.
+- `python/catalyst_data/exporter.py` — supported repository exports.
+- `python/catalyst_data/service.py` — application service facade.
+- `schemas/` and `contracts/` — canonical record and review contracts.
+- `examples/imports/` — supported JSON and CSV examples.
+- `wordpress/catalyst-data-demo/` — browser-only canonical-record demonstration.
 
-## Python quick start
+## Install
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 pip install -e .
+```
 
+## Persistent repository quick start
+
+```bash
+catalyst-data init catalyst-data.sqlite3
+catalyst-data status catalyst-data.sqlite3
+
+catalyst-data import catalyst-data.sqlite3 examples/imports/records.json --dry-run
+catalyst-data import catalyst-data.sqlite3 examples/imports/records.json
+catalyst-data import catalyst-data.sqlite3 examples/imports/measurements.csv
+
+catalyst-data inspect catalyst-data.sqlite3
+catalyst-data review catalyst-data.sqlite3
+catalyst-data sources catalyst-data.sqlite3
+catalyst-data provenance catalyst-data.sqlite3 RECORD_ID
+catalyst-data evidence catalyst-data.sqlite3 RECORD_ID
+
+catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
+catalyst-data export catalyst-data.sqlite3 outputs/repository-export.csv --format csv
+```
+
+For a partial CSV import that commits valid rows and reports invalid rows:
+
+```bash
+catalyst-data import catalyst-data.sqlite3 records.csv --non-atomic --continue-on-error --summary outputs/import-summary.json
+```
+
+## Migration operations
+
+```bash
+catalyst-data migrate catalyst-data.sqlite3
+catalyst-data rollback catalyst-data.sqlite3 --steps 1
+catalyst-data migrate catalyst-data.sqlite3
+```
+
+Create a backup before rolling back a repository containing important data.
+
+## Record utilities
+
+```bash
 catalyst-data brief examples/sample_project.json outputs/generated_brief.md
 catalyst-data validate outputs/generated_brief.json
 catalyst-data upgrade examples/sample_legacy_v1_0_record.json outputs/upgraded_legacy_record.json
-pytest
 ```
 
-The v1.0.x two-argument brief command remains supported:
-
-```bash
-catalyst-data-brief examples/sample_project.json outputs/generated_brief.md
-```
+The legacy two-positional-argument brief command remains supported.
 
 ## Python API
 
 ```python
-from catalyst_data import build_record, convert_legacy_record, validate_record
+from catalyst_data import CatalystDataService
 
-record = build_record(authoring_payload)
-validate_record(record)
-upgraded = convert_legacy_record(legacy_export)
+service = CatalystDataService("catalyst-data.sqlite3")
+service.initialize()
+summary = service.import_file("examples/imports/records.json")
+service.export_file("outputs/export.json")
 ```
-
-`validate_record` checks the JSON Schema and record formats. `validate_record_semantics` additionally verifies percent change, review readiness, and signal status against their source fields; `build_record` applies both.
 
 ## WordPress demo
 
-Install `dist/catalyst-data-demo.zip`, activate it, and add:
-
-```text
-[catalyst_data_demo]
-```
-
-The demo is local to the browser. It does not send records to a server.
+Install `dist/catalyst-data-demo.zip`, activate it, and add `[catalyst_data_demo]`. The demo remains browser-only and does not write to the SQLite repository.
 
 ## Build and validation
 
@@ -86,17 +115,11 @@ python3 scripts/build_release.py
 python3 scripts/check_release.py
 ```
 
-The release suite checks generated contracts, schema parity, canonical exports, legacy upgrades, SQL review logic, Python tests, browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
-
-## Method path
-
-```text
-entity → indicator → period → measurement → source → confidence → review
-```
+The release suite validates generated contracts, schemas, migrations, rollback/remigration, repository persistence, dry-run behavior, idempotent imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
 
 ## Boundary
 
-Catalyst Data validates structure, provenance fields, and derived contract logic. It does not certify source truth, regulatory compliance, impact, or professional conclusions.
+Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.3.0 does not yet provide institutional authorization or remote APIs.
 
 ## License
 

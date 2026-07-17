@@ -56,6 +56,54 @@ class SourceRecord(TypedDict):
     access_notes: Optional[str]
 
 
+
+
+class EvidenceLocator(TypedDict):
+    page: Optional[str]
+    section: Optional[str]
+    quote: Optional[str]
+    fragment: Optional[str]
+
+
+class EvidenceSourceLink(TypedDict):
+    role: str
+    source: SourceRecord
+    locator: EvidenceLocator
+    supports: List[str]
+    notes: Optional[str]
+
+
+class SourceRelationship(TypedDict):
+    subject_source_id: str
+    predicate: str
+    object_source_id: str
+    notes: Optional[str]
+
+
+class EvidenceTransformation(TypedDict):
+    id: str
+    operation: str
+    description: str
+    software: Optional[str]
+    parameters: Dict[str, Any]
+    occurred_at: Optional[str]
+
+
+class EvidenceGap(TypedDict):
+    code: str
+    severity: str
+    description: str
+
+
+class EvidenceChain(TypedDict):
+    schema_version: str
+    sources: List[EvidenceSourceLink]
+    relationships: List[SourceRelationship]
+    transformations: List[EvidenceTransformation]
+    gaps: List[EvidenceGap]
+    completeness_score: int
+
+
 class ConfidenceRecord(TypedDict):
     score: float
     scale: str
@@ -91,6 +139,7 @@ CatalystDataRecord = TypedDict(
         "period": PeriodRecord,
         "measurement": MeasurementRecord,
         "source": SourceRecord,
+        "evidence_chain": EvidenceChain,
         "confidence": ConfidenceRecord,
         "review": ReviewRecord,
         "method": MethodRecord,

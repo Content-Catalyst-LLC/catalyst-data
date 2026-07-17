@@ -27,6 +27,7 @@ from ._record_contract import (
 )
 from ._version import __version__
 from .validation import RecordValidationError, validate_record
+from .provenance import normalize_evidence_chain, validate_evidence_chain_semantics
 
 
 def _number(value: Any, field: str) -> float:
@@ -305,6 +306,13 @@ def convert_legacy_record(
         },
         "extensions": extensions,
     }
+    record["evidence_chain"] = normalize_evidence_chain(
+        record["source"],
+        payload.get("evidence_chain") or ({"sources": payload.get("sources", [])} if payload.get("sources") else None),
+        method=record["method"],
+        confidence=record["confidence"],
+        occurred_at=updated_at,
+    )
     validate_record_semantics(record)
     validate_record(record)
     return record
@@ -324,17 +332,30 @@ def validate_record_semantics(record: Mapping[str, Any]) -> None:
     expected_signal = classify_signal(actual_change, record["indicator"]["direction"])
     if record["review"]["signal_status"] != expected_signal:
         raise RecordValidationError(f"review.signal_status must be {expected_signal!r}")
+    try:
+        validate_evidence_chain_semantics(record)
+    except ValueError as exc:
+        raise RecordValidationError(str(exc)) from exc
 
 
-def build_record(payload: Mapping[str, Any], *, now: Optional[datetime] = None) -> Dict[str, Any]:
+def build_record(
+    payload: Mapping[str, Any],
+    *,
+    now: Optional[datetime] = None,
+    producer_component: str = "python-engine",
+) -> Dict[str, Any]:
     if not isinstance(payload, Mapping):
         raise ValueError("payload must be an object")
     if is_canonical_record(payload):
         record = deepcopy(dict(payload))
+        if "evidence_chain" not in record:
+            record["evidence_chain"] = normalize_evidence_chain(
+                record["source"], None, method=record["method"], confidence=record["confidence"], occurred_at=record["updated_at"]
+            )
         validate_record(record)
         validate_record_semantics(record)
         return record
-    return convert_legacy_record(payload, now=now, producer_component="python-engine")
+    return convert_legacy_record(payload, now=now, producer_component=producer_component)
 
 
 def validate_payload(payload: Mapping[str, Any]) -> None:
@@ -379,6 +400,9 @@ def brief_markdown(record: Mapping[str, Any]) -> str:
 - **Citation:** {citation}
 - **Retrieved:** {source['retrieved_at'] or 'Not supplied'}
 - **Checksum:** {source['checksum'] or 'Not supplied'}
+- **Evidence sources:** {len(record.get('evidence_chain', {}).get('sources', [source]))}
+- **Evidence completeness:** {record.get('evidence_chain', {}).get('completeness_score', 'Not assessed')}%
+- **Open evidence gaps:** {len(record.get('evidence_chain', {}).get('gaps', []))}
 
 ## Method
 

@@ -34,7 +34,9 @@
     "python-engine",
     "browser-demo",
     "migration-tool",
-    "external"
+    "external",
+    "import-service",
+    "repository-service"
   ],
   "quality_flags": [
     "estimated",
@@ -53,5 +55,52 @@
     "catalyst-data-export/1.0",
     "catalyst-data-export/1.0.1",
     "unversioned-v1.0.x"
+  ],
+  "evidence_contract": "catalyst-data-evidence-chain/1.0",
+  "evidence_roles": [
+    "primary",
+    "supporting",
+    "conflicting",
+    "derived",
+    "contextual"
+  ],
+  "source_relationships": [
+    "corroborates",
+    "conflicts_with",
+    "derived_from",
+    "supersedes",
+    "duplicates",
+    "contextualizes"
+  ],
+  "provenance_event_types": [
+    "record_created",
+    "record_updated",
+    "source_versioned",
+    "source_snapshot_added",
+    "source_linked",
+    "source_unlinked",
+    "transformed",
+    "reviewed",
+    "published",
+    "corrected",
+    "superseded",
+    "imported"
+  ],
+  "evidence_gap_severities": [
+    "info",
+    "warning",
+    "critical"
+  ],
+  "evidence_gap_codes": [
+    "missing-source",
+    "missing-citation",
+    "missing-license",
+    "missing-retrieval-date",
+    "missing-checksum",
+    "missing-method",
+    "low-confidence",
+    "conflicting-evidence",
+    "restricted-source",
+    "stale-source"
   ]
 }

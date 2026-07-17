@@ -12,11 +12,27 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Release archives normalize source timestamps for reproducibility. When an
+# older checkout contains bytecode generated from a same-length version file,
+# CPython can otherwise accept that stale cache after an in-place upgrade.
+# Remove local bytecode and route this process away from repository caches
+# before importing the package. Child checks will then compile clean sources.
+for cache_dir in ROOT.rglob("__pycache__"):
+    shutil.rmtree(cache_dir, ignore_errors=True)
+for bytecode_file in list(ROOT.rglob("*.pyc")) + list(ROOT.rglob("*.pyo")):
+    try:
+        bytecode_file.unlink()
+    except FileNotFoundError:
+        pass
+sys.dont_write_bytecode = True
+sys.pycache_prefix = str(ROOT / ".release-check-pycache")
 sys.path.insert(0, str(ROOT / "python"))
 
 from catalyst_data import (
@@ -28,6 +44,9 @@ from catalyst_data import (
     schema,
     validate_record,
     validate_record_semantics,
+    CatalystRepository,
+    ImportService,
+    discover_migrations,
 )
 
 try:
@@ -55,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.1.0":
+    if version != "1.3.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -81,12 +100,20 @@ def validate_schemas() -> None:
     canonical = json.loads(canonical_path.read_text(encoding="utf-8"))
     if canonical != schema():
         fail("Runtime schema loader differs from canonical schema")
+    evidence_path = ROOT / "schemas/catalyst_data_evidence_chain_1_0.schema.json"
+    evidence_package = ROOT / "python/catalyst_data/schemas/catalyst_data_evidence_chain_1_0.schema.json"
+    if evidence_path.read_bytes() != evidence_package.read_bytes():
+        fail("Packaged evidence-chain schema differs from canonical schema")
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    if evidence.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-evidence-chain/1.0":
+        fail("Evidence-chain schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
         Draft202012Validator.check_schema(canonical)
         export = json.loads((ROOT / "schemas/catalyst_data_export.schema.json").read_text(encoding="utf-8"))
         Draft202012Validator.check_schema(export)
+        Draft202012Validator.check_schema(evidence)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -136,17 +163,64 @@ def validate_sql() -> None:
     connection.close()
 
 
+def validate_repository_pipeline() -> None:
+    migrations = discover_migrations()
+    if [migration.version for migration in migrations] != [1, 2, 3]:
+        fail("Expected contiguous migrations 1, 2, and 3")
+    with tempfile.TemporaryDirectory() as directory:
+        database = Path(directory) / "catalyst-data.sqlite3"
+        repository = CatalystRepository(database)
+        if repository.initialize() != [1, 2, 3]:
+            fail("Fresh repository did not apply migrations 1, 2, and 3")
+        if not repository.health().healthy:
+            fail("Fresh repository health check failed")
+        if repository.rollback(1) != [3]:
+            fail("Migration 3 rollback failed")
+        if repository.migrate() != [3]:
+            fail("Migration 3 reapplication failed")
+        service = ImportService(repository)
+        source = ROOT / "examples/imports/records.json"
+        dry_run = service.run(source, dry_run=True)
+        if dry_run.inserted != 2 or not dry_run.rolled_back or repository.stats()["records"] != 0:
+            fail("Dry-run import did not roll back cleanly")
+        imported = service.run(source)
+        if imported.inserted != 2 or imported.failed:
+            fail("JSON import failed")
+        repeated = service.run(source)
+        if repeated.skipped != 2 or repository.stats()["records"] != 2:
+            fail("Idempotent import contract failed")
+        stats = repository.stats()
+        if stats["source_versions"] < 2 or stats["record_revisions"] != 2 or stats["provenance_events"] < 6:
+            fail("Evidence history was not persisted")
+        first_record = repository.list_records(limit=1)[0]
+        evidence_payload = repository.evidence(first_record["record_id"])
+        if not evidence_payload or not evidence_payload["chain"] or not evidence_payload["provenance"]:
+            fail("Evidence-chain inspection failed")
+        from catalyst_data.exporter import export_repository
+        json_export = Path(directory) / "export.json"
+        csv_export = Path(directory) / "export.csv"
+        if export_repository(repository, json_export, format_name="json") != 2:
+            fail("JSON repository export failed")
+        if export_repository(repository, csv_export, format_name="csv") != 2:
+            fail("CSV repository export failed")
+        payload = json.loads(json_export.read_text(encoding="utf-8"))
+        if payload.get("record_count") != 2:
+            fail("Repository export count is invalid")
+
+
 def validate_python_metadata() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for required in (
         'dependencies = ["jsonschema>=4.21"]',
         'catalyst-data = "catalyst_data.cli:main"',
-        'catalyst_data = ["schemas/*.json"]',
+        'catalyst_data = ["schemas/*.json", "migrations/*.sql"]',
     ):
         if required not in pyproject:
             fail(f"pyproject metadata is missing: {required}")
     if not (ROOT / "python/catalyst_data/types.py").exists():
         fail("Typed record mappings are missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_evidence_chain_1_0.schema.json").exists():
+        fail("Packaged evidence-chain schema is missing")
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
@@ -169,8 +243,15 @@ def validate_plugin_zip(skip_build_check: bool) -> None:
     if skip_build_check:
         return
     original = path.read_bytes()
-    command([sys.executable, "scripts/build_release.py"])
-    rebuilt = path.read_bytes()
+    spec = importlib.util.spec_from_file_location("catalyst_data_build_release", ROOT / "scripts/build_release.py")
+    if spec is None or spec.loader is None:
+        fail("Unable to load deterministic release builder")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with tempfile.TemporaryDirectory() as directory:
+        candidate = Path(directory) / "catalyst-data-demo.zip"
+        module.deterministic_zip(ROOT / "wordpress/catalyst-data-demo", candidate, "catalyst-data-demo")
+        rebuilt = candidate.read_bytes()
     if hashlib.sha256(original).digest() != hashlib.sha256(rebuilt).digest():
         fail("WordPress ZIP is not reproducible or was stale")
 
@@ -178,7 +259,7 @@ def validate_plugin_zip(skip_build_check: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-build-check", action="store_true")
-    parser.add_argument("--portable", action="store_true", help="skip optional Node and PHP checks when unavailable")
+    parser.add_argument("--portable", action="store_true", help="run dependency-light smoke checks for installer environments")
     args = parser.parse_args()
 
     print("STEP: versions", flush=True)
@@ -186,29 +267,39 @@ def main() -> int:
     print("STEP: generated contracts", flush=True)
     command([sys.executable, "scripts/sync_contract.py", "--check"])
     command([sys.executable, "scripts/sync_record_contract.py", "--check"])
+    print("STEP: compile and full tests", flush=True)
+    command([sys.executable, "-m", "compileall", "-q", "python", "scripts", "tests"])
+    if args.portable:
+        print("INFO: portable mode skips the full pytest matrix")
+    elif importlib.util.find_spec("pytest") is not None:
+        pytest_env = os.environ.copy()
+        pytest_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+        # Run pytest before JSON Schema meta-validation. Some jsonschema builds
+        # initialize process-global registries that can delay nested CLI tests.
+        command([sys.executable, "-m", "pytest", "-q"], env=pytest_env)
+    else:
+        print("INFO: pytest unavailable; portable smoke tests will run")
     print("STEP: schemas", flush=True)
     validate_schemas()
     print("STEP: JSON records", flush=True)
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
+    print("STEP: repository migrations, evidence, and imports", flush=True)
+    validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()
-    print("STEP: compile and tests", flush=True)
-    command([sys.executable, "-m", "compileall", "-q", "python", "scripts", "tests"])
+    print("STEP: portable smoke suite", flush=True)
     command([sys.executable, "scripts/smoke_test.py"])
-    if importlib.util.find_spec("pytest") is not None:
-        pytest_env = os.environ.copy()
-        pytest_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
-        command([sys.executable, "-m", "pytest", "-q"], env=pytest_env)
-    else:
-        print("INFO: pytest unavailable; portable smoke tests completed")
     print("STEP: browser and PHP", flush=True)
-    command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-contract.js"], required=not args.portable)
-    command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js"], required=not args.portable)
-    command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-demo.js"], required=not args.portable)
-    command(["node", "scripts/test_browser_contract.js"], required=not args.portable)
-    command(["php", "-l", "wordpress/catalyst-data-demo/catalyst-data-demo.php"], required=not args.portable)
+    if args.portable:
+        print("INFO: portable mode skips optional Node and PHP checks")
+    else:
+        command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-contract.js"])
+        command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js"])
+        command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-demo.js"])
+        command(["node", "scripts/test_browser_contract.js"])
+        command(["php", "-l", "wordpress/catalyst-data-demo/catalyst-data-demo.php"])
     print("STEP: plugin package", flush=True)
     validate_plugin_zip(args.skip_build_check)
     print(f"Catalyst Data v{version} release contract passed.")

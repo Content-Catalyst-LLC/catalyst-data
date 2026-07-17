@@ -1,0 +1,126 @@
+{
+  "records": [
+    {
+      "created_at": "2026-07-16T12:00:00Z",
+      "updated_at": "2026-07-16T12:00:00Z",
+      "entity": {
+        "name": "Urban Tree Canopy Program",
+        "type": "project",
+        "external_ids": {
+          "org.sustainablecatalyst.project": "urban-tree-canopy"
+        }
+      },
+      "indicator": {
+        "name": "Data completeness score",
+        "unit": "score",
+        "direction": "higher",
+        "framework": "Sustainable Catalyst Evidence Readiness",
+        "version": "1.0"
+      },
+      "period": {
+        "label": "2026-Q2",
+        "start_date": "2026-04-01",
+        "end_date": "2026-06-30"
+      },
+      "values": {
+        "baseline": 62,
+        "current": 78
+      },
+      "source": {
+        "name": "Internal program tracker + field verification notes",
+        "type": "internal record",
+        "url": "https://sustainablecatalyst.com/records/urban-tree-canopy-2026-q2",
+        "publisher": "Content Catalyst LLC",
+        "license": "Internal review record",
+        "retrieved_at": "2026-07-16T11:30:00Z",
+        "citation": "Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.",
+        "checksum": "sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a",
+        "access_notes": "Public example derived from a fictional program record."
+      },
+      "confidence": {
+        "score": 72,
+        "basis": "Verified site records plus partial field review."
+      },
+      "method": {
+        "notes": "Current value combines verified site records with program-reported updates.",
+        "assumptions": [
+          "Program-reported site updates use the same completeness rubric as the baseline."
+        ],
+        "limitations": [
+          "Not all sites have independent third-party verification."
+        ],
+        "uncertainty": "Moderate uncertainty remains for unverified sites.",
+        "quality_flags": [
+          "unverified"
+        ]
+      },
+      "reviewer_notes": "Suitable for internal comparison with a visible verification limitation.",
+      "extensions": {
+        "org.sustainablecatalyst.demo": {
+          "sample": true
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-16T12:00:00Z",
+      "updated_at": "2026-07-16T12:00:00Z",
+      "entity": {
+        "name": "Supplier Energy Transition Program",
+        "type": "program",
+        "external_ids": {
+          "org.sustainablecatalyst.program": "supplier-energy-transition"
+        }
+      },
+      "indicator": {
+        "name": "Estimated CO2e avoided",
+        "unit": "tCO2e",
+        "direction": "higher",
+        "framework": "Sustainable Catalyst Impact",
+        "version": "1.0"
+      },
+      "period": {
+        "label": "2026-Q3",
+        "start_date": "2026-07-01",
+        "end_date": "2026-09-30"
+      },
+      "values": {
+        "baseline": 120,
+        "current": 168
+      },
+      "source": {
+        "name": "Supplier energy reports + procurement audit sample",
+        "type": "internal record",
+        "url": "https://sustainablecatalyst.com/records/supplier-energy-2026-q3",
+        "publisher": "Content Catalyst LLC",
+        "license": "Internal review record",
+        "retrieved_at": "2026-07-16T11:30:00Z",
+        "citation": "Content Catalyst LLC. Supplier Energy Transition Program sample, 2026-Q3.",
+        "checksum": "sha256:9d8b74b2b7f8a275b78d0e9412cfad0b4ca8e405c2b31c939b2df01b6c3a80a1",
+        "access_notes": "Public example derived from a fictional program record."
+      },
+      "confidence": {
+        "score": 68,
+        "basis": "Supplier reports sampled against procurement records."
+      },
+      "method": {
+        "notes": "Supplier-reported values were sampled against procurement records.",
+        "assumptions": [
+          "Program-reported site updates use the same completeness rubric as the baseline."
+        ],
+        "limitations": [
+          "Broader third-party verification is required before external claims."
+        ],
+        "uncertainty": "Moderate uncertainty remains for unverified sites.",
+        "quality_flags": [
+          "unverified"
+        ]
+      },
+      "reviewer_notes": "Suitable for internal review with caution.",
+      "extensions": {
+        "org.sustainablecatalyst.demo": {
+          "sample": true
+        }
+      }
+    }
+  ]
+}

@@ -87,10 +87,22 @@ def main() -> int:
     regenerate_examples()
     deterministic_zip(PLUGIN_SOURCE, PLUGIN_ZIP, "catalyst-data-demo")
 
-    if args.check:
-        run(sys.executable, "scripts/check_release.py", "--skip-build-check")
     print(f"built {PLUGIN_ZIP.relative_to(ROOT)}")
     print(f"sha256 {checksum(PLUGIN_ZIP)}")
+    if args.check:
+        # Replace this process and run the dependency-light build verification.
+        # The full source matrix remains available through scripts/check_release.py;
+        # avoiding nested pytest/CLI subprocesses keeps deterministic packaging
+        # reliable in constrained CI and installer environments.
+        os.execv(
+            sys.executable,
+            [
+                sys.executable,
+                str(ROOT / "scripts/check_release.py"),
+                "--portable",
+                "--skip-build-check",
+            ],
+        )
     return 0
 
 

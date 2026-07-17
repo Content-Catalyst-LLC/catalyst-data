@@ -18,6 +18,8 @@ from catalyst_data import (
     classify_review,
     classify_signal,
     convert_legacy_record,
+    CatalystRepository,
+    ImportService,
     percent_change,
     validate_record,
 )
@@ -40,10 +42,13 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.1.0", "producer version failed")
+    check(record["producer"]["version"] == "1.3.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
+    check(record["evidence_chain"]["schema_version"] == "catalyst-data-evidence-chain/1.0", "evidence contract failed")
+    check(len(record["evidence_chain"]["sources"]) == 2, "multi-source evidence failed")
+    check(record["evidence_chain"]["completeness_score"] == 100, "evidence completeness failed")
 
     invalid = deepcopy(record)
     invalid["unexpected"] = True
@@ -62,6 +67,26 @@ def main() -> int:
     validate_record(upgraded)
     check(upgraded["producer"]["component"] == "migration-tool", "legacy producer failed")
     check(upgraded["measurement"]["percent_change"] == 25.0, "legacy derived value failed")
+
+
+    import tempfile
+    with tempfile.TemporaryDirectory() as directory:
+        repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
+        applied = repository.initialize()
+        check(applied == [1, 2, 3], "repository migrations failed")
+        dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
+        check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
+        check(repository.stats()["records"] == 0, "dry run persisted records")
+        imported = ImportService(repository).run(ROOT / "examples/imports/records.json")
+        check(imported.inserted == 2, "repository import failed")
+        repeated = ImportService(repository).run(ROOT / "examples/imports/records.json")
+        check(repeated.skipped == 2, "repository idempotence failed")
+        check(repository.health().healthy, "repository health failed")
+        stats = repository.stats()
+        check(stats["source_versions"] >= 2, "source version history failed")
+        check(stats["record_revisions"] == 2, "record revision history failed")
+        record_id = repository.list_records(limit=1)[0]["record_id"]
+        check(repository.evidence(record_id) is not None, "evidence inspection failed")
 
     database = sqlite3.connect(":memory:")
     database.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))

@@ -1,0 +1,12 @@
+DROP VIEW IF EXISTS low_confidence_measurements;
+DROP VIEW IF EXISTS provenance_gaps;
+DROP VIEW IF EXISTS measurement_review;
+DROP TABLE IF EXISTS indicator_tags;
+DROP TABLE IF EXISTS entity_tags;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS measurement_notes;
+DROP TABLE IF EXISTS measurements;
+DROP TABLE IF EXISTS sources;
+DROP TABLE IF EXISTS periods;
+DROP TABLE IF EXISTS indicators;
+DROP TABLE IF EXISTS entities;
