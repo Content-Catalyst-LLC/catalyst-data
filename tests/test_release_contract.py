@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "1.10.0"
+    assert version == "1.11.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -100,6 +100,14 @@ def test_packaged_connector_operations_schema_matches_canonical_schema():
     assert payload["properties"]["schema_version"]["const"] == "catalyst-data-connector-operations/1.0"
 
 
+def test_packaged_analysis_artifact_schema_matches_canonical_schema():
+    canonical = ROOT / "schemas/catalyst_data_analysis_artifact_1_0.schema.json"
+    packaged = ROOT / "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json"
+    assert canonical.read_bytes() == packaged.read_bytes()
+    payload = json.loads(canonical.read_text(encoding="utf-8"))
+    assert payload["properties"]["schema_version"]["const"] == "catalyst-data-analysis-artifact/1.0"
+
+
 def test_plugin_distribution_contains_both_contract_assets():
     with zipfile.ZipFile(ROOT / "dist/catalyst-data-demo.zip") as archive:
         names = set(archive.namelist())
@@ -110,7 +118,7 @@ def test_plugin_distribution_contains_both_contract_assets():
 
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v1.10.0.md").exists()
+    assert (ROOT / "release/v1.11.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -124,6 +132,7 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/public-api-embeds-handoffs.md").exists()
     assert (ROOT / "docs/institutional-workspaces-access-governance.md").exists()
     assert (ROOT / "docs/connectors-refresh-data-operations.md").exists()
+    assert (ROOT / "docs/analysis-artifacts-reproducible-packages.md").exists()
     assert (ROOT / "openapi/catalyst-data-openapi.json").exists()
 
 def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
@@ -160,4 +169,6 @@ def test_python_package_declares_migration_resources():
         "009_institutional_workspaces_access_governance.up.sql",
         "010_connectors_refresh_data_operations.down.sql",
         "010_connectors_refresh_data_operations.up.sql",
+        "011_analysis_artifacts_reproducible_packages.down.sql",
+        "011_analysis_artifacts_reproducible_packages.up.sql",
     ]

@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.10.0",
-  "module_type": "governed connectors, refresh operations, institutional workspaces, public API, query, review, provenance, lineage, and governed measurements",
+  "version": "1.11.0",
+  "module_type": "reproducible analysis artifacts, governed connectors, institutional workspaces, public API, query, review, provenance, lineage, and measurements",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -49,7 +49,16 @@
     "reconciliation",
     "quarantine",
     "dead letter",
-    "operational alert"
+    "operational alert",
+    "analysis artifact",
+    "analysis version",
+    "frozen analysis run",
+    "frozen input record",
+    "analysis output",
+    "derived measurement lineage",
+    "upstream invalidation event",
+    "replication review",
+    "reproducible analysis package"
   ],
   "wordpress_shortcode": "[catalyst_data_demo] and [catalyst_data_embed api_url=\"https://data.example.org\"]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
@@ -59,7 +68,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Connectors, Refresh, and Data Operations",
+  "release": "Analysis Artifacts and Reproducible Data Packages",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -84,7 +93,9 @@
     "python/catalyst_data/schemas/catalyst_data_access_governance_1_0.schema.json",
     "schemas/catalyst_data_access_governance_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_connector_operations_1_0.schema.json",
-    "schemas/catalyst_data_connector_operations_1_0.schema.json"
+    "schemas/catalyst_data_connector_operations_1_0.schema.json",
+    "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json",
+    "schemas/catalyst_data_analysis_artifact_1_0.schema.json"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -175,7 +186,22 @@
     "connector-dead-letters",
     "connector-dead-letter-replay",
     "connector-alerts",
-    "connector-alert-update"
+    "connector-alert-update",
+    "analysis-register",
+    "analyses",
+    "analysis-show",
+    "analysis-versions",
+    "analysis-activate",
+    "analysis-run",
+    "analysis-runs",
+    "analysis-run-show",
+    "analysis-package",
+    "analysis-packages",
+    "analysis-invalidate",
+    "analysis-invalidation-resolve",
+    "analysis-lineage-add",
+    "analysis-lineage",
+    "analysis-replication-review"
   ],
   "import_formats": [
     "json",
@@ -200,7 +226,10 @@
   "api_version": "v1",
   "access_governance_contract": "catalyst-data-access-governance/1.0",
   "access_governance_schema": "schemas/catalyst_data_access_governance_1_0.schema.json",
-  "current_migration": 10,
+  "current_migration": 11,
   "connector_operations_contract": "catalyst-data-connector-operations/1.0",
-  "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json"
+  "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json",
+  "analysis_artifact_contract": "catalyst-data-analysis-artifact/1.0",
+  "analysis_artifact_schema": "schemas/catalyst_data_analysis_artifact_1_0.schema.json",
+  "reproducible_package_contract": "catalyst-data-reproducible-package/1.0"
 }

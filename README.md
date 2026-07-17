@@ -4,11 +4,17 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.10.0 — Connectors, Refresh, and Data Operations**
+**v1.11.0 — Analysis Artifacts and Reproducible Data Packages**
 
-The release adds governed connector definitions and immutable versions, scheduled or manual refresh runs, source snapshots, change detection, reconciliation, quarantine, dead-letter recovery, freshness and licensing checks, operational alerts, and offline replay without making remote infrastructure mandatory.
+The release freezes exact canonical inputs, parameters, environments, code references, outputs, derived lineage, replication reviews, and invalidation warnings. Deterministic packages preserve the evidence needed to reproduce or independently review an analysis without making Catalyst Data dependent on any single analytical product.
 
 ## Core capabilities
+
+- Versioned analysis artifacts with immutable activations and run history.
+- Frozen canonical inputs, checksums, parameters, environments, and code references.
+- Checksum-bound outputs, derived measurement lineage, and platform artifact links.
+- Automatic upstream-change invalidation warnings without rewriting historical results.
+- Independent replication reviews and deterministic reproducible data packages.
 
 - Governed file and HTTP connectors for JSON and CSV sources.
 - Immutable connector versions with explicit activation history.
@@ -203,7 +209,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.10.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.11.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
 
 ## License
 

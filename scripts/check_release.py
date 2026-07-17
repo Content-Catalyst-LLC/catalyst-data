@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.10.0":
+    if version != "1.11.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -163,6 +163,14 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(handoff_schema)
         Draft202012Validator.check_schema(access_schema)
         Draft202012Validator.check_schema(json.loads((ROOT / "schemas/catalyst_data_connector_operations_1_0.schema.json").read_text(encoding="utf-8")))
+        analysis_schema_path = ROOT / "schemas/catalyst_data_analysis_artifact_1_0.schema.json"
+        analysis_package_path = ROOT / "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json"
+        if analysis_schema_path.read_bytes() != analysis_package_path.read_bytes():
+            fail("Packaged analysis-artifact schema differs from canonical schema")
+        analysis_schema = json.loads(analysis_schema_path.read_text(encoding="utf-8"))
+        if analysis_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-analysis-artifact/1.0":
+            fail("Analysis-artifact schema identifier is invalid")
+        Draft202012Validator.check_schema(analysis_schema)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -195,6 +203,10 @@ def validate_json_files() -> None:
     connector_schema = json.loads(connector_path.read_text(encoding="utf-8"))
     if connector_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-connector-operations/1.0":
         fail("Connector-operations schema identifier is invalid")
+    from catalyst_data.analysis_artifacts import normalize_analysis_definition
+    analysis_definition = json.loads((ROOT / "examples/analyses/evidence_quality_analysis.json").read_text(encoding="utf-8"))
+    if normalize_analysis_definition(analysis_definition)["schema_version"] != "catalyst-data-analysis-artifact/1.0":
+        fail("Analysis-artifact example failed normalization")
     legacy = json.loads((ROOT / "examples/sample_legacy_v1_0_record.json").read_text(encoding="utf-8"))
     upgraded = convert_legacy_record(legacy, now=datetime(2026, 7, 16, 12, 0, tzinfo=timezone.utc))
     saved_upgrade = json.loads((ROOT / "outputs/upgraded_legacy_record.json").read_text(encoding="utf-8"))
@@ -221,19 +233,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-        fail("Expected contiguous migrations 1 through 10")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+        fail("Expected contiguous migrations 1 through 11")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-            fail("Fresh repository did not apply migrations 1 through 10")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+            fail("Fresh repository did not apply migrations 1 through 11")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [10]:
-            fail("Migration 10 rollback failed")
-        if repository.migrate() != [10]:
-            fail("Migration 10 reapplication failed")
+        if repository.rollback(1) != [11]:
+            fail("Migration 11 rollback failed")
+        if repository.migrate() != [11]:
+            fail("Migration 11 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -340,6 +352,23 @@ def validate_repository_pipeline() -> None:
             fail("Connector offline replay failed")
         if repository.stats()["connector_runs"] < 3 or not connector_service.versions(connector_definition["connector_id"]):
             fail("Connector operational history was not persisted")
+        from catalyst_data.analysis_artifacts import AnalysisArtifactService
+        analysis_service = AnalysisArtifactService(repository)
+        analysis_definition = json.loads((ROOT / "examples/analyses/evidence_quality_analysis.json").read_text(encoding="utf-8"))
+        analysis_definition["inputs"]["record_ids"] = [item["record_id"] for item in repository.list_records(limit=2)]
+        analysis_definition["inputs"]["roles"] = {}
+        analysis_service.register(analysis_definition, actor="principal:system")
+        analysis_run = analysis_service.run(analysis_definition["artifact_id"], actor="principal:system")
+        if analysis_run["status"] != "completed" or len(analysis_run["inputs"]) != 2:
+            fail("Analysis run did not freeze canonical inputs")
+        analysis_bundle = Path(directory) / "analysis-package.zip"
+        first_package = analysis_service.export_package(analysis_run["run_id"], analysis_bundle)
+        first_package_bytes = analysis_bundle.read_bytes()
+        analysis_service.export_package(analysis_run["run_id"], analysis_bundle)
+        if first_package_bytes != analysis_bundle.read_bytes() or not first_package["package_sha256"]:
+            fail("Reproducible analysis package is not deterministic")
+        if repository.stats()["analysis_runs"] != 1 or repository.stats()["analysis_package_exports"] != 1:
+            fail("Analysis artifact history was not persisted")
         from catalyst_data.public_api import ApiRegistry, openapi_document, public_projection
         from catalyst_data.handoff import create_handoff, validate_handoff
         api_key = ApiRegistry(repository).create_key("release-check", ["records:write", "handoffs:write"])
@@ -348,7 +377,7 @@ def validate_repository_pipeline() -> None:
         projected = public_projection(repository.get_record(record_id))
         if projected["review_workflow"]["assigned_reviewers"] or projected["review_workflow"]["decisions"]:
             fail("Public projection leaked internal review actors")
-        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.10.0")
+        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.11.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         if receipt["status"] != "accepted" or repository.stats()["handoff_receipts"] != 1:
@@ -384,6 +413,10 @@ def validate_python_metadata() -> None:
         fail("Packaged access-governance schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_connector_operations_1_0.schema.json").exists():
         fail("Packaged connector-operations schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json").exists():
+        fail("Packaged analysis-artifact schema is missing")
+    if not (ROOT / "python/catalyst_data/migrations/011_analysis_artifacts_reproducible_packages.up.sql").exists():
+        fail("Migration 011 is missing from the package")
     from catalyst_data.public_api import openapi_document
     static_openapi = json.loads((ROOT / "openapi/catalyst-data-openapi.json").read_text(encoding="utf-8"))
     if static_openapi != openapi_document("http://127.0.0.1:8765"):
@@ -455,8 +488,11 @@ def main() -> int:
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
-    print("STEP: repository migrations, connectors, API, handoffs, queries, exports, review, lineage, governance, evidence, and imports", flush=True)
-    validate_repository_pipeline()
+    print("STEP: repository migrations, analyses, connectors, API, handoffs, queries, exports, review, lineage, governance, evidence, and imports", flush=True)
+    if args.portable:
+        print("INFO: portable repository coverage completed by scripts/smoke_test.py")
+    else:
+        validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()
     print("STEP: browser and PHP", flush=True)

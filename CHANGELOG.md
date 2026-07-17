@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.11.0 — Analysis Artifacts and Reproducible Data Packages
+
+- Added `catalyst-data-analysis-artifact/1.0` and migration 011.
+- Added immutable analysis versions, activations, frozen runs, inputs, outputs, derived lineage, platform links, replication reviews, and package export history.
+- Added automatic upstream-record invalidation warnings while preserving historical input snapshots.
+- Added deterministic ZIP and directory packages with manifests, provenance, review history, outputs, and SHA-256 checksums.
+- Added analysis registration, run, package, invalidation, lineage, and replication CLI workflows.
+- Added isolated package, populated rollback, upgrade, and reproducibility validation.
+
 ## 1.10.0 — Connectors, Refresh, and Data Operations
 
 - Added `catalyst-data-connector-operations/1.0`.

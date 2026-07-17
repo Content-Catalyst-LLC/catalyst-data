@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.10.0", "producer version failed")
+    check(record["producer"]["version"] == "1.11.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -82,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -137,11 +137,24 @@ def main() -> int:
         check(connector_repeat["run"]["skipped_count"] == 2, "connector idempotence failed")
         connector_replay = connectors.replay(connector_run["run"]["run_id"])
         check(connector_replay["run"]["trigger_type"] == "replay", "connector replay failed")
+        from catalyst_data.analysis_artifacts import AnalysisArtifactService
+        analyses = AnalysisArtifactService(repository)
+        definition = json.loads((ROOT / "examples/analyses/evidence_quality_analysis.json").read_text(encoding="utf-8"))
+        definition["inputs"]["record_ids"] = [item["record_id"] for item in repository.list_records(limit=2)]
+        definition["inputs"]["roles"] = {}
+        analyses.register(definition)
+        analysis_run = analyses.run(definition["artifact_id"])
+        check(analysis_run["status"] == "completed" and len(analysis_run["inputs"]) == 2, "analysis run failed")
+        analysis_package = Path(directory) / "analysis-package.zip"
+        first_package = analyses.export_package(analysis_run["run_id"], analysis_package)
+        first_bytes = analysis_package.read_bytes()
+        analyses.export_package(analysis_run["run_id"], analysis_package)
+        check(first_bytes == analysis_package.read_bytes() and bool(first_package["package_sha256"]), "analysis package reproducibility failed")
         from catalyst_data.public_api import ApiRegistry, public_projection, openapi_document
         from catalyst_data.handoff import create_handoff, validate_handoff
         key = ApiRegistry(repository).create_key("smoke", ["records:write", "handoffs:write"])
         check(key["token"].startswith("cd_"), "API key creation failed")
-        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.10.0")
+        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.11.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         check(receipt["status"] == "accepted", "handoff receipt failed")

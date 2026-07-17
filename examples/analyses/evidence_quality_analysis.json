@@ -1,0 +1,65 @@
+{
+  "schema_version": "catalyst-data-analysis-artifact/1.0",
+  "artifact_id": "analysis:evidence-quality-summary",
+  "workspace_id": "workspace:default",
+  "project_id": null,
+  "name": "Evidence Quality Summary",
+  "description": "Freeze approved evidence records and produce a reproducible summary package for review and publication.",
+  "analysis_type": "analysis",
+  "version": "1.0",
+  "inputs": {
+    "record_ids": [
+      "measurement:entity-project-5ada7e550380:f71a831661c3",
+      "measurement:entity-program-cf66798049a0:5eb8c3e82bfa"
+    ],
+    "roles": {
+      "measurement:entity-project-5ada7e550380:f71a831661c3": "input",
+      "measurement:entity-program-cf66798049a0:5eb8c3e82bfa": "comparison"
+    }
+  },
+  "parameters": {
+    "rounding_digits": 2,
+    "include_review_history": true
+  },
+  "environment": {
+    "runtime": "Python 3.12",
+    "dependencies": ["catalyst-data==1.11.0"],
+    "container": null,
+    "hardware": "CPU",
+    "notes": "The core package remains local-first and does not require paid infrastructure."
+  },
+  "code_reference": {
+    "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
+    "revision": "v1.11.0",
+    "path": "examples/analyses/evidence_quality_analysis.json",
+    "entrypoint": "catalyst-data analysis-run",
+    "checksum": null
+  },
+  "outputs": [
+    {
+      "name": "analysis-summary.json",
+      "output_type": "document",
+      "media_type": "application/json",
+      "description": "Generated measurement summary and run metadata."
+    }
+  ],
+  "platform_links": [
+    {
+      "product": "decision-studio",
+      "capability": "decision-evidence",
+      "external_artifact_id": null,
+      "uri": null,
+      "relation": "consumed-by",
+      "metadata": {}
+    },
+    {
+      "product": "catalyst-analytics-r",
+      "capability": "reproducible-analysis",
+      "external_artifact_id": null,
+      "uri": null,
+      "relation": "produced-by",
+      "metadata": {}
+    }
+  ],
+  "extensions": {}
+}

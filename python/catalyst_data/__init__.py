@@ -28,6 +28,10 @@ from .connectors import (
     ConnectorService, ConnectorValidationError, connector_schema, map_source_row,
     normalize_connector_definition, schema_fingerprint,
 )
+from .analysis_artifacts import (
+    ANALYSIS_SCHEMA_VERSION, PACKAGE_SCHEMA_VERSION, AnalysisArtifactError,
+    AnalysisArtifactService, normalize_analysis_definition,
+)
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
 from .service import CatalystDataService
@@ -46,6 +50,8 @@ __all__ = [
     "CONNECTOR_CONTRACT", "ConnectorError", "ConnectorFetchError", "ConnectorRateLimited",
     "ConnectorService", "ConnectorValidationError", "connector_schema", "map_source_row",
     "normalize_connector_definition", "schema_fingerprint",
+    "ANALYSIS_SCHEMA_VERSION", "PACKAGE_SCHEMA_VERSION", "AnalysisArtifactError",
+    "AnalysisArtifactService", "normalize_analysis_definition",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",

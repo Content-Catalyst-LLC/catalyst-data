@@ -141,13 +141,13 @@ def test_repository_resynchronizes_observation_values_on_measurement_update(tmp_
 def test_migration_five_backfills_v14_record(tmp_path):
     repository = CatalystRepository(tmp_path / "upgrade.sqlite3")
     repository.initialize(); record = sample_record(); repository.upsert_record(record)
-    assert repository.rollback(6) == [10, 9, 8, 7, 6, 5]
+    assert repository.rollback(7) == [11, 10, 9, 8, 7, 6, 5]
     with connect(repository.path) as connection:
         payload = json.loads(connection.execute("SELECT payload_json FROM data_records WHERE record_id=?", (record["record_id"],)).fetchone()[0])
         payload.pop("observation_lineage", None)
         connection.execute("UPDATE data_records SET payload_json=? WHERE record_id=?", (json.dumps(payload, sort_keys=True, separators=(",", ":")), record["record_id"]))
         connection.commit()
-    assert repository.migrate() == [5, 6, 7, 8, 9, 10]
+    assert repository.migrate() == [5, 6, 7, 8, 9, 10, 11]
     stored = repository.get_record(record["record_id"])
     assert stored and stored["observation_lineage"]["schema_version"] == "catalyst-data-observation-lineage/1.0"
     assert repository.stats()["observations"] == 2
@@ -156,11 +156,11 @@ def test_migration_five_backfills_v14_record(tmp_path):
 def test_populated_migration_five_rolls_back_and_reapplies(tmp_path):
     repository = CatalystRepository(tmp_path / "rollback.sqlite3")
     repository.initialize(); repository.upsert_record(sample_record())
-    assert repository.rollback(6) == [10, 9, 8, 7, 6, 5]
+    assert repository.rollback(7) == [11, 10, 9, 8, 7, 6, 5]
     with connect(repository.path) as connection:
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='observations'").fetchone() is None
         assert connection.execute("SELECT COUNT(*) FROM data_records").fetchone()[0] == 1
-    assert repository.migrate() == [5, 6, 7, 8, 9, 10]
+    assert repository.migrate() == [5, 6, 7, 8, 9, 10, 11]
     assert repository.stats()["observations"] == 2
 
 

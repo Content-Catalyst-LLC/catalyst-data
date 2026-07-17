@@ -162,13 +162,13 @@ def test_repository_compare_and_convert(tmp_path):
 def test_migration_four_backfills_v13_record(tmp_path):
     repository = CatalystRepository(tmp_path / "upgrade.sqlite3")
     repository.initialize(); record = sample_record(); repository.upsert_record(record)
-    assert repository.rollback(7) == [10, 9, 8, 7, 6, 5, 4]
+    assert repository.rollback(8) == [11, 10, 9, 8, 7, 6, 5, 4]
     with connect(repository.path) as connection:
         payload = json.loads(connection.execute("SELECT payload_json FROM data_records WHERE record_id=?", (record["record_id"],)).fetchone()[0])
         payload.pop("indicator_governance", None)
         connection.execute("UPDATE data_records SET payload_json=? WHERE record_id=?", (json.dumps(payload, sort_keys=True, separators=(",", ":")), record["record_id"]))
         connection.commit()
-    assert repository.migrate() == [4, 5, 6, 7, 8, 9, 10]
+    assert repository.migrate() == [4, 5, 6, 7, 8, 9, 10, 11]
     stored = repository.get_record(record["record_id"])
     assert stored and stored["indicator_governance"]["schema_version"] == "catalyst-data-indicator-governance/1.0"
     assert repository.stats()["indicator_versions"] == 1

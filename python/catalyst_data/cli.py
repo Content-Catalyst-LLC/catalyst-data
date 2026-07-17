@@ -16,6 +16,7 @@ from .public_api import ApiRegistry, openapi_document, serve
 from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService, normalize_connector_definition
+from .analysis_artifacts import AnalysisArtifactError, AnalysisArtifactService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -363,6 +364,51 @@ def parser() -> argparse.ArgumentParser:
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=Path); handoff_receipts.add_argument("--limit", type=int, default=100)
 
+    analysis_register = subparsers.add_parser("analysis-register", help="register or version a reproducible analysis artifact")
+    analysis_register.add_argument("database", type=Path); analysis_register.add_argument("definition", type=Path); analysis_register.add_argument("--actor", default="principal:system"); analysis_register.add_argument("--no-activate", action="store_true")
+
+    analyses = subparsers.add_parser("analyses", help="list analysis artifacts")
+    analyses.add_argument("database", type=Path); analyses.add_argument("--workspace-id"); analyses.add_argument("--status", choices=("draft","active","completed","failed","invalidated","superseded","archived"))
+
+    analysis_show = subparsers.add_parser("analysis-show", help="show one analysis artifact")
+    analysis_show.add_argument("database", type=Path); analysis_show.add_argument("artifact_id")
+
+    analysis_versions = subparsers.add_parser("analysis-versions", help="list immutable analysis versions")
+    analysis_versions.add_argument("database", type=Path); analysis_versions.add_argument("artifact_id")
+
+    analysis_activate = subparsers.add_parser("analysis-activate", help="activate an immutable analysis version")
+    analysis_activate.add_argument("database", type=Path); analysis_activate.add_argument("artifact_id"); analysis_activate.add_argument("version"); analysis_activate.add_argument("--actor", default="principal:system")
+
+    analysis_run = subparsers.add_parser("analysis-run", help="freeze inputs and record a reproducible analysis run")
+    analysis_run.add_argument("database", type=Path); analysis_run.add_argument("artifact_id"); analysis_run.add_argument("--record-id", action="append", dest="record_ids"); analysis_run.add_argument("--parameters", type=Path); analysis_run.add_argument("--output", type=Path, action="append", dest="outputs"); analysis_run.add_argument("--actor", default="principal:system")
+
+    analysis_runs = subparsers.add_parser("analysis-runs", help="list analysis run history")
+    analysis_runs.add_argument("database", type=Path); analysis_runs.add_argument("--artifact-id"); analysis_runs.add_argument("--status", choices=("queued","running","completed","failed","invalidated","superseded","cancelled")); analysis_runs.add_argument("--limit", type=int, default=100)
+
+    analysis_run_show = subparsers.add_parser("analysis-run-show", help="show a run, frozen inputs, outputs, and warnings")
+    analysis_run_show.add_argument("database", type=Path); analysis_run_show.add_argument("run_id"); analysis_run_show.add_argument("--include-payloads", action="store_true")
+
+    analysis_package = subparsers.add_parser("analysis-package", help="create a deterministic reproducible analysis package")
+    analysis_package.add_argument("database", type=Path); analysis_package.add_argument("run_id"); analysis_package.add_argument("output", type=Path); analysis_package.add_argument("--actor", default="principal:system")
+
+    analysis_packages = subparsers.add_parser("analysis-packages", help="list analysis package export history")
+    analysis_packages.add_argument("database", type=Path); analysis_packages.add_argument("--run-id")
+
+    analysis_invalidate = subparsers.add_parser("analysis-invalidate", help="detect changed or missing upstream records")
+    analysis_invalidate.add_argument("database", type=Path); analysis_invalidate.add_argument("--run-id")
+
+    analysis_invalidation_resolve = subparsers.add_parser("analysis-invalidation-resolve", help="append an invalidation resolution")
+    analysis_invalidation_resolve.add_argument("database", type=Path); analysis_invalidation_resolve.add_argument("invalidation_id"); analysis_invalidation_resolve.add_argument("action", choices=("acknowledged","rerun","accepted","resolved")); analysis_invalidation_resolve.add_argument("--actor", required=True); analysis_invalidation_resolve.add_argument("--notes")
+
+    analysis_lineage_add = subparsers.add_parser("analysis-lineage-add", help="link a derived record to source records and an analysis run")
+    analysis_lineage_add.add_argument("database", type=Path); analysis_lineage_add.add_argument("run_id"); analysis_lineage_add.add_argument("derived_record_id"); analysis_lineage_add.add_argument("source_record_ids", nargs="+"); analysis_lineage_add.add_argument("--transformation", type=Path); analysis_lineage_add.add_argument("--output-id"); analysis_lineage_add.add_argument("--actor", default="principal:system")
+
+    analysis_lineage = subparsers.add_parser("analysis-lineage", help="inspect derived measurement lineage")
+    analysis_lineage.add_argument("database", type=Path); analysis_lineage.add_argument("record_id")
+
+    analysis_replication = subparsers.add_parser("analysis-replication-review", help="append an independent replication review")
+    analysis_replication.add_argument("database", type=Path); analysis_replication.add_argument("run_id"); analysis_replication.add_argument("status", choices=("pending","confirmed","partial","failed","not-reproducible")); analysis_replication.add_argument("reviewer"); analysis_replication.add_argument("--notes"); analysis_replication.add_argument("--evidence", type=Path); analysis_replication.add_argument("--reproduced-run-id")
+
     return result
 
 
@@ -394,7 +440,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -688,6 +734,40 @@ def main(argv: Sequence[str] | None = None) -> int:
             repository.initialize(); result=ApiRegistry(repository).receive_handoff(read_handoff(args.input)); print(json.dumps(result,indent=2)); return 0
         if args.command == "handoff-receipts":
             repository.initialize(); print(json.dumps(ApiRegistry(repository).receipts(args.limit),indent=2)); return 0
+        if args.command == "analysis-register":
+            print(json.dumps(AnalysisArtifactService(repository).register(_read(args.definition),actor=args.actor,activate=not args.no_activate),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analyses":
+            print(json.dumps(AnalysisArtifactService(repository).list(workspace_id=args.workspace_id,status=args.status),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-show":
+            print(json.dumps(AnalysisArtifactService(repository).get(args.artifact_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-versions":
+            print(json.dumps(AnalysisArtifactService(repository).versions(args.artifact_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-activate":
+            print(json.dumps(AnalysisArtifactService(repository).activate_version(args.artifact_id,args.version,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-run":
+            parameters=_read(args.parameters) if args.parameters else None
+            outputs=[{"name":path.name,"path":str(path),"output_type":"document"} for path in (args.outputs or [])]
+            print(json.dumps(AnalysisArtifactService(repository).run(args.artifact_id,record_ids=args.record_ids,parameters=parameters,outputs=outputs,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-runs":
+            print(json.dumps(AnalysisArtifactService(repository).runs(artifact_id=args.artifact_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-run-show":
+            print(json.dumps(AnalysisArtifactService(repository).run_details(args.run_id,include_payloads=args.include_payloads),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-package":
+            print(json.dumps(AnalysisArtifactService(repository).export_package(args.run_id,args.output,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-packages":
+            print(json.dumps(AnalysisArtifactService(repository).packages(args.run_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-invalidate":
+            print(json.dumps(AnalysisArtifactService(repository).detect_invalidations(args.run_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-invalidation-resolve":
+            print(json.dumps(AnalysisArtifactService(repository).resolve_invalidation(args.invalidation_id,args.action,actor=args.actor,notes=args.notes),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-lineage-add":
+            transformation=_read(args.transformation) if args.transformation else None
+            print(json.dumps(AnalysisArtifactService(repository).add_derived_lineage(args.run_id,args.derived_record_id,args.source_record_ids,transformation=transformation,output_id=args.output_id,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-lineage":
+            print(json.dumps(AnalysisArtifactService(repository).derived_lineage(args.record_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "analysis-replication-review":
+            evidence=_read(args.evidence) if args.evidence else None
+            print(json.dumps(AnalysisArtifactService(repository).add_replication_review(args.run_id,args.status,args.reviewer,notes=args.notes,evidence=evidence,reproduced_run_id=args.reproduced_run_id),indent=2,ensure_ascii=False)); return 0
         return 2
     except ImportPipelineError as exc:
         payload = exc.summary.to_dict()
@@ -695,7 +775,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

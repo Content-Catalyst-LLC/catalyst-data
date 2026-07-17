@@ -29,13 +29,13 @@ def fixture_definition(tmp_path: Path) -> tuple[dict, Path]:
 
 def test_migration_ten_is_reversible_with_existing_records(tmp_path):
     repository = CatalystRepository(tmp_path / "migration.db")
-    repository.initialize()
+    repository.initialize(target=10)
     assert repository.health().migration_version == 10
     assert repository.rollback(1) == [10]
     with connect(repository.path) as connection:
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='connector_definitions'").fetchone() is None
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='workspaces'").fetchone() is not None
-    assert repository.migrate() == [10]
+    assert repository.migrate(target=10) == [10]
 
 
 def test_connector_versions_are_immutable_and_activation_is_append_only(tmp_path):
