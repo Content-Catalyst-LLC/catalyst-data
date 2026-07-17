@@ -32,7 +32,7 @@ def main() -> int:
         if kind == "view" and name in EXCLUDED_VIEWS:
             continue
         statements.append(sql.rstrip(";") + ";")
-    text = "-- Catalyst Data v1.5.0 current schema snapshot\n-- Repository initialization uses ordered migrations in python/catalyst_data/migrations.\nPRAGMA foreign_keys = ON;\nBEGIN TRANSACTION;\n" + "\n\n".join(statements) + "\nCOMMIT;\n\n" + generated_sql(load_contract()) + "\n"
+    text = "-- Catalyst Data v1.6.0 current schema snapshot\n-- Repository initialization uses ordered migrations in python/catalyst_data/migrations.\nPRAGMA foreign_keys = ON;\nBEGIN TRANSACTION;\n" + "\n\n".join(statements) + "\nCOMMIT;\n\n" + generated_sql(load_contract()) + "\n"
     (ROOT / "schema.sql").write_text(text, encoding="utf-8")
     print("wrote schema.sql")
     return 0

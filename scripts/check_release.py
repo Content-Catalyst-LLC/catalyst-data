@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.5.0":
+    if version != "1.6.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -121,6 +121,13 @@ def validate_schemas() -> None:
     lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
     if lineage.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-observation-lineage/1.0":
         fail("Observation-lineage schema identifier is invalid")
+    workflow_path = ROOT / "schemas/catalyst_data_review_workflow_1_0.schema.json"
+    workflow_package = ROOT / "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json"
+    if workflow_path.read_bytes() != workflow_package.read_bytes():
+        fail("Packaged review-workflow schema differs from canonical schema")
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    if workflow.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-review-workflow/1.0":
+        fail("Review-workflow schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
@@ -129,6 +136,8 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(export)
         Draft202012Validator.check_schema(evidence)
         Draft202012Validator.check_schema(governance)
+        Draft202012Validator.check_schema(lineage)
+        Draft202012Validator.check_schema(workflow)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -180,19 +189,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5]:
-        fail("Expected contiguous migrations 1 through 5")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6]:
+        fail("Expected contiguous migrations 1 through 6")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5]:
-            fail("Fresh repository did not apply migrations 1 through 5")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6]:
+            fail("Fresh repository did not apply migrations 1 through 6")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [5]:
-            fail("Migration 5 rollback failed")
-        if repository.migrate() != [5]:
-            fail("Migration 5 reapplication failed")
+        if repository.rollback(1) != [6]:
+            fail("Migration 6 rollback failed")
+        if repository.migrate() != [6]:
+            fail("Migration 6 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -211,6 +220,8 @@ def validate_repository_pipeline() -> None:
             fail("Indicator governance history was not persisted")
         if stats["questions"] < 2 or stats["instruments"] < 2 or stats["datasets"] < 2 or stats["observations"] < 2:
             fail("Observation lineage was not persisted")
+        if stats["review_cases"] != 2 or stats["quality_assessments"] != 2 or stats["revision_diffs"] != 2:
+            fail("Review workflow was not persisted")
         first = repository.list_records(limit=1)[0]
         indicator_id = first["indicator"]["id"]
         if not repository.indicator_registry(indicator_id):
@@ -229,6 +240,16 @@ def validate_repository_pipeline() -> None:
         lineage_payload = repository.lineage(first_record["record_id"])
         if not lineage_payload or not lineage_payload["lineage"] or not lineage_payload["events"]:
             fail("Observation-lineage inspection failed")
+        record_id = first_record["record_id"]
+        repository.assign_review(record_id, "reviewer@example.org", "author@example.org")
+        repository.submit_review(record_id, "author@example.org", "Ready for independent review")
+        repository.start_review(record_id, "reviewer@example.org")
+        repository.decide_review(record_id, "approved", "reviewer@example.org", reason="Evidence and method are sufficient")
+        review_payload = repository.review_history(record_id)
+        if not review_payload or not review_payload["decisions"] or not review_payload["approval_snapshots"]:
+            fail("Review history or approval snapshot persistence failed")
+        if repository.get_record(record_id)["review_workflow"]["publication_gate"]["status"] != "external":
+            fail("Approved record did not receive an external publication gate")
         from catalyst_data.exporter import export_repository
         json_export = Path(directory) / "export.json"
         csv_export = Path(directory) / "export.csv"
@@ -258,6 +279,8 @@ def validate_python_metadata() -> None:
         fail("Packaged indicator-governance schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json").exists():
         fail("Packaged observation-lineage schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json").exists():
+        fail("Packaged review-workflow schema is missing")
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
@@ -297,6 +320,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-build-check", action="store_true")
     parser.add_argument("--portable", action="store_true", help="run dependency-light smoke checks for installer environments")
+    parser.add_argument("--skip-compile", action="store_true", help="skip compileall when the caller already ran the full source suite")
     args = parser.parse_args()
 
     print("STEP: versions", flush=True)
@@ -305,7 +329,10 @@ def main() -> int:
     command([sys.executable, "scripts/sync_contract.py", "--check"])
     command([sys.executable, "scripts/sync_record_contract.py", "--check"])
     print("STEP: compile and portable smoke suite", flush=True)
-    command([sys.executable, "-m", "compileall", "-q", "python", "scripts", "tests"])
+    if args.skip_compile:
+        print("INFO: compileall already covered by the calling release suite")
+    else:
+        command([sys.executable, "-m", "compileall", "-q", "python", "scripts", "tests"])
     # Run the dependency-light child process before pytest and repository
     # validation initialize process-global schema and SQLite state. This keeps
     # the full validator as reliable as the portable installer path.
@@ -320,7 +347,7 @@ def main() -> int:
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
-    print("STEP: repository migrations, lineage, governance, evidence, and imports", flush=True)
+    print("STEP: repository migrations, review, lineage, governance, evidence, and imports", flush=True)
     validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()

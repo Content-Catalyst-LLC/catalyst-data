@@ -1,6 +1,6 @@
 # Catalyst Data Demo
 
-Version 1.5.0 emits the canonical `catalyst-data-record/1.0` structure in the browser.
+Version 1.6.0 emits the canonical `catalyst-data-record/1.0` structure in the browser.
 
 Use shortcode:
 

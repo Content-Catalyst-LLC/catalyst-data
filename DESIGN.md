@@ -14,6 +14,7 @@ It exists to answer these practical questions:
 8. Which repository, migration, and import run stored or changed the record?
 9. Which governed indicator, unit, methodology version, framework mapping, and compatibility rules define whether records can be compared?
 10. Which question, instrument, dataset version, batch, observation, and transformation produced the measurement?
+11. Which reviewer assessed the record, which quality dimensions were considered, and which immutable payload was approved?
 
 ## Contract architecture
 
@@ -22,6 +23,7 @@ It exists to answer these practical questions:
 - `schemas/catalyst_data_record_1_0.schema.json` is the normative exchange schema.
 - `schemas/catalyst_data_indicator_governance_1_0.schema.json` governs indicator definitions, units, methodologies, mappings, and comparability metadata.
 - `schemas/catalyst_data_observation_lineage_1_0.schema.json` governs questions, collection instruments, datasets, batches, observations, and transformations.
+- `schemas/catalyst_data_review_workflow_1_0.schema.json` governs review states, assignments, decisions, quality assessments, publication gates, and revision metadata.
 - Python and browser artifacts are generated from those contracts.
 - Cross-field semantic validation verifies derived percentage change and review judgments.
 
@@ -54,10 +56,14 @@ Migration 004 separates stable indicator identities from immutable indicator and
 
 Migration 005 separates stable question, instrument, dataset, batch, and observation identities from versioned instrument and dataset definitions. Measurement links preserve which observations were used, and append-only lineage events record each linkage and transformation.
 
+## Review and revision architecture
+
+Migration 006 adds a current review case for each canonical record and append-only histories for decisions, comments, quality assessments, approval snapshots, and semantic revision diffs. Publication gates are derived from workflow state, evidence readiness, and quality. An approval snapshot preserves the exact canonical payload checksum reviewed by the approving actor.
+
 ## Extension boundary
 
 The core schema rejects unknown fields. Product-specific metadata belongs under namespaced `extensions` keys so integrations can add context without mutating the canonical meaning of core fields.
 
 ## Scope boundary
 
-v1.5.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review, and question-to-observation lineage. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.
+v1.6.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review, question-to-observation lineage, attributable review, quality assessment, immutable approval snapshots, and semantic revision history. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.

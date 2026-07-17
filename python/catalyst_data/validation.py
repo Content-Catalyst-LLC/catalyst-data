@@ -33,6 +33,12 @@ from ._record_contract import (
     DATASET_ACCESS_LEVELS,
     OBSERVATION_ROLES,
     OBSERVATION_QUALITY_STATUSES,
+    REVIEW_WORKFLOW_CONTRACT,
+    REVIEW_STATES,
+    REVIEW_PRIORITIES,
+    REVIEW_DECISION_TYPES,
+    PUBLICATION_GATE_STATUSES,
+    QUALITY_DIMENSIONS,
 )
 from ._contract import DIRECTIONS, REVIEW_STATUSES, SIGNAL_STATUSES
 
@@ -72,7 +78,7 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         "producer", "entity", "indicator", "period", "measurement", "source", "confidence",
         "review", "method", "extensions"
     }
-    unknown = set(record) - (required | {"evidence_chain", "indicator_governance", "observation_lineage"})
+    unknown = set(record) - (required | {"evidence_chain", "indicator_governance", "observation_lineage", "review_workflow"})
     missing = required - set(record)
     if missing:
         raise RecordValidationError(f"record is missing required fields: {', '.join(sorted(missing))}")
@@ -200,6 +206,28 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         except (KeyError, TypeError, ValueError) as exc:
             raise RecordValidationError(str(exc)) from exc
 
+    workflow = record.get("review_workflow")
+    if workflow is not None:
+        if not isinstance(workflow, Mapping) or workflow.get("schema_version") != REVIEW_WORKFLOW_CONTRACT:
+            raise RecordValidationError("review_workflow schema version is invalid")
+        if workflow.get("state") not in REVIEW_STATES or workflow.get("priority") not in REVIEW_PRIORITIES:
+            raise RecordValidationError("review_workflow state or priority is invalid")
+        if workflow.get("publication_gate", {}).get("status") not in PUBLICATION_GATE_STATUSES:
+            raise RecordValidationError("review_workflow publication gate is invalid")
+        quality = workflow.get("quality", {})
+        for dimension in (*QUALITY_DIMENSIONS, "overall"):
+            value = quality.get(dimension)
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100:
+                raise RecordValidationError(f"review_workflow quality.{dimension} is invalid")
+        for decision in workflow.get("decisions", []):
+            if decision.get("type") not in REVIEW_DECISION_TYPES:
+                raise RecordValidationError("review_workflow decision is invalid")
+        from .review import validate_review_workflow
+        try:
+            validate_review_workflow(workflow, record)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RecordValidationError(str(exc)) from exc
+
     extensions = record["extensions"]
     if not isinstance(extensions, Mapping):
         raise RecordValidationError("extensions must be an object")
@@ -235,6 +263,13 @@ def validate_record(record: Mapping[str, Any]) -> None:
         value = measurement[field]
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))):
             raise RecordValidationError(f"measurement.{field} must be a finite number or null")
+
+    if "review_workflow" in record:
+        from .review import validate_review_workflow
+        try:
+            validate_review_workflow(record["review_workflow"], record)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RecordValidationError(str(exc)) from exc
 
 
 def jsonschema_available() -> bool:

@@ -30,6 +30,7 @@ from .validation import RecordValidationError, validate_record
 from .provenance import normalize_evidence_chain, validate_evidence_chain_semantics
 from .governance import normalize_indicator_governance, validate_indicator_governance
 from .lineage import normalize_observation_lineage, validate_observation_lineage
+from .review import normalize_review_workflow, validate_review_workflow
 
 
 def _number(value: Any, field: str) -> float:
@@ -319,6 +320,7 @@ def convert_legacy_record(
         occurred_at=updated_at,
     )
     record["observation_lineage"] = normalize_observation_lineage(record, payload.get("observation_lineage"))
+    record["review_workflow"] = normalize_review_workflow(record, payload.get("review_workflow"))
     validate_record_semantics(record)
     validate_record(record)
     return record
@@ -343,6 +345,8 @@ def validate_record_semantics(record: Mapping[str, Any]) -> None:
         validate_indicator_governance(record["indicator_governance"], record["indicator"])
         if "observation_lineage" in record:
             validate_observation_lineage(record["observation_lineage"], record)
+        if "review_workflow" in record:
+            validate_review_workflow(record["review_workflow"], record)
     except ValueError as exc:
         raise RecordValidationError(str(exc)) from exc
 
@@ -365,6 +369,8 @@ def build_record(
             )
         if "observation_lineage" not in record:
             record["observation_lineage"] = normalize_observation_lineage(record, None)
+        if "review_workflow" not in record:
+            record["review_workflow"] = normalize_review_workflow(record, None)
         validate_record(record)
         validate_record_semantics(record)
         return record

@@ -1,6 +1,6 @@
 # Export Specification
 
-Catalyst Data v1.5.0 supports repository exports in JSON and CSV.
+Catalyst Data v1.6.0 supports repository exports in JSON and CSV.
 
 ## JSON repository export
 

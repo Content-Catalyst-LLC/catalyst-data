@@ -5,9 +5,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+export PYTHONDONTWRITEBYTECODE=1
 
+find python scripts tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+rm -rf .pytest_cache .release-check-pycache
 python3 -m pytest -q -o addopts=''
-python3 scripts/check_release.py --portable
 
 if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-contract.js
@@ -23,6 +25,5 @@ if command -v php >/dev/null 2>&1; then
 else
   echo "SKIP: php is not installed"
 fi
-
 
 echo "Catalyst Data full release suite passed."

@@ -214,5 +214,54 @@
     "observation_recorded",
     "observation_linked",
     "transformation_recorded"
+  ],
+  "review_workflow_contract": "catalyst-data-review-workflow/1.0",
+  "review_states": [
+    "draft",
+    "submitted",
+    "in-review",
+    "changes-requested",
+    "approved",
+    "rejected",
+    "superseded",
+    "archived"
+  ],
+  "review_priorities": [
+    "low",
+    "normal",
+    "high",
+    "critical"
+  ],
+  "review_decision_types": [
+    "submitted",
+    "review_started",
+    "changes_requested",
+    "approved",
+    "rejected",
+    "superseded",
+    "archived",
+    "reopened",
+    "quality_assessed",
+    "publication_gate_updated",
+    "assigned",
+    "unassigned",
+    "commented"
+  ],
+  "review_comment_visibilities": [
+    "internal",
+    "public"
+  ],
+  "publication_gate_statuses": [
+    "blocked",
+    "internal",
+    "external"
+  ],
+  "quality_dimensions": [
+    "completeness",
+    "validity",
+    "consistency",
+    "timeliness",
+    "provenance",
+    "uncertainty"
   ]
 }

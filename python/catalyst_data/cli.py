@@ -150,6 +150,40 @@ def parser() -> argparse.ArgumentParser:
     lineage.add_argument("database", type=Path)
     lineage.add_argument("record_id")
 
+    reviews = subparsers.add_parser("reviews", help="show the governed review workflow queue")
+    reviews.add_argument("database", type=Path)
+    reviews.add_argument("--state", choices=("draft","submitted","in-review","changes-requested","approved","rejected","superseded","archived"))
+    reviews.add_argument("--reviewer")
+    reviews.add_argument("--limit", type=int, default=100)
+
+    review_history = subparsers.add_parser("review-history", help="show decisions, comments, quality, and approval snapshots")
+    review_history.add_argument("database", type=Path)
+    review_history.add_argument("record_id")
+
+    review_assign = subparsers.add_parser("review-assign", help="assign a reviewer")
+    review_assign.add_argument("database", type=Path); review_assign.add_argument("record_id"); review_assign.add_argument("reviewer"); review_assign.add_argument("--actor", required=True)
+
+    review_submit = subparsers.add_parser("review-submit", help="submit a record for review")
+    review_submit.add_argument("database", type=Path); review_submit.add_argument("record_id"); review_submit.add_argument("--actor", required=True); review_submit.add_argument("--notes")
+
+    review_start = subparsers.add_parser("review-start", help="start an assigned review")
+    review_start.add_argument("database", type=Path); review_start.add_argument("record_id"); review_start.add_argument("--actor", required=True); review_start.add_argument("--notes")
+
+    review_decide = subparsers.add_parser("review-decide", help="record a review decision")
+    review_decide.add_argument("database", type=Path); review_decide.add_argument("record_id")
+    review_decide.add_argument("decision", choices=("changes_requested","approved","rejected","superseded","archived","reopened"))
+    review_decide.add_argument("--actor", required=True); review_decide.add_argument("--reason"); review_decide.add_argument("--notes")
+
+    review_comment = subparsers.add_parser("review-comment", help="append an immutable review comment")
+    review_comment.add_argument("database", type=Path); review_comment.add_argument("record_id"); review_comment.add_argument("body")
+    review_comment.add_argument("--actor", required=True); review_comment.add_argument("--visibility", choices=("internal","public"), default="internal")
+
+    quality_assess = subparsers.add_parser("quality-assess", help="append a six-dimension quality assessment from JSON")
+    quality_assess.add_argument("database", type=Path); quality_assess.add_argument("record_id"); quality_assess.add_argument("input", type=Path); quality_assess.add_argument("--actor", required=True)
+
+    revisions = subparsers.add_parser("revisions", help="show immutable record revisions and semantic diffs")
+    revisions.add_argument("database", type=Path); revisions.add_argument("record_id"); revisions.add_argument("--limit", type=int, default=100)
+
     return result
 
 
@@ -181,7 +215,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -323,6 +357,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0
+
+        if args.command == "reviews":
+            repository.initialize(); print(json.dumps(repository.review_cases(state=args.state, reviewer=args.reviewer, limit=args.limit), indent=2, ensure_ascii=False)); return 0
+        if args.command == "review-history":
+            repository.initialize(); payload=repository.review_history(args.record_id)
+            if payload is None: print(f"ERROR: record not found: {args.record_id}"); return 1
+            print(json.dumps(payload, indent=2, ensure_ascii=False)); return 0
+        if args.command == "review-assign":
+            repository.initialize(); action=repository.assign_review(args.record_id,args.reviewer,args.actor); print(action); return 0
+        if args.command == "review-submit":
+            repository.initialize(); action=repository.submit_review(args.record_id,args.actor,args.notes); print(action); return 0
+        if args.command == "review-start":
+            repository.initialize(); action=repository.start_review(args.record_id,args.actor,args.notes); print(action); return 0
+        if args.command == "review-decide":
+            repository.initialize(); action=repository.decide_review(args.record_id,args.decision,args.actor,reason=args.reason,notes=args.notes); print(action); return 0
+        if args.command == "review-comment":
+            repository.initialize(); action=repository.add_review_comment(args.record_id,args.actor,args.body,visibility=args.visibility); print(action); return 0
+        if args.command == "quality-assess":
+            repository.initialize(); payload=_read(args.input); scores=payload.get("scores",payload); basis=payload.get("basis",{}) if isinstance(payload,dict) else {}
+            action=repository.assess_quality(args.record_id,args.actor,scores,basis=basis); print(action); return 0
+        if args.command == "revisions":
+            repository.initialize(); print(json.dumps(repository.revision_history(args.record_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         return 2
     except ImportPipelineError as exc:
         payload = exc.summary.to_dict()

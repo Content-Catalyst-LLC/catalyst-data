@@ -12,7 +12,7 @@ python3 scripts/build_release.py
 
 Do not edit files inside the ZIP directly.
 
-## v1.5.0 behavior
+## v1.6.0 behavior
 
 - Loads generated review and record contracts before the demo engine.
 - Emits `catalyst-data-record/1.0` with stable semantic IDs.

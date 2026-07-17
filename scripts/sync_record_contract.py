@@ -13,6 +13,7 @@ SCHEMA_URI = "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.j
 EVIDENCE_SCHEMA_URI = "https://sustainablecatalyst.com/schemas/catalyst-data-evidence-chain-1.0.json"
 GOVERNANCE_SCHEMA_URI = "https://sustainablecatalyst.com/schemas/catalyst-data-indicator-governance-1.0.json"
 LINEAGE_SCHEMA_URI = "https://sustainablecatalyst.com/schemas/catalyst-data-observation-lineage-1.0.json"
+REVIEW_WORKFLOW_SCHEMA_URI = "https://sustainablecatalyst.com/schemas/catalyst-data-review-workflow-1.0.json"
 
 
 def load(path: Path) -> dict:
@@ -332,6 +333,80 @@ def observation_lineage_schema(record: dict) -> dict:
         },
     }
 
+
+def review_workflow_schema(record: dict) -> dict:
+    string_or_null = {"type": ["string", "null"]}
+    datetime_or_null = {"type": ["string", "null"], "format": "date-time"}
+    decision = {
+        "type": "object", "additionalProperties": False,
+        "required": ["id", "type", "actor", "reason", "notes", "occurred_at"],
+        "properties": {
+            "id": {"type": "string", "pattern": record["id_pattern"]},
+            "type": {"enum": record["review_decision_types"]},
+            "actor": {"type": "string", "minLength": 1},
+            "reason": string_or_null,
+            "notes": string_or_null,
+            "occurred_at": {"type": "string", "format": "date-time"},
+        },
+    }
+    comment = {
+        "type": "object", "additionalProperties": False,
+        "required": ["id", "actor", "body", "visibility", "occurred_at"],
+        "properties": {
+            "id": {"type": "string", "pattern": record["id_pattern"]},
+            "actor": {"type": "string", "minLength": 1},
+            "body": {"type": "string", "minLength": 1},
+            "visibility": {"enum": record["review_comment_visibilities"]},
+            "occurred_at": {"type": "string", "format": "date-time"},
+        },
+    }
+    quality_properties = {name: {"type": "integer", "minimum": 0, "maximum": 100} for name in record["quality_dimensions"]}
+    quality_properties.update({
+        "overall": {"type": "integer", "minimum": 0, "maximum": 100},
+        "basis": {"type": "object", "additionalProperties": {"type": "string"}},
+        "assessed_by": {"type": "string", "minLength": 1},
+        "assessed_at": {"type": "string", "format": "date-time"},
+    })
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": REVIEW_WORKFLOW_SCHEMA_URI,
+        "title": "Catalyst Data Review Workflow 1.0",
+        "description": "Human review states, quality assessments, publication gates, revision metadata, decisions, and comments.",
+        "type": "object", "additionalProperties": False,
+        "required": ["schema_version", "state", "priority", "assigned_reviewers", "quality", "publication_gate", "revision", "decisions", "comments"],
+        "properties": {
+            "schema_version": {"const": record["review_workflow_contract"]},
+            "state": {"enum": record["review_states"]},
+            "priority": {"enum": record["review_priorities"]},
+            "assigned_reviewers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": True},
+            "quality": {"type": "object", "additionalProperties": False, "required": [*record["quality_dimensions"], "overall", "basis", "assessed_by", "assessed_at"], "properties": quality_properties},
+            "publication_gate": {
+                "type": "object", "additionalProperties": False,
+                "required": ["status", "reasons", "approved_by", "approved_at"],
+                "properties": {
+                    "status": {"enum": record["publication_gate_statuses"]},
+                    "reasons": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": True},
+                    "approved_by": string_or_null,
+                    "approved_at": datetime_or_null,
+                },
+            },
+            "revision": {
+                "type": "object", "additionalProperties": False,
+                "required": ["number", "action", "change_summary", "reason", "changed_by", "compared_to_sha256"],
+                "properties": {
+                    "number": {"type": "integer", "minimum": 1},
+                    "action": {"enum": ["inserted", "updated", "corrected", "superseded"]},
+                    "change_summary": {"type": "string", "minLength": 1},
+                    "reason": string_or_null,
+                    "changed_by": {"type": "string", "minLength": 1},
+                    "compared_to_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+                },
+            },
+            "decisions": {"type": "array", "items": decision},
+            "comments": {"type": "array", "items": comment},
+        },
+    }
+
 def record_schema(record: dict, review: dict) -> dict:
     string_or_null = {"type": ["string", "null"]}
     date_or_null = {"type": ["string", "null"], "format": "date"}
@@ -339,7 +414,7 @@ def record_schema(record: dict, review: dict) -> dict:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": SCHEMA_URI,
         "title": "Catalyst Data Record 1.0",
-        "description": "Canonical measurement record with review, provenance, evidence, indicator governance, and observation lineage.",
+        "description": "Canonical measurement record with review, quality, revisions, provenance, evidence, indicator governance, and observation lineage.",
         "type": "object", "additionalProperties": False,
         "required": ["$schema", "schema_version", "record_id", "record_type", "created_at", "updated_at", "producer", "entity", "indicator", "period", "measurement", "source", "confidence", "review", "method", "extensions"],
         "properties": {
@@ -354,6 +429,7 @@ def record_schema(record: dict, review: dict) -> dict:
             "indicator": {"type": "object", "additionalProperties": False, "required": ["id", "name", "unit", "direction", "framework", "version"], "properties": {"id": {"type": "string", "pattern": record["id_pattern"]}, "name": {"type": "string", "minLength": 1}, "unit": {"type": "string", "minLength": 1}, "direction": {"enum": review["directions"]}, "framework": string_or_null, "version": {"type": "string", "minLength": 1}}},
             "indicator_governance": indicator_governance_schema(record),
             "observation_lineage": observation_lineage_schema(record),
+            "review_workflow": review_workflow_schema(record),
             "period": {"type": "object", "additionalProperties": False, "required": ["id", "label", "start_date", "end_date"], "properties": {"id": {"type": "string", "pattern": record["id_pattern"]}, "label": {"type": "string", "minLength": 1}, "start_date": date_or_null, "end_date": date_or_null}},
             "measurement": {"type": "object", "additionalProperties": False, "required": ["baseline", "current", "percent_change"], "properties": {"baseline": {"type": ["number", "null"]}, "current": {"type": "number"}, "percent_change": {"type": ["number", "null"]}}},
             "source": source_schema(record),
@@ -372,6 +448,7 @@ def python_constants(record: dict) -> str:
         ("EVIDENCE_CONTRACT", record["evidence_contract"]), ("EVIDENCE_SCHEMA_URI", EVIDENCE_SCHEMA_URI),
         ("INDICATOR_GOVERNANCE_CONTRACT", record["indicator_governance_contract"]), ("INDICATOR_GOVERNANCE_SCHEMA_URI", GOVERNANCE_SCHEMA_URI),
         ("OBSERVATION_LINEAGE_CONTRACT", record["observation_lineage_contract"]), ("OBSERVATION_LINEAGE_SCHEMA_URI", LINEAGE_SCHEMA_URI),
+        ("REVIEW_WORKFLOW_CONTRACT", record["review_workflow_contract"]), ("REVIEW_WORKFLOW_SCHEMA_URI", REVIEW_WORKFLOW_SCHEMA_URI),
     ]
     lines = ['"""Generated from contracts/record_contract.json. Do not edit by hand."""', ""]
     for name, value in names: lines.append(f"{name} = {value!r}")
@@ -385,6 +462,8 @@ def python_constants(record: dict) -> str:
         "QUESTION_TYPES":"question_types", "QUESTION_STATUSES":"question_statuses", "INSTRUMENT_TYPES":"instrument_types",
         "DATASET_ACCESS_LEVELS":"dataset_access_levels", "OBSERVATION_ROLES":"observation_roles",
         "OBSERVATION_QUALITY_STATUSES":"observation_quality_statuses", "LINEAGE_EVENT_TYPES":"lineage_event_types",
+        "REVIEW_STATES":"review_states", "REVIEW_PRIORITIES":"review_priorities", "REVIEW_DECISION_TYPES":"review_decision_types",
+        "REVIEW_COMMENT_VISIBILITIES":"review_comment_visibilities", "PUBLICATION_GATE_STATUSES":"publication_gate_statuses", "QUALITY_DIMENSIONS":"quality_dimensions",
         "LEGACY_CONTRACTS":"legacy_contracts",
     }
     for name, key in tuples.items(): lines.append(f"{name} = {tuple(record[key])!r}")
@@ -401,6 +480,7 @@ def javascript_constants(record: dict, review: dict) -> str:
         "evidence_contract": record["evidence_contract"], "evidence_schema_uri": EVIDENCE_SCHEMA_URI,
         "indicator_governance_contract": record["indicator_governance_contract"], "indicator_governance_schema_uri": GOVERNANCE_SCHEMA_URI,
         "observation_lineage_contract": record["observation_lineage_contract"], "observation_lineage_schema_uri": LINEAGE_SCHEMA_URI,
+        "review_workflow_contract": record["review_workflow_contract"], "review_workflow_schema_uri": REVIEW_WORKFLOW_SCHEMA_URI,
         "record_types": record["record_types"], "entity_types": record["entity_types"], "source_types": record["source_types"],
         "producer_components": record["producer_components"], "quality_flags": record["quality_flags"], "evidence_roles": record["evidence_roles"],
         "source_relationships": record["source_relationships"], "indicator_statuses": record["indicator_statuses"],
@@ -409,7 +489,9 @@ def javascript_constants(record: dict, review: dict) -> str:
         "comparability_statuses": record["comparability_statuses"], "question_types": record["question_types"],
         "question_statuses": record["question_statuses"], "instrument_types": record["instrument_types"],
         "dataset_access_levels": record["dataset_access_levels"], "observation_roles": record["observation_roles"],
-        "observation_quality_statuses": record["observation_quality_statuses"], "id_pattern": record["id_pattern"],
+        "observation_quality_statuses": record["observation_quality_statuses"], "review_states": record["review_states"],
+        "review_priorities": record["review_priorities"], "review_decision_types": record["review_decision_types"],
+        "publication_gate_statuses": record["publication_gate_statuses"], "quality_dimensions": record["quality_dimensions"], "id_pattern": record["id_pattern"],
         "extension_key_pattern": record["extension_key_pattern"], "review_statuses": review["review_statuses"], "signal_statuses": review["signal_statuses"]
     }
     return "/* Generated from contracts/record_contract.json. Do not edit by hand. */\n(function(root){\n  root.CatalystDataRecordContract = Object.freeze(" + json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + ");\n})(typeof globalThis !== 'undefined' ? globalThis : this);\n"
@@ -417,29 +499,32 @@ def javascript_constants(record: dict, review: dict) -> str:
 
 def export_alias(canonical: dict) -> dict:
     alias = json.loads(json.dumps(canonical))
-    alias["$id"] = "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.5.0.json"
-    alias["title"] = "Catalyst Data Export 1.5.0"
-    alias["description"] = "Compatibility export schema for record/1.0 with evidence-chain/1.0, indicator-governance/1.0, and observation-lineage/1.0 metadata."
+    alias["$id"] = "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.6.0.json"
+    alias["title"] = "Catalyst Data Export 1.6.0"
+    alias["description"] = "Compatibility export schema for record/1.0 with evidence-chain, indicator-governance, observation-lineage, and review-workflow metadata."
     return alias
 
 
 def rendered_outputs() -> dict[Path, str]:
     record = load(RECORD_CONTRACT); review = load(REVIEW_CONTRACT)
-    canonical = record_schema(record, review); evidence = evidence_chain_schema(record); governance = indicator_governance_schema(record); lineage = observation_lineage_schema(record)
+    canonical = record_schema(record, review); evidence = evidence_chain_schema(record); governance = indicator_governance_schema(record); lineage = observation_lineage_schema(record); workflow = review_workflow_schema(record)
     canonical_text = json.dumps(canonical, indent=2, ensure_ascii=False) + "\n"
     evidence_text = json.dumps(evidence, indent=2, ensure_ascii=False) + "\n"
     governance_text = json.dumps(governance, indent=2, ensure_ascii=False) + "\n"
     lineage_text = json.dumps(lineage, indent=2, ensure_ascii=False) + "\n"
+    workflow_text = json.dumps(workflow, indent=2, ensure_ascii=False) + "\n"
     return {
         ROOT / "schemas/catalyst_data_record_1_0.schema.json": canonical_text,
         ROOT / "schemas/catalyst_data_evidence_chain_1_0.schema.json": evidence_text,
         ROOT / "schemas/catalyst_data_indicator_governance_1_0.schema.json": governance_text,
         ROOT / "schemas/catalyst_data_observation_lineage_1_0.schema.json": lineage_text,
+        ROOT / "schemas/catalyst_data_review_workflow_1_0.schema.json": workflow_text,
         ROOT / "schemas/catalyst_data_export.schema.json": json.dumps(export_alias(canonical), indent=2, ensure_ascii=False) + "\n",
         ROOT / "python/catalyst_data/schemas/catalyst_data_record_1_0.schema.json": canonical_text,
         ROOT / "python/catalyst_data/schemas/catalyst_data_evidence_chain_1_0.schema.json": evidence_text,
         ROOT / "python/catalyst_data/schemas/catalyst_data_indicator_governance_1_0.schema.json": governance_text,
         ROOT / "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json": lineage_text,
+        ROOT / "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json": workflow_text,
         ROOT / "python/catalyst_data/_record_contract.py": python_constants(record),
         ROOT / "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js": javascript_constants(record, review),
     }

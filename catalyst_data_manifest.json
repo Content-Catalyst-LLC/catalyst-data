@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.5.0",
-  "module_type": "questions, instruments, datasets, observations, and lineage",
+  "version": "1.6.0",
+  "module_type": "review, quality, revision, questions, instruments, datasets, observations, and lineage",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -17,7 +17,11 @@
     "measurement",
     "evidence chain",
     "confidence",
-    "review"
+    "review",
+    "quality assessment",
+    "approval snapshot",
+    "publication gate",
+    "revision diff"
   ],
   "wordpress_shortcode": "[catalyst_data_demo]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
@@ -27,7 +31,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Questions, Instruments, Datasets, and Observations",
+  "release": "Review, Quality, and Revision Workflow",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -41,7 +45,9 @@
     "python/catalyst_data/schemas/catalyst_data_indicator_governance_1_0.schema.json",
     "schemas/catalyst_data_indicator_governance_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json",
-    "schemas/catalyst_data_observation_lineage_1_0.schema.json"
+    "schemas/catalyst_data_observation_lineage_1_0.schema.json",
+    "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json",
+    "schemas/catalyst_data_review_workflow_1_0.schema.json"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -71,7 +77,16 @@
     "instruments",
     "datasets",
     "observations",
-    "lineage"
+    "lineage",
+    "reviews",
+    "review-history",
+    "review-assign",
+    "review-submit",
+    "review-start",
+    "review-decide",
+    "review-comment",
+    "quality-assess",
+    "revisions"
   ],
   "import_formats": [
     "json",
@@ -85,5 +100,7 @@
   "indicator_governance_contract": "catalyst-data-indicator-governance/1.0",
   "indicator_governance_schema": "schemas/catalyst_data_indicator_governance_1_0.schema.json",
   "observation_lineage_contract": "catalyst-data-observation-lineage/1.0",
-  "observation_lineage_schema": "schemas/catalyst_data_observation_lineage_1_0.schema.json"
+  "observation_lineage_schema": "schemas/catalyst_data_observation_lineage_1_0.schema.json",
+  "review_workflow_contract": "catalyst-data-review-workflow/1.0",
+  "review_workflow_schema": "schemas/catalyst_data_review_workflow_1_0.schema.json"
 }

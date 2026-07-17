@@ -243,6 +243,48 @@
     };
   }
 
+  function reviewWorkflow(record){
+    var evidence = record.evidence_chain.completeness_score;
+    var lineage = record.observation_lineage.completeness_score;
+    var flags = record.method.quality_flags || [];
+    var observations = record.observation_lineage.observations || [];
+    var flagged = observations.filter(function(item){ return item.quality_status === 'outlier' || item.quality_status === 'rejected'; }).length;
+    var missing = observations.filter(function(item){ return item.quality_status === 'missing'; }).length;
+    var completeness = Math.max(0, Math.min(100, Math.round((evidence + lineage) / 2)));
+    var validity = Math.max(25, 100 - (12 * flags.length) - (12 * flagged) - (5 * missing));
+    var consistency = 92 - (flags.indexOf('conflicting') >= 0 ? 35 : 0) - (record.indicator_governance.status !== 'active' ? 15 : 0);
+    consistency = Math.max(25, consistency);
+    var timeliness = flags.indexOf('stale') >= 0 ? 45 : 85;
+    var provenance = evidence;
+    var uncertainty = record.method.uncertainty ? 85 : 55;
+    if (record.method.limitations.length) uncertainty = Math.min(100, uncertainty + 5);
+    var overall = Math.round((completeness + validity + consistency + timeliness + provenance + uncertainty) / 6);
+    return {
+      schema_version: recordContract.review_workflow_contract,
+      state: 'draft',
+      priority: 'normal',
+      assigned_reviewers: [],
+      quality: {
+        completeness: completeness, validity: validity, consistency: consistency, timeliness: timeliness,
+        provenance: provenance, uncertainty: uncertainty, overall: overall,
+        basis: {
+          completeness: 'Average of evidence-chain and observation-lineage completeness.',
+          validity: 'Derived from method quality flags and observation quality states.',
+          consistency: 'Derived from indicator governance status and conflicting-data flags.',
+          timeliness: 'Reduced when the record is explicitly marked stale.',
+          provenance: 'Equal to evidence-chain completeness.',
+          uncertainty: 'Higher when uncertainty and limitations are explicitly documented.'
+        },
+        assessed_by: 'browser-demo',
+        assessed_at: record.updated_at
+      },
+      publication_gate: {status: 'blocked', reasons: ['record has not been approved'], approved_by: null, approved_at: null},
+      revision: {number: 1, action: 'inserted', change_summary: 'Initial governed record revision.', reason: 'Initial repository registration.', changed_by: 'browser-demo', compared_to_sha256: null},
+      decisions: [],
+      comments: []
+    };
+  }
+
   function buildRecord(values, now){
     var entityName = String(values.entity || '').trim() || 'Unnamed entity';
     var entityType = values.entityType || 'other';
@@ -327,6 +369,7 @@
       }
     };
     record.observation_lineage = observationLineage(record);
+    record.review_workflow = reviewWorkflow(record);
     return record;
   }
 

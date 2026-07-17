@@ -28,5 +28,7 @@ jobs:
         run: python scripts/build_release.py
       - name: Verify generated files are committed
         run: git diff --exit-code
+      - name: Run Python tests
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -o addopts=''
       - name: Run release contract
         run: python scripts/check_release.py

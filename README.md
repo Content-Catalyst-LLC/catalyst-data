@@ -4,13 +4,17 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.5.0 — Questions, Instruments, Datasets, and Observations**
+**v1.6.0 — Questions, Instruments, Datasets, and Observations**
 
 The release adds the complete question-to-measurement lineage path: research and decision questions, versioned collection instruments, versioned datasets, observation batches, governed observations, dimensions, explicit transformations, append-only lineage events, and automatic v1.4.0 backfill.
 
 ## Core capabilities
 
 - Strict `catalyst-data-record/1.0` validation.
+- Backward-compatible `catalyst-data-review-workflow/1.0` records.
+- Attributable review states, assignments, comments, decisions, and priorities.
+- Explainable six-dimension quality assessments and publication gates.
+- Immutable approval snapshots and semantic revision diffs.
 - Backward-compatible `catalyst-data-observation-lineage/1.0` records.
 - Research, decision, monitoring, and evaluation questions.
 - Immutable instrument and dataset versions with governed fields.
@@ -82,6 +86,14 @@ catalyst-data instruments catalyst-data.sqlite3
 catalyst-data datasets catalyst-data.sqlite3
 catalyst-data observations catalyst-data.sqlite3 --record-id RECORD_ID
 catalyst-data lineage catalyst-data.sqlite3 RECORD_ID
+catalyst-data reviews catalyst-data.sqlite3
+catalyst-data review-history catalyst-data.sqlite3 RECORD_ID
+catalyst-data review-assign catalyst-data.sqlite3 RECORD_ID reviewer@example.org --actor author@example.org
+catalyst-data review-submit catalyst-data.sqlite3 RECORD_ID --actor author@example.org
+catalyst-data review-start catalyst-data.sqlite3 RECORD_ID --actor reviewer@example.org
+catalyst-data quality-assess catalyst-data.sqlite3 RECORD_ID quality-assessment.json --actor reviewer@example.org
+catalyst-data review-decide catalyst-data.sqlite3 RECORD_ID approved --actor reviewer@example.org --reason "Evidence and method are sufficient"
+catalyst-data revisions catalyst-data.sqlite3 RECORD_ID
 
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.csv --format csv
@@ -135,11 +147,11 @@ python3 scripts/build_release.py
 python3 scripts/check_release.py
 ```
 
-The release suite validates generated contracts, schemas, governed indicator semantics, unit conversion, comparability, immutable version history, migrations, rollback/remigration, repository persistence, dry-run behavior, idempotent imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
+The release suite validates generated contracts, schemas, review transitions, quality assessments, immutable approvals, semantic revision history, governed indicator semantics, unit conversion, comparability, migrations, rollback/remigration, repository persistence, imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.5.0 does not yet provide institutional authorization or remote APIs.
+Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.6.0 does not yet provide institutional authorization or remote APIs.
 
 ## License
 

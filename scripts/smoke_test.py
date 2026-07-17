@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.5.0", "producer version failed")
+    check(record["producer"]["version"] == "1.6.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -54,6 +54,10 @@ def main() -> int:
     check(governance["status"] == "active", "indicator status failed")
     check(governance["unit"]["symbol"] == record["indicator"]["unit"], "governed unit failed")
     check(governance["methodology"]["version"] == record["indicator"]["version"], "methodology version failed")
+    workflow = record["review_workflow"]
+    check(workflow["schema_version"] == "catalyst-data-review-workflow/1.0", "review workflow contract failed")
+    check(workflow["state"] == "draft", "default review state failed")
+    check(0 <= workflow["quality"]["overall"] <= 100, "quality assessment failed")
 
     invalid = deepcopy(record)
     invalid["unexpected"] = True
@@ -78,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -99,6 +103,12 @@ def main() -> int:
         unit_id = stored["indicator_governance"]["unit"]["id"]
         check(repository.convert(5, unit_id, unit_id) == 5, "unit conversion failed")
         check(repository.compare(record_id, record_id)["status"] == "equivalent", "comparability failed")
+        check(stats["review_cases"] == 2 and stats["quality_assessments"] == 2, "review persistence failed")
+        repository.assign_review(record_id, "reviewer@example.org", "author@example.org")
+        repository.submit_review(record_id, "author@example.org", "Ready")
+        repository.start_review(record_id, "reviewer@example.org")
+        repository.decide_review(record_id, "approved", "reviewer@example.org", reason="Approved")
+        check(bool(repository.review_history(record_id)["approval_snapshots"]), "approval snapshot failed")
 
     database = sqlite3.connect(":memory:")
     database.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))

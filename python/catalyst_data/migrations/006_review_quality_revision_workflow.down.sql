@@ -1,0 +1,31 @@
+DROP VIEW IF EXISTS record_revision_history;
+DROP VIEW IF EXISTS review_queue_current;
+
+DROP TRIGGER IF EXISTS revision_diffs_immutable_delete;
+DROP TRIGGER IF EXISTS revision_diffs_immutable_update;
+DROP TRIGGER IF EXISTS approval_snapshots_immutable_delete;
+DROP TRIGGER IF EXISTS approval_snapshots_immutable_update;
+DROP TRIGGER IF EXISTS quality_assessments_immutable_delete;
+DROP TRIGGER IF EXISTS quality_assessments_immutable_update;
+DROP TRIGGER IF EXISTS review_decisions_immutable_delete;
+DROP TRIGGER IF EXISTS review_decisions_immutable_update;
+DROP TRIGGER IF EXISTS review_comments_immutable_delete;
+DROP TRIGGER IF EXISTS review_comments_immutable_update;
+DROP TRIGGER IF EXISTS review_assignments_immutable_delete;
+DROP TRIGGER IF EXISTS review_assignments_immutable_update;
+
+UPDATE review_decisions SET previous_decision_id=NULL;
+DELETE FROM approval_snapshots;
+DELETE FROM revision_diffs;
+DELETE FROM quality_assessments;
+DELETE FROM review_comments;
+DELETE FROM review_assignments;
+DELETE FROM review_decisions;
+DELETE FROM review_cases;
+DROP TABLE IF EXISTS approval_snapshots;
+DROP TABLE IF EXISTS revision_diffs;
+DROP TABLE IF EXISTS quality_assessments;
+DROP TABLE IF EXISTS review_comments;
+DROP TABLE IF EXISTS review_assignments;
+DROP TABLE IF EXISTS review_decisions;
+DROP TABLE IF EXISTS review_cases;

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json",
   "title": "Catalyst Data Record 1.0",
-  "description": "Canonical measurement record with review, provenance, evidence, indicator governance, and observation lineage.",
+  "description": "Canonical measurement record with review, quality, revisions, provenance, evidence, indicator governance, and observation lineage.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -1086,6 +1086,308 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100
+        }
+      }
+    },
+    "review_workflow": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-review-workflow-1.0.json",
+      "title": "Catalyst Data Review Workflow 1.0",
+      "description": "Human review states, quality assessments, publication gates, revision metadata, decisions, and comments.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "priority",
+        "assigned_reviewers",
+        "quality",
+        "publication_gate",
+        "revision",
+        "decisions",
+        "comments"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "catalyst-data-review-workflow/1.0"
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "submitted",
+            "in-review",
+            "changes-requested",
+            "approved",
+            "rejected",
+            "superseded",
+            "archived"
+          ]
+        },
+        "priority": {
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "critical"
+          ]
+        },
+        "assigned_reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completeness",
+            "validity",
+            "consistency",
+            "timeliness",
+            "provenance",
+            "uncertainty",
+            "overall",
+            "basis",
+            "assessed_by",
+            "assessed_at"
+          ],
+          "properties": {
+            "completeness": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "validity": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "consistency": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "timeliness": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "provenance": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "uncertainty": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "overall": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "basis": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "assessed_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "assessed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "publication_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reasons",
+            "approved_by",
+            "approved_at"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "blocked",
+                "internal",
+                "external"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "approved_by": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "approved_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        },
+        "revision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "number",
+            "action",
+            "change_summary",
+            "reason",
+            "changed_by",
+            "compared_to_sha256"
+          ],
+          "properties": {
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "enum": [
+                "inserted",
+                "updated",
+                "corrected",
+                "superseded"
+              ]
+            },
+            "change_summary": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "changed_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "compared_to_sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "type",
+              "actor",
+              "reason",
+              "notes",
+              "occurred_at"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+              },
+              "type": {
+                "enum": [
+                  "submitted",
+                  "review_started",
+                  "changes_requested",
+                  "approved",
+                  "rejected",
+                  "superseded",
+                  "archived",
+                  "reopened",
+                  "quality_assessed",
+                  "publication_gate_updated",
+                  "assigned",
+                  "unassigned",
+                  "commented"
+                ]
+              },
+              "actor": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "actor",
+              "body",
+              "visibility",
+              "occurred_at"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+              },
+              "actor": {
+                "type": "string",
+                "minLength": 1
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1
+              },
+              "visibility": {
+                "enum": [
+                  "internal",
+                  "public"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
         }
       }
     },

@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "component": "migration-tool"
   },
   "entity": {
@@ -318,5 +318,48 @@
       }
     ],
     "completeness_score": 100
+  },
+  "review_workflow": {
+    "schema_version": "catalyst-data-review-workflow/1.0",
+    "state": "draft",
+    "priority": "normal",
+    "assigned_reviewers": [],
+    "quality": {
+      "completeness": 75,
+      "validity": 100,
+      "consistency": 92,
+      "timeliness": 85,
+      "provenance": 50,
+      "uncertainty": 55,
+      "overall": 76,
+      "basis": {
+        "completeness": "Average of evidence-chain and observation-lineage completeness.",
+        "validity": "Derived from method quality flags and observation quality states.",
+        "consistency": "Derived from indicator governance status and conflicting-data flags.",
+        "timeliness": "Reduced when the record is explicitly marked stale.",
+        "provenance": "Equal to evidence-chain completeness.",
+        "uncertainty": "Higher when uncertainty and limitations are explicitly documented."
+      },
+      "assessed_by": "migration-tool",
+      "assessed_at": "2026-07-16T12:00:00Z"
+    },
+    "publication_gate": {
+      "status": "blocked",
+      "reasons": [
+        "record has not been approved"
+      ],
+      "approved_by": null,
+      "approved_at": null
+    },
+    "revision": {
+      "number": 1,
+      "action": "inserted",
+      "change_summary": "Initial governed record revision.",
+      "reason": "Initial repository registration.",
+      "changed_by": "migration-tool",
+      "compared_to_sha256": null
+    },
+    "decisions": [],
+    "comments": []
   }
 }

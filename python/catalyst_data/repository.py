@@ -20,6 +20,7 @@ from .governance import (
 )
 from .validation import validate_record
 from .lineage import normalize_observation_lineage, lineage_completeness
+from .review import append_comment, append_decision, derive_quality, normalize_review_workflow, publication_gate, quality_overall, review_digest
 
 
 def canonical_json(payload: Mapping[str, Any]) -> str:
@@ -65,6 +66,8 @@ class CatalystRepository:
             self._backfill_governance_storage()
         if current == latest and current >= 5:
             self._backfill_observation_storage()
+        if current == latest and current >= 6:
+            self._backfill_review_storage()
         return applied
 
     def _backfill_evidence_storage(self) -> int:
@@ -149,6 +152,28 @@ class CatalystRepository:
             if "observation_lineage" not in record:
                 record["observation_lineage"] = normalize_observation_lineage(record, None)
             self.upsert_record(record, _force_lineage_rebuild=True)
+            count += 1
+        return count
+
+
+    def _backfill_review_storage(self) -> int:
+        """Enrich v1.5 records and populate review, quality, and revision workflow tables."""
+        with closing(connect(self.path)) as connection:
+            rows = connection.execute(
+                """
+                SELECT dr.payload_json
+                FROM data_records dr
+                WHERE json_extract(dr.payload_json, '$.review_workflow') IS NULL
+                   OR NOT EXISTS (SELECT 1 FROM review_cases rc WHERE rc.record_id=dr.record_id)
+                ORDER BY dr.record_id
+                """
+            ).fetchall()
+        count = 0
+        for row in rows:
+            record = json.loads(row[0])
+            if "review_workflow" not in record:
+                record["review_workflow"] = normalize_review_workflow(record, None)
+            self.upsert_record(record, _force_review_rebuild=True)
             count += 1
         return count
 
@@ -470,6 +495,110 @@ class CatalystRepository:
             cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="transformation_recorded", actor=actor, occurred_at=transformation.get("occurred_at") or occurred_at, details={"transformation_id":transformation["id"],"operation":transformation["operation"],"inputs":transformation["input_observation_ids"]})
 
 
+
+    @staticmethod
+    def _changed_paths(before: Any, after: Any, prefix: str = "") -> list[str]:
+        if type(before) is not type(after):
+            return [prefix or "$record"]
+        if isinstance(before, Mapping):
+            paths: list[str] = []
+            for key in sorted(set(before) | set(after)):
+                path = f"{prefix}.{key}" if prefix else str(key)
+                if key not in before or key not in after:
+                    paths.append(path)
+                else:
+                    paths.extend(CatalystRepository._changed_paths(before[key], after[key], path))
+            return paths
+        if isinstance(before, list):
+            return [] if before == after else [prefix or "$record"]
+        return [] if before == after else [prefix or "$record"]
+
+    @classmethod
+    def _persist_review_workflow(
+        cls, connection: sqlite3.Connection, record: Mapping[str, Any], measurement_id: int,
+        revision_id: int, previous_revision_id: int | None
+    ) -> None:
+        workflow = record["review_workflow"]
+        case_id_value = "review:" + hashlib.sha256(record["record_id"].encode("utf-8")).hexdigest()[:24]
+        gate = workflow["publication_gate"]
+        connection.execute(
+            """
+            INSERT INTO review_cases(canonical_id,record_id,measurement_id,current_state,priority,assigned_reviewers_json,publication_status,publication_reasons_json,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(record_id) DO UPDATE SET measurement_id=excluded.measurement_id,current_state=excluded.current_state,
+                priority=excluded.priority,assigned_reviewers_json=excluded.assigned_reviewers_json,
+                publication_status=excluded.publication_status,publication_reasons_json=excluded.publication_reasons_json,updated_at=excluded.updated_at
+            """,
+            (case_id_value, record["record_id"], measurement_id, workflow["state"], workflow["priority"],
+             json.dumps(workflow["assigned_reviewers"], ensure_ascii=False), gate["status"],
+             json.dumps(gate["reasons"], ensure_ascii=False), record["created_at"], record["updated_at"]),
+        )
+        case_id = int(connection.execute("SELECT id FROM review_cases WHERE record_id=?", (record["record_id"],)).fetchone()[0])
+
+        actor = record["producer"]["component"]
+        for reviewer in workflow["assigned_reviewers"]:
+            assignment_id = "assignment:" + hashlib.sha256(f"{case_id_value}|{reviewer}|assigned".encode()).hexdigest()[:24]
+            connection.execute(
+                "INSERT OR IGNORE INTO review_assignments(assignment_id,review_case_id,reviewer,action,actor,occurred_at) VALUES (?,?,?,?,?,?)",
+                (assignment_id, case_id, reviewer, "assigned", actor, record["updated_at"]),
+            )
+
+        quality = workflow["quality"]
+        quality_json = canonical_json(quality)
+        quality_sha = hashlib.sha256(quality_json.encode("utf-8")).hexdigest()
+        assessment_id = "quality:" + hashlib.sha256(f"{case_id_value}|{quality_sha}".encode()).hexdigest()[:24]
+        connection.execute(
+            """INSERT OR IGNORE INTO quality_assessments(assessment_id,review_case_id,completeness,validity,consistency,timeliness,provenance,uncertainty,overall,basis_json,assessed_by,assessed_at,payload_sha256)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (assessment_id, case_id, quality["completeness"], quality["validity"], quality["consistency"],
+             quality["timeliness"], quality["provenance"], quality["uncertainty"], quality["overall"],
+             canonical_json(quality["basis"]), quality["assessed_by"], quality["assessed_at"], quality_sha),
+        )
+
+        for comment in workflow["comments"]:
+            connection.execute(
+                "INSERT OR IGNORE INTO review_comments(comment_id,review_case_id,actor,body,visibility,occurred_at) VALUES (?,?,?,?,?,?)",
+                (comment["id"], case_id, comment["actor"], comment["body"], comment["visibility"], comment["occurred_at"]),
+            )
+
+        previous_decision = connection.execute("SELECT decision_id FROM review_decisions WHERE review_case_id=? ORDER BY id DESC LIMIT 1", (case_id,)).fetchone()
+        for decision in workflow["decisions"]:
+            existing = connection.execute("SELECT 1 FROM review_decisions WHERE decision_id=?", (decision["id"],)).fetchone()
+            if existing:
+                previous_decision = (decision["id"],)
+                continue
+            connection.execute(
+                """INSERT INTO review_decisions(decision_id,review_case_id,decision_type,actor,reason,notes,previous_decision_id,occurred_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (decision["id"], case_id, decision["type"], decision["actor"], decision.get("reason"),
+                 decision.get("notes"), previous_decision[0] if previous_decision else None, decision["occurred_at"]),
+            )
+            previous_decision = (decision["id"],)
+
+        previous_payload = None
+        if previous_revision_id is not None:
+            row = connection.execute("SELECT payload_json FROM record_revisions WHERE id=?", (previous_revision_id,)).fetchone()
+            previous_payload = json.loads(row[0]) if row else None
+        revision = workflow["revision"]
+        changed_paths = cls._changed_paths(previous_payload, record) if previous_payload is not None else ["$record"]
+        diff_key = f"{record['record_id']}|{revision_id}|{canonical_json(changed_paths)}"
+        diff_id = "revision-diff:" + hashlib.sha256(diff_key.encode()).hexdigest()[:24]
+        connection.execute(
+            """INSERT OR IGNORE INTO revision_diffs(diff_id,record_id,from_revision_id,to_revision_id,action,change_summary,reason,changed_by,changes_json)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (diff_id, record["record_id"], previous_revision_id, revision_id, revision["action"], revision["change_summary"],
+             revision.get("reason"), revision["changed_by"], canonical_json({"changed_paths": changed_paths})),
+        )
+
+        approved_decisions = [item for item in workflow["decisions"] if item["type"] == "approved"]
+        for decision in approved_decisions:
+            snapshot_id = "approval:" + hashlib.sha256(f"{case_id_value}|{decision['id']}|{revision_id}".encode()).hexdigest()[:24]
+            connection.execute(
+                """INSERT OR IGNORE INTO approval_snapshots(snapshot_id,review_case_id,decision_id,record_revision_id,record_payload_json,record_payload_sha256,approved_by,approved_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (snapshot_id, case_id, decision["id"], revision_id, canonical_json(record), payload_hash(record), decision["actor"], decision["occurred_at"]),
+            )
+
     @staticmethod
     def _upsert_period(connection: sqlite3.Connection, record: Mapping[str, Any]) -> int:
         period = record["period"]; label = period["label"]
@@ -520,7 +649,7 @@ class CatalystRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (event_id, record_id, measurement_id, source_id, event_type, actor, canonical_json(details), previous[0] if previous else None, occurred_at))
 
-    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False, _force_lineage_rebuild: bool = False) -> str:
+    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False, _force_lineage_rebuild: bool = False, _force_review_rebuild: bool = False) -> str:
         record = deepcopy(dict(record))
         if "observation_lineage" not in record:
             record["observation_lineage"] = normalize_observation_lineage(record, None)
@@ -536,6 +665,8 @@ class CatalystRepository:
                     observation["quality_status"] = "missing" if record["measurement"].get("baseline") is None else "valid"
                     observation["missing_reason"] = "baseline not supplied" if record["measurement"].get("baseline") is None else None
             lineage["completeness_score"] = lineage_completeness(lineage)
+        if "review_workflow" not in record:
+            record["review_workflow"] = normalize_review_workflow(record, None)
         validate_record(record); validate_record_semantics(record)
         own_connection = connection is None; conn = connection or connect(self.path)
         try:
@@ -551,7 +682,7 @@ class CatalystRepository:
                 "SELECT 1 FROM provenance_events WHERE record_id=? LIMIT 1",
                 (record["record_id"],),
             ).fetchone())
-            if same_payload and not _force_evidence_rebuild and not _force_governance_rebuild and not _force_lineage_rebuild:
+            if same_payload and not _force_evidence_rebuild and not _force_governance_rebuild and not _force_lineage_rebuild and not _force_review_rebuild:
                 if import_run_id is not None:
                     conn.execute("INSERT INTO import_records(import_run_id,row_number,record_id,action,payload_sha256) VALUES (?,?,?,?,?)", (import_run_id, row_number, record["record_id"], "skipped", digest))
                 if own_connection: conn.commit()
@@ -588,12 +719,18 @@ class CatalystRepository:
 
                 self._persist_observation_lineage(conn, record, measurement_id)
 
+                previous_revision_row = conn.execute("SELECT id FROM record_revisions WHERE record_id=? ORDER BY revision_number DESC LIMIT 1", (record["record_id"],)).fetchone()
+                previous_revision_id = int(previous_revision_row[0]) if previous_revision_row else None
                 revision_number = int(conn.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM record_revisions WHERE record_id=?", (record["record_id"],)).fetchone()[0])
                 if not same_payload or not revision_exists:
                     revision_action = action if not same_payload else ("inserted" if revision_number == 1 else "updated")
-                    conn.execute("INSERT INTO record_revisions(record_id,revision_number,action,payload_json,payload_sha256,import_run_id) VALUES (?,?,?,?,?,?)", (record["record_id"], revision_number, revision_action, payload_json, digest, import_run_id))
+                    cursor = conn.execute("INSERT INTO record_revisions(record_id,revision_number,action,payload_json,payload_sha256,import_run_id) VALUES (?,?,?,?,?,?)", (record["record_id"], revision_number, revision_action, payload_json, digest, import_run_id))
+                    revision_id = int(cursor.lastrowid)
                 else:
                     revision_number = max(1, revision_number - 1)
+                    revision_id = int(conn.execute("SELECT id FROM record_revisions WHERE record_id=? AND payload_sha256=?", (record["record_id"], digest)).fetchone()[0])
+
+                self._persist_review_workflow(conn, record, measurement_id, revision_id, previous_revision_id if previous_revision_id != revision_id else None)
 
                 conn.execute("DELETE FROM measurement_sources WHERE measurement_id=?", (measurement_id,))
                 for position, link in enumerate(chain["sources"]):
@@ -814,8 +951,99 @@ class CatalystRepository:
                 item=dict(row); item["details"]=json.loads(item.pop("details_json")); events.append(item)
             return {"record_id":record_id,"lineage":record.get("observation_lineage"),"summary":dict(summary) if summary else {},"events":events}
 
+
+    def review_cases(self, *, state: str | None = None, reviewer: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql = "SELECT * FROM review_queue_current"; params: list[Any] = []; clauses=[]
+            if state: clauses.append("current_state=?"); params.append(state)
+            if reviewer: clauses.append("assigned_reviewers_json LIKE ?"); params.append(f'%"{reviewer}"%')
+            if clauses: sql += " WHERE " + " AND ".join(clauses)
+            sql += " ORDER BY CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END, updated_at LIMIT ?"; params.append(limit)
+            rows=[]
+            for row in connection.execute(sql, params):
+                item=dict(row); item["assigned_reviewers"]=json.loads(item.pop("assigned_reviewers_json")); item["publication_reasons"]=json.loads(item.pop("publication_reasons_json")); rows.append(item)
+            return rows
+
+    def review_history(self, record_id: str) -> dict[str, Any] | None:
+        record=self.get_record(record_id)
+        if record is None: return None
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            case=connection.execute("SELECT * FROM review_cases WHERE record_id=?", (record_id,)).fetchone()
+            if not case: return {"record_id":record_id,"workflow":record.get("review_workflow"),"decisions":[],"comments":[],"quality_assessments":[],"approval_snapshots":[]}
+            cid=case["id"]
+            decisions=[]
+            for row in connection.execute("SELECT decision_id,decision_type,actor,reason,notes,previous_decision_id,occurred_at,created_at FROM review_decisions WHERE review_case_id=? ORDER BY id", (cid,)):
+                decisions.append(dict(row))
+            comments=[dict(row) for row in connection.execute("SELECT comment_id,actor,body,visibility,occurred_at,created_at FROM review_comments WHERE review_case_id=? ORDER BY id", (cid,))]
+            quality=[]
+            for row in connection.execute("SELECT * FROM quality_assessments WHERE review_case_id=? ORDER BY id", (cid,)):
+                item=dict(row); item["basis"]=json.loads(item.pop("basis_json")); quality.append(item)
+            snapshots=[dict(row) for row in connection.execute("SELECT snapshot_id,decision_id,record_payload_sha256,approved_by,approved_at,created_at FROM approval_snapshots WHERE review_case_id=? ORDER BY id", (cid,))]
+            case_item=dict(case); case_item["assigned_reviewers"]=json.loads(case_item.pop("assigned_reviewers_json")); case_item["publication_reasons"]=json.loads(case_item.pop("publication_reasons_json"))
+            return {"record_id":record_id,"workflow":record.get("review_workflow"),"case":case_item,"decisions":decisions,"comments":comments,"quality_assessments":quality,"approval_snapshots":snapshots}
+
+    def revision_history(self, record_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            rows=[]
+            for row in connection.execute("SELECT * FROM record_revision_history WHERE record_id=? ORDER BY revision_number DESC LIMIT ?", (record_id,limit)):
+                item=dict(row); item["changes"]=json.loads(item.pop("changes_json")) if item.get("changes_json") else None; rows.append(item)
+            return rows
+
+    def _mutate_review(self, record_id: str, actor: str, mutator: Any, *, summary: str, reason: str | None = None) -> str:
+        record=self.get_record(record_id)
+        if record is None: raise RepositoryError(f"record not found: {record_id}")
+        previous_sha=payload_hash(record)
+        workflow=deepcopy(record["review_workflow"]); workflow=mutator(workflow)
+        workflow["publication_gate"] = publication_gate(record, workflow["state"], workflow["quality"])
+        if workflow["state"] == "approved" and workflow["publication_gate"]["status"] == "external":
+            approved=[item for item in workflow["decisions"] if item["type"]=="approved"][-1]
+            workflow["publication_gate"]["approved_by"]=approved["actor"]; workflow["publication_gate"]["approved_at"]=approved["occurred_at"]
+        workflow["revision"] = {"number": int(workflow["revision"]["number"])+1, "action": "updated", "change_summary": summary, "reason": reason, "changed_by": actor, "compared_to_sha256": previous_sha}
+        record["review_workflow"]=workflow
+        from datetime import datetime, timezone
+        record["updated_at"]=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+        record["producer"]["component"]="repository-service"
+        return self.upsert_record(record)
+
+    def assign_review(self, record_id: str, reviewer: str, actor: str) -> str:
+        def mutate(workflow: dict[str, Any]) -> dict[str, Any]:
+            if reviewer not in workflow["assigned_reviewers"]: workflow["assigned_reviewers"].append(reviewer)
+            return append_decision(workflow, "assigned", actor, reason=f"Assigned to {reviewer}")
+        return self._mutate_review(record_id, actor, mutate, summary=f"Assigned review to {reviewer}.")
+
+    def submit_review(self, record_id: str, actor: str, notes: str | None = None) -> str:
+        return self._mutate_review(record_id, actor, lambda workflow: append_decision(workflow,"submitted",actor,notes=notes), summary="Submitted record for review.")
+
+    def start_review(self, record_id: str, actor: str, notes: str | None = None) -> str:
+        return self._mutate_review(record_id, actor, lambda workflow: append_decision(workflow,"review_started",actor,notes=notes), summary="Review started.")
+
+    def decide_review(self, record_id: str, decision: str, actor: str, *, reason: str | None = None, notes: str | None = None) -> str:
+        return self._mutate_review(record_id, actor, lambda workflow: append_decision(workflow,decision,actor,reason=reason,notes=notes), summary=f"Review decision: {decision}.", reason=reason)
+
+    def add_review_comment(self, record_id: str, actor: str, body: str, *, visibility: str = "internal") -> str:
+        def mutate(workflow: dict[str, Any]) -> dict[str, Any]:
+            updated=append_comment(workflow,actor,body,visibility=visibility)
+            return append_decision(updated,"commented",actor,notes=body)
+        return self._mutate_review(record_id, actor, mutate, summary="Added review comment.")
+
+    def assess_quality(self, record_id: str, actor: str, scores: Mapping[str, int], *, basis: Mapping[str, str] | None = None) -> str:
+        def mutate(workflow: dict[str, Any]) -> dict[str, Any]:
+            quality=deepcopy(workflow["quality"])
+            for name,value in scores.items():
+                if name not in {"completeness","validity","consistency","timeliness","provenance","uncertainty"}: raise RepositoryError(f"unknown quality dimension: {name}")
+                quality[name]=int(value)
+            quality["overall"]=quality_overall(quality); quality["basis"].update(dict(basis or {})); quality["assessed_by"]=actor
+            from datetime import datetime, timezone
+            quality["assessed_at"]=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+            workflow["quality"]=quality
+            return append_decision(workflow,"quality_assessed",actor,notes=f"Overall quality: {quality['overall']}")
+        return self._mutate_review(record_id, actor, mutate, summary="Updated quality assessment.")
+
     def stats(self) -> dict[str, int]:
         with closing(connect(self.path)) as connection:
             self._require_current(connection)
-            counts={"records":"data_records","entities":"entities","indicators":"indicators","indicator_versions":"indicator_versions","methodologies":"methodologies","methodology_versions":"methodology_versions","units":"unit_definitions","framework_mappings":"framework_mappings","governance_events":"governance_events","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps","questions":"research_questions","instruments":"instruments","instrument_versions":"instrument_versions","datasets":"datasets","dataset_versions":"dataset_versions","observation_batches":"observation_batches","observations":"observations","observation_transformations":"observation_transformations","lineage_events":"lineage_events"}
+            counts={"records":"data_records","entities":"entities","indicators":"indicators","indicator_versions":"indicator_versions","methodologies":"methodologies","methodology_versions":"methodology_versions","units":"unit_definitions","framework_mappings":"framework_mappings","governance_events":"governance_events","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps","questions":"research_questions","instruments":"instruments","instrument_versions":"instrument_versions","datasets":"datasets","dataset_versions":"dataset_versions","observation_batches":"observation_batches","observations":"observations","observation_transformations":"observation_transformations","lineage_events":"lineage_events","review_cases":"review_cases","review_assignments":"review_assignments","review_comments":"review_comments","review_decisions":"review_decisions","quality_assessments":"quality_assessments","approval_snapshots":"approval_snapshots","revision_diffs":"revision_diffs"}
             return {name:int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for name,table in counts.items()}

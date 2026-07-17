@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0 — Review, Quality, and Revision Workflow
+
+- Added the backward-compatible `catalyst-data-review-workflow/1.0` contract.
+- Added migration 006 for review cases, reviewer assignments, comments, decisions, quality assessments, approval snapshots, revision diffs, and review queues.
+- Added automatic v1.5.0 review-workflow backfill and safe populated rollback.
+- Added explainable six-dimension quality scoring and publication gates.
+- Added immutable approval snapshots tied to exact canonical payload checksums.
+- Added review workflow, quality assessment, history, and revisions CLI commands.
+- Added review-aware JSON and CSV import/export and release validation.
+
 ## 1.5.0 — Questions, Instruments, Datasets, and Observations
 
 - Added the backward-compatible `catalyst-data-observation-lineage/1.0` contract.

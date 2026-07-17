@@ -71,10 +71,15 @@ def csv_row_to_payload(row: Mapping[str, Any]) -> dict[str, Any]:
     evidence_chain = None
     indicator_governance = None
     observation_lineage = None
+    review_workflow = None
     if row.get("indicator_governance_json"):
         indicator_governance = json.loads(str(row["indicator_governance_json"]))
         if not isinstance(indicator_governance, dict):
             raise ValueError("indicator_governance_json must contain an object")
+    if row.get("review_workflow_json"):
+        review_workflow = json.loads(str(row["review_workflow_json"]))
+        if not isinstance(review_workflow, dict):
+            raise ValueError("review_workflow_json must contain an object")
     if row.get("observation_lineage_json"):
         observation_lineage = json.loads(str(row["observation_lineage_json"]))
         if not isinstance(observation_lineage, dict):
@@ -144,6 +149,8 @@ def csv_row_to_payload(row: Mapping[str, Any]) -> dict[str, Any]:
         payload["indicator_governance"] = indicator_governance
     if observation_lineage is not None:
         payload["observation_lineage"] = observation_lineage
+    if review_workflow is not None:
+        payload["review_workflow"] = review_workflow
     return payload
 
 

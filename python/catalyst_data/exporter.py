@@ -22,7 +22,12 @@ CSV_FIELDS = [
     "methodology_version", "methodology_status", "indicator_governance_json",
     "question_count", "instrument_count", "dataset_count", "batch_count", "observation_count",
     "transformation_count", "lineage_completeness_score", "observation_lineage_json",
-    "created_at", "updated_at",
+    "review_workflow_state", "review_priority", "assigned_reviewers",
+    "quality_completeness", "quality_validity", "quality_consistency", "quality_timeliness",
+    "quality_provenance", "quality_uncertainty", "quality_overall", "quality_basis",
+    "publication_gate_status", "publication_gate_reasons", "revision_number", "revision_action",
+    "revision_change_summary", "revision_reason", "revision_changed_by", "revision_compared_to_sha256",
+    "review_workflow_json", "created_at", "updated_at",
 ]
 
 
@@ -35,6 +40,10 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
     governed_unit = governance.get("unit", {})
     governed_method = governance.get("methodology", {})
     lineage = record.get("observation_lineage", {})
+    workflow = record.get("review_workflow", {})
+    quality = workflow.get("quality", {})
+    gate = workflow.get("publication_gate", {})
+    revision = workflow.get("revision", {})
     return {
         "record_id": record["record_id"], "schema_version": record["schema_version"],
         "entity_id": entity["id"], "entity_name": entity["name"], "entity_type": entity["type"],
@@ -73,6 +82,19 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
         "observation_count": len(lineage.get("observations", [])), "transformation_count": len(lineage.get("transformations", [])),
         "lineage_completeness_score": lineage.get("completeness_score"),
         "observation_lineage_json": json.dumps(lineage, ensure_ascii=False, sort_keys=True),
+        "review_workflow_state": workflow.get("state"), "review_priority": workflow.get("priority"),
+        "assigned_reviewers": " | ".join(workflow.get("assigned_reviewers", [])),
+        "quality_completeness": quality.get("completeness"), "quality_validity": quality.get("validity"),
+        "quality_consistency": quality.get("consistency"), "quality_timeliness": quality.get("timeliness"),
+        "quality_provenance": quality.get("provenance"), "quality_uncertainty": quality.get("uncertainty"),
+        "quality_overall": quality.get("overall"), "quality_basis": quality.get("basis"),
+        "publication_gate_status": gate.get("status"),
+        "publication_gate_reasons": " | ".join(gate.get("reasons", [])),
+        "revision_number": revision.get("number"), "revision_action": revision.get("action"),
+        "revision_change_summary": revision.get("change_summary"), "revision_reason": revision.get("reason"),
+        "revision_changed_by": revision.get("changed_by"),
+        "revision_compared_to_sha256": revision.get("compared_to_sha256"),
+        "review_workflow_json": json.dumps(workflow, ensure_ascii=False, sort_keys=True),
         "created_at": record["created_at"], "updated_at": record["updated_at"],
     }
 

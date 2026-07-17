@@ -259,6 +259,65 @@ class ObservationLineage(TypedDict):
     completeness_score: int
 
 
+
+class ReviewQualityAssessment(TypedDict):
+    completeness: int
+    validity: int
+    consistency: int
+    timeliness: int
+    provenance: int
+    uncertainty: int
+    overall: int
+    basis: Dict[str, str]
+    assessed_by: str
+    assessed_at: str
+
+
+class PublicationGate(TypedDict):
+    status: str
+    reasons: List[str]
+    approved_by: Optional[str]
+    approved_at: Optional[str]
+
+
+class RevisionMetadata(TypedDict):
+    number: int
+    action: str
+    change_summary: str
+    reason: Optional[str]
+    changed_by: str
+    compared_to_sha256: Optional[str]
+
+
+class ReviewDecision(TypedDict):
+    id: str
+    type: str
+    actor: str
+    reason: Optional[str]
+    notes: Optional[str]
+    occurred_at: str
+
+
+class ReviewComment(TypedDict):
+    id: str
+    actor: str
+    body: str
+    visibility: str
+    occurred_at: str
+
+
+class ReviewWorkflow(TypedDict):
+    schema_version: str
+    state: str
+    priority: str
+    assigned_reviewers: List[str]
+    quality: ReviewQualityAssessment
+    publication_gate: PublicationGate
+    revision: RevisionMetadata
+    decisions: List[ReviewDecision]
+    comments: List[ReviewComment]
+
+
 class ConfidenceRecord(TypedDict):
     score: float
     scale: str
@@ -293,6 +352,7 @@ CatalystDataRecord = TypedDict(
         "indicator": IndicatorRecord,
         "indicator_governance": IndicatorGovernance,
         "observation_lineage": ObservationLineage,
+        "review_workflow": ReviewWorkflow,
         "period": PeriodRecord,
         "measurement": MeasurementRecord,
         "source": SourceRecord,

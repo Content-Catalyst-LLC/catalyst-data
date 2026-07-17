@@ -44,7 +44,7 @@ const values = {
 const first = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 const second = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 equal(first.schema_version, 'catalyst-data-record/1.0', 'record contract');
-equal(first.producer.version, '1.5.0', 'producer version');
+equal(first.producer.version, '1.6.0', 'producer version');
 equal(first.measurement.percent_change, 25, 'record percent change');
 equal(first.review.status, 'reviewable', 'record review status');
 equal(first.review.signal_status, 'improving', 'record signal status');
@@ -63,5 +63,9 @@ equal(first.observation_lineage.schema_version, 'catalyst-data-observation-linea
 equal(first.observation_lineage.questions.length, 1, 'browser questions');
 equal(first.observation_lineage.observations.length, 2, 'browser observations');
 equal(first.observation_lineage.completeness_score, 100, 'browser lineage completeness');
+equal(first.review_workflow.schema_version, 'catalyst-data-review-workflow/1.0', 'review workflow contract');
+equal(first.review_workflow.state, 'draft', 'review workflow state');
+equal(first.review_workflow.quality.overall, 91, 'review workflow quality');
+equal(first.review_workflow.publication_gate.status, 'blocked', 'publication gate');
 
 console.log('Browser contract parity passed.');
