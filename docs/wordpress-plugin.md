@@ -1,10 +1,10 @@
 # WordPress Plugin
 
-The WordPress demo plugin provides `[catalyst_data_demo]`. It is browser-based and generates structured JSON without sending user inputs to a server.
+The WordPress demo plugin provides `[catalyst_data_demo]`. It is browser-based and creates canonical JSON without sending user inputs to a server.
 
 ## Distribution
 
-The committed source is in `wordpress/catalyst-data-demo/`. The installable ZIP is generated deterministically at `dist/catalyst-data-demo.zip` by:
+Committed source is stored in `wordpress/catalyst-data-demo/`. The installable ZIP is generated deterministically at `dist/catalyst-data-demo.zip` by:
 
 ```bash
 python3 scripts/build_release.py
@@ -12,10 +12,14 @@ python3 scripts/build_release.py
 
 Do not edit files inside the ZIP directly.
 
-## v1.0.1 repairs
+## v1.1.0 behavior
 
-- Loads the generated browser review contract before the demo engine.
-- Uses the same thresholds and status labels as Python and SQLite.
-- Treats zero-baseline change as indeterminate.
-- Separates review status from signal status.
+- Loads generated review and record contracts before the demo engine.
+- Emits `catalyst-data-record/1.0` with stable semantic IDs.
+- Adds producer metadata and creation/update timestamps.
+- Includes source URL, publisher, license, retrieval time, citation, checksum, and access notes.
+- Includes confidence basis, reviewer notes, assumptions, limitations, uncertainty, and quality flags.
+- Keeps review readiness separate from measurement direction.
+- Treats a missing or zero baseline as an indeterminate percentage change.
+- Rejects malformed URLs, checksums, unsupported quality flags, and invalid numeric values in the browser output.
 - Generates unique field IDs when the shortcode appears more than once on a page.

@@ -1,11 +1,11 @@
-# Catalyst Data Demo WordPress Plugin
+# Catalyst Data Demo
 
-Version 1.0.1 adds a synchronized browser review contract and safe support for multiple shortcode instances.
+Version 1.1.0 emits the canonical `catalyst-data-record/1.0` structure in the browser.
 
-Shortcode:
+Use shortcode:
 
 ```text
 [catalyst_data_demo]
 ```
 
-The demo lets visitors connect an entity, indicator, reporting period, value, source, confidence level, and method note into a reviewable JSON evidence record. It remains browser-only and does not send entered data to a server.
+The demo does not send data to a server. It creates a local JSON record with stable semantic IDs, producer metadata, source provenance, structured method limitations, confidence, review readiness, and signal status.

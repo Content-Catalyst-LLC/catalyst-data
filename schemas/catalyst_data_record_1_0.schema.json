@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.1.0.json",
-  "title": "Catalyst Data Export 1.1.0",
-  "description": "Compatibility export schema for the canonical catalyst-data-record/1.0 contract.",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json",
+  "title": "Catalyst Data Record 1.0",
+  "description": "Canonical Catalyst Data v1.1.0 measurement record with provenance, review, method, and extension metadata.",
   "type": "object",
   "additionalProperties": false,
   "required": [

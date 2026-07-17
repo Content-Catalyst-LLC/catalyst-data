@@ -1,7 +1,10 @@
 {
   "name": "Catalyst Data",
-  "version": "1.0.1",
-  "module_type": "shared data and provenance layer",
+  "version": "1.1.0",
+  "module_type": "canonical data contract and validation engine",
+  "record_contract": "catalyst-data-record/1.0",
+  "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
+  "review_contract": "contracts/review_contract.json",
   "method_path": [
     "entity",
     "indicator",
@@ -19,15 +22,20 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Repository Integrity and Package Contract Repair",
+  "release": "Canonical Data Contract and Validation Engine",
   "version_source": "VERSION",
-  "review_contract": "contracts/review_contract.json",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
+    "python/catalyst_data/_record_contract.py",
     "python/catalyst_data/_version.py",
+    "python/catalyst_data/schemas/catalyst_data_record_1_0.schema.json",
+    "schemas/catalyst_data_record_1_0.schema.json",
     "wordpress/catalyst-data-demo/assets/catalyst-data-contract.js",
+    "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js",
     "schema.sql review views"
   ],
+  "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
+  "validation_command": "catalyst-data validate RECORD.json",
   "build_command": "python3 scripts/build_release.py",
-  "validation_command": "python3 scripts/check_release.py"
+  "release_validation_command": "python3 scripts/check_release.py"
 }

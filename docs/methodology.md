@@ -23,7 +23,7 @@ Missing source takes precedence over confidence.
 
 Measurement direction is evaluated separately:
 
-- zero baseline → `indeterminate`
+- missing or zero baseline → `indeterminate`
 - no change → `unchanged`
 - neutral indicator → `descriptive`
 - movement in the preferred direction → `improving`

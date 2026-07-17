@@ -4,18 +4,23 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SOURCE = ROOT / "wordpress" / "catalyst-data-demo"
 PLUGIN_ZIP = ROOT / "dist" / "catalyst-data-demo.zip"
 FIXED_TIME = (2026, 7, 16, 12, 0, 0)
+FIXED_DATETIME = datetime(2026, 7, 16, 12, 0, 0, tzinfo=timezone.utc)
+sys.path.insert(0, str(ROOT / "python"))
+
+from catalyst_data.engine import convert_legacy_record
 
 
 def run(*args: str) -> None:
@@ -60,6 +65,13 @@ def regenerate_examples() -> None:
     shutil.copyfile(ROOT / "outputs" / "generated_brief.json", ROOT / "outputs" / "sample_export.json")
     shutil.copyfile(ROOT / "outputs" / "generated_brief.md", ROOT / "outputs" / "sample_catalyst_data_brief.md")
 
+    legacy = json.loads((ROOT / "examples/sample_legacy_v1_0_record.json").read_text(encoding="utf-8"))
+    upgraded = convert_legacy_record(legacy, now=FIXED_DATETIME)
+    (ROOT / "outputs/upgraded_legacy_record.json").write_text(
+        json.dumps(upgraded, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
 
 def checksum(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -67,10 +79,11 @@ def checksum(path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="verify outputs without retaining rebuilds")
+    parser.add_argument("--check", action="store_true", help="verify outputs after rebuilding")
     args = parser.parse_args()
 
     run(sys.executable, "scripts/sync_contract.py")
+    run(sys.executable, "scripts/sync_record_contract.py")
     regenerate_examples()
     deterministic_zip(PLUGIN_SOURCE, PLUGIN_ZIP, "catalyst-data-demo")
 

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/contracts/catalyst-data-record-contract-1.0.json",
+  "contract": "catalyst-data-record/1.0",
+  "schema_file": "schemas/catalyst_data_record_1_0.schema.json",
+  "record_types": [
+    "measurement"
+  ],
+  "entity_types": [
+    "country",
+    "organization",
+    "project",
+    "program",
+    "site",
+    "policy",
+    "persona",
+    "experiment",
+    "dataset",
+    "other"
+  ],
+  "source_types": [
+    "internal record",
+    "third-party dataset",
+    "survey",
+    "public registry",
+    "model estimate",
+    "publication",
+    "sensor",
+    "api",
+    "other",
+    "unspecified"
+  ],
+  "producer_components": [
+    "python-engine",
+    "browser-demo",
+    "migration-tool",
+    "external"
+  ],
+  "quality_flags": [
+    "estimated",
+    "incomplete",
+    "outlier",
+    "imputed",
+    "stale",
+    "conflicting",
+    "restricted",
+    "unverified"
+  ],
+  "id_pattern": "^[a-z][a-z0-9._:-]{2,255}$",
+  "extension_key_pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9-]+)+$",
+  "source_checksum_pattern": "^sha256:[0-9a-f]{64}$",
+  "legacy_contracts": [
+    "catalyst-data-export/1.0",
+    "catalyst-data-export/1.0.1",
+    "unversioned-v1.0.x"
+  ]
+}

@@ -7,21 +7,47 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
-from catalyst_data import __version__
+from catalyst_data import __version__, schema
 
 
-def test_versions_are_synchronized():
-    version = (ROOT / "VERSION").read_text().strip()
+def test_versions_and_contract_are_synchronized():
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
+    assert version == "1.1.0"
     assert __version__ == version
-    assert json.loads((ROOT / "catalyst_data_manifest.json").read_text())["version"] == version
-    php = (ROOT / "wordpress/catalyst-data-demo/catalyst-data-demo.php").read_text()
+    manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["version"] == version
+    assert manifest["record_contract"] == "catalyst-data-record/1.0"
+    php = (ROOT / "wordpress/catalyst-data-demo/catalyst-data-demo.php").read_text(encoding="utf-8")
     assert f"Version: {version}" in php
     assert f"CATALYST_DATA_DEMO_VERSION', '{version}'" in php
 
 
-def test_plugin_distribution_contains_contract_asset():
+def test_packaged_schema_matches_canonical_schema():
+    canonical = ROOT / "schemas/catalyst_data_record_1_0.schema.json"
+    packaged = ROOT / "python/catalyst_data/schemas/catalyst_data_record_1_0.schema.json"
+    assert canonical.read_bytes() == packaged.read_bytes()
+    assert json.loads(canonical.read_text(encoding="utf-8")) == schema()
+
+
+def test_plugin_distribution_contains_both_contract_assets():
     with zipfile.ZipFile(ROOT / "dist/catalyst-data-demo.zip") as archive:
         names = set(archive.namelist())
     assert "catalyst-data-demo/assets/catalyst-data-contract.js" in names
+    assert "catalyst-data-demo/assets/catalyst-data-record-contract.js" in names
     assert "catalyst-data-demo/catalyst-data-demo.php" in names
+
+
+def test_release_documentation_exists():
+    assert (ROOT / "release/v1.1.0.md").exists()
+    assert (ROOT / "docs/data-contract.md").exists()
+    assert (ROOT / "docs/migration-v1.0.md").exists()
+    assert (ROOT / "docs/extension-rules.md").exists()
+
+def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
+    source = (ROOT / "scripts/check_release.py").read_text(encoding="utf-8")
+    cache_guard = source.index("sys.pycache_prefix")
+    package_import = source.index("from catalyst_data import")
+    assert cache_guard < package_import
+    assert 'ROOT.rglob("__pycache__")' in source
+    assert "sys.dont_write_bytecode = True" in source

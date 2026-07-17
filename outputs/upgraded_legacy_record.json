@@ -1,0 +1,68 @@
+{
+  "$schema": "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json",
+  "schema_version": "catalyst-data-record/1.0",
+  "record_id": "measurement:entity-program-de8711a4e14a:a354d5b19a98",
+  "record_type": "measurement",
+  "created_at": "2026-07-16T12:00:00Z",
+  "updated_at": "2026-07-16T12:00:00Z",
+  "producer": {
+    "name": "Catalyst Data",
+    "version": "1.1.0",
+    "component": "migration-tool"
+  },
+  "entity": {
+    "id": "entity:program:de8711a4e14a",
+    "name": "Legacy Energy Program",
+    "type": "program",
+    "external_ids": {}
+  },
+  "indicator": {
+    "id": "indicator:estimated-co2e-avoided:0664b9d2c2d6",
+    "name": "Estimated CO2e avoided",
+    "unit": "tCO2e",
+    "direction": "higher",
+    "framework": null,
+    "version": "1.0"
+  },
+  "period": {
+    "id": "period:2026-q1:332f346bb8b7",
+    "label": "2026-Q1",
+    "start_date": null,
+    "end_date": null
+  },
+  "measurement": {
+    "baseline": 100.0,
+    "current": 125.0,
+    "percent_change": 25.0
+  },
+  "source": {
+    "id": "source:legacy-program-spreadsheet:020f2074ee5e",
+    "name": "Legacy program spreadsheet",
+    "type": "internal record",
+    "url": null,
+    "publisher": null,
+    "license": null,
+    "retrieved_at": null,
+    "citation": null,
+    "checksum": null,
+    "access_notes": null
+  },
+  "confidence": {
+    "score": 68.0,
+    "scale": "0-100",
+    "basis": null
+  },
+  "review": {
+    "status": "reviewable with caution",
+    "signal_status": "improving",
+    "reviewer_notes": ""
+  },
+  "method": {
+    "notes": "Imported from a Catalyst Data v1.0.x browser export.",
+    "assumptions": [],
+    "limitations": [],
+    "uncertainty": null,
+    "quality_flags": []
+  },
+  "extensions": {}
+}

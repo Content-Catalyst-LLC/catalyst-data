@@ -1,22 +1,61 @@
 {
+  "created_at": "2026-07-16T12:00:00Z",
+  "updated_at": "2026-07-16T12:00:00Z",
   "entity": {
     "name": "Urban Tree Canopy Program",
-    "type": "project"
+    "type": "project",
+    "external_ids": {
+      "org.sustainablecatalyst.project": "urban-tree-canopy"
+    }
   },
   "indicator": {
     "name": "Data completeness score",
     "unit": "score",
-    "direction": "higher"
+    "direction": "higher",
+    "framework": "Sustainable Catalyst Evidence Readiness",
+    "version": "1.0"
   },
-  "period": "2026-Q2",
+  "period": {
+    "label": "2026-Q2",
+    "start_date": "2026-04-01",
+    "end_date": "2026-06-30"
+  },
   "values": {
     "baseline": 62,
     "current": 78
   },
   "source": {
     "name": "Internal program tracker + field verification notes",
-    "type": "internal record"
+    "type": "internal record",
+    "url": "https://sustainablecatalyst.com/records/urban-tree-canopy-2026-q2",
+    "publisher": "Content Catalyst LLC",
+    "license": "Internal review record",
+    "retrieved_at": "2026-07-16T11:30:00Z",
+    "citation": "Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.",
+    "checksum": "sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a",
+    "access_notes": "Public example derived from a fictional program record."
   },
-  "confidence": 72,
-  "method_notes": "Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification."
+  "confidence": {
+    "score": 72,
+    "basis": "Verified site records plus partial field review."
+  },
+  "method": {
+    "notes": "Current value combines verified site records with program-reported updates.",
+    "assumptions": [
+      "Program-reported site updates use the same completeness rubric as the baseline."
+    ],
+    "limitations": [
+      "Not all sites have independent third-party verification."
+    ],
+    "uncertainty": "Moderate uncertainty remains for unverified sites.",
+    "quality_flags": [
+      "unverified"
+    ]
+  },
+  "reviewer_notes": "Suitable for internal comparison with a visible verification limitation.",
+  "extensions": {
+    "org.sustainablecatalyst.demo": {
+      "sample": true
+    }
+  }
 }

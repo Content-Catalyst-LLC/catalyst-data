@@ -1,22 +1,20 @@
 # Export Specification
 
-Catalyst Data exports preserve the trace path from entity to review and validate against `schemas/catalyst_data_export.schema.json`.
+Catalyst Data v1.1.0 exports the canonical `catalyst-data-record/1.0` shape and validates it against `schemas/catalyst_data_record_1_0.schema.json`.
 
-## v1.0.1 fields
+## Required record sections
 
-The export contains:
+- schema identity, stable record ID, record type, timestamps, and producer metadata
+- identified entity, indicator, and reporting period
+- baseline, current value, and derived percentage change
+- source name, type, URL, publisher, license, retrieval time, citation, checksum, and access notes
+- confidence score, scale, and basis
+- evidence-readiness status, directional signal, and reviewer notes
+- method notes, assumptions, limitations, uncertainty, and quality flags
+- namespaced extensions
 
-- entity name and type
-- indicator name, unit, and direction
-- reporting period
-- baseline, current value, and percent change
-- source name and type
-- confidence
-- evidence `review_status`
-- directional `signal_status`
-- method notes
-- canonical trace path
+`measurement.percent_change` is `null` when the baseline is missing or zero because a percentage change is undefined in those cases.
 
-`values.percent_change` is `null` when the baseline is zero because a percentage change is mathematically undefined in that case.
+The compatibility file `schemas/catalyst_data_export.schema.json` describes the same canonical record shape. New integrations should use the record schema filename directly.
 
-`review_status` and `signal_status` must not be conflated. An improving measurement can still be `needs evidence` or `reviewable with caution`.
+Review readiness and signal direction remain separate. An improving measurement can still have missing evidence or require caution.

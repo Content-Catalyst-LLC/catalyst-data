@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 — Canonical Data Contract and Validation Engine
+
+### Installer reliability repair
+
+- Prevented stale v1.0.x Python bytecode from being reused during an in-place v1.1.0 upgrade.
+- Isolated release validation bytecode lookups from repository caches.
+
+- Added the canonical `catalyst-data-record/1.0` schema and contract metadata.
+- Added strict JSON Schema validation with unknown-field rejection and format checks.
+- Added stable semantic IDs, record type, creation/update timestamps, and producer metadata.
+- Expanded source provenance with URL, publisher, license, retrieval timestamp, citation, checksum, and access notes.
+- Added structured confidence basis, review notes, assumptions, limitations, uncertainty, and quality flags.
+- Added namespaced extension rules.
+- Added Python TypedDict mappings and packaged schema resources.
+- Added legacy v1.0.x conversion through Python and `catalyst-data upgrade`.
+- Added `catalyst-data validate` and preserved the legacy brief CLI invocation.
+- Updated the WordPress demo to emit the canonical record contract.
+- Expanded contract, semantic, CLI, browser, packaging, and release tests.
+
 ## 1.0.1 — Repository Integrity and Package Contract Repair
 
 - Added `VERSION` as the canonical release version source.

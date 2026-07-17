@@ -1,0 +1,34 @@
+{
+  "entity": {
+    "name": "Legacy Energy Program",
+    "type": "program"
+  },
+  "indicator": {
+    "name": "Estimated CO2e avoided",
+    "unit": "tCO2e",
+    "direction": "higher"
+  },
+  "period": "2026-Q1",
+  "values": {
+    "baseline": 100,
+    "current": 125,
+    "percent_change": 25
+  },
+  "source": {
+    "name": "Legacy program spreadsheet",
+    "type": "internal record"
+  },
+  "confidence": 68,
+  "review_status": "reviewable with caution",
+  "signal_status": "improving",
+  "method_notes": "Imported from a Catalyst Data v1.0.x browser export.",
+  "trace_path": [
+    "entity",
+    "indicator",
+    "period",
+    "measurement",
+    "source",
+    "confidence",
+    "review"
+  ]
+}

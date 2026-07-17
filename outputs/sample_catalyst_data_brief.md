@@ -1,24 +1,42 @@
 # Catalyst Data Brief: Urban Tree Canopy Program
 
+## Record Contract
+
+- **Schema:** `catalyst-data-record/1.0`
+- **Record ID:** `measurement:entity-project-5ada7e550380:f71a831661c3`
+- **Created:** 2026-07-16T12:00:00Z
+- **Updated:** 2026-07-16T12:00:00Z
+- **Producer:** Catalyst Data v1.1.0 (python-engine)
+
 ## Measurement
 
-- **Indicator:** Data completeness score
+- **Indicator:** Data completeness score (1.0)
 - **Period:** 2026-Q2
 - **Baseline:** 62.0 score
 - **Current:** 78.0 score
 - **Percent change:** 25.81%
-- **Source:** Internal program tracker + field verification notes
-- **Confidence:** 72.0%
+- **Confidence:** 72.0% (Verified site records plus partial field review.)
 - **Review status:** reviewable
 - **Signal status:** improving
 
-## Trace Path
+## Source and Provenance
 
-`entity → indicator → period → measurement → source → confidence → review`
+- **Source:** Internal program tracker + field verification notes
+- **Publisher:** Content Catalyst LLC
+- **License:** Internal review record
+- **Citation:** Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.
+- **Retrieved:** 2026-07-16T11:30:00Z
+- **Checksum:** sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a
 
-## Method Notes
+## Method
 
-Current value combines verified site records with program-reported updates. Confidence is moderate because not all sites have third-party verification.
+Current value combines verified site records with program-reported updates.
+
+- **Assumptions:** Program-reported site updates use the same completeness rubric as the baseline.
+- **Limitations:** Not all sites have independent third-party verification.
+- **Uncertainty:** Moderate uncertainty remains for unverified sites.
+- **Quality flags:** unverified
+- **Reviewer notes:** Suitable for internal comparison with a visible verification limitation.
 
 ## Boundary
 

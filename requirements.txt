@@ -1,2 +1,1 @@
-# Catalyst Data runtime requirements
-# The v1.0.1 Python utilities use only the standard library.
+jsonschema>=4.21
