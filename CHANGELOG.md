@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0 — Query, Comparison, and Export Studio
+
+- Added `catalyst-data-query/1.0` and migration 007.
+- Added versioned saved queries and immutable query-run record snapshots.
+- Added governed filtering, summaries, consecutive-period comparisons, unit conversion, and comparability warnings.
+- Added reproducible Markdown briefs and deterministic export bundles with manifests, records, CSV, comparisons, warnings, provenance, review history, and data dictionary.
+- Added query and export CLI workflows, package validation, rollback, and upgrade coverage.
+
 ## 1.6.0 — Review, Quality, and Revision Workflow
 
 - Added the backward-compatible `catalyst-data-review-workflow/1.0` contract.

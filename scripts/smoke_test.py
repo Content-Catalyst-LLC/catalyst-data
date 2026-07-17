@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.6.0", "producer version failed")
+    check(record["producer"]["version"] == "1.7.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -82,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5, 6], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6, 7], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -109,6 +109,14 @@ def main() -> int:
         repository.start_review(record_id, "reviewer@example.org")
         repository.decide_review(record_id, "approved", "reviewer@example.org", reason="Approved")
         check(bool(repository.review_history(record_id)["approval_snapshots"]), "approval snapshot failed")
+        from catalyst_data.query_studio import QueryStudio
+        studio = QueryStudio(repository)
+        saved = studio.save({"name":"Smoke query","filters":{},"sort":[],"limit":100}, actor="smoke")
+        run = studio.run(saved["query_id"])
+        check(run["summary"]["record_count"] == 2, "query studio failed")
+        bundle = Path(directory) / "smoke-bundle.zip"
+        studio.export_bundle(run["run_id"], bundle)
+        check(bundle.exists(), "query bundle failed")
 
     database = sqlite3.connect(":memory:")
     database.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-query-1.0.json",
+  "title": "Catalyst Data Query 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "filters", "sort", "limit"],
+  "properties": {
+    "schema_version": {"const": "catalyst-data-query/1.0"},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": ["string", "null"]},
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "record_ids": {"$ref": "#/$defs/stringList"},
+        "entity_ids": {"$ref": "#/$defs/stringList"},
+        "entity_types": {"$ref": "#/$defs/stringList"},
+        "entity_names": {"$ref": "#/$defs/stringList"},
+        "indicator_ids": {"$ref": "#/$defs/stringList"},
+        "indicator_names": {"$ref": "#/$defs/stringList"},
+        "indicator_codes": {"$ref": "#/$defs/stringList"},
+        "frameworks": {"$ref": "#/$defs/stringList"},
+        "period_ids": {"$ref": "#/$defs/stringList"},
+        "period_labels": {"$ref": "#/$defs/stringList"},
+        "period_start_from": {"type": "string"},
+        "period_end_to": {"type": "string"},
+        "source_ids": {"$ref": "#/$defs/stringList"},
+        "review_states": {"$ref": "#/$defs/stringList"},
+        "publication_statuses": {"$ref": "#/$defs/stringList"},
+        "evidence_statuses": {"$ref": "#/$defs/stringList"},
+        "quality_min": {"type": "number", "minimum": 0, "maximum": 100},
+        "confidence_min": {"type": "number", "minimum": 0, "maximum": 100},
+        "tags": {"$ref": "#/$defs/stringList"},
+        "search": {"type": "string"}
+      }
+    },
+    "sort": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "direction"],
+        "properties": {
+          "field": {"type": "string"},
+          "direction": {"enum": ["asc", "desc"]}
+        }
+      }
+    },
+    "limit": {"type": "integer", "minimum": 1, "maximum": 1000000}
+  },
+  "$defs": {
+    "stringList": {"type": ["string", "array"], "items": {"type": "string"}}
+  }
+}

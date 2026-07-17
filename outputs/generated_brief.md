@@ -6,7 +6,7 @@
 - **Record ID:** `measurement:entity-project-5ada7e550380:f71a831661c3`
 - **Created:** 2026-07-16T12:00:00Z
 - **Updated:** 2026-07-16T12:00:00Z
-- **Producer:** Catalyst Data v1.6.0 (python-engine)
+- **Producer:** Catalyst Data v1.7.0 (python-engine)
 
 ## Measurement
 

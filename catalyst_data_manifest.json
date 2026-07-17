@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.6.0",
-  "module_type": "review, quality, revision, questions, instruments, datasets, observations, and lineage",
+  "version": "1.7.0",
+  "module_type": "query, comparison, export, review, quality, revision, provenance, lineage, and governed measurements",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -21,7 +21,11 @@
     "quality assessment",
     "approval snapshot",
     "publication gate",
-    "revision diff"
+    "revision diff",
+    "saved query",
+    "frozen query run",
+    "comparison warnings",
+    "reproducible export bundle"
   ],
   "wordpress_shortcode": "[catalyst_data_demo]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
@@ -31,7 +35,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Review, Quality, and Revision Workflow",
+  "release": "Query, Comparison, and Export Studio",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -47,7 +51,9 @@
     "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json",
     "schemas/catalyst_data_observation_lineage_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json",
-    "schemas/catalyst_data_review_workflow_1_0.schema.json"
+    "schemas/catalyst_data_review_workflow_1_0.schema.json",
+    "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json",
+    "schemas/catalyst_data_query_1_0.schema.json"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -86,7 +92,14 @@
     "review-decide",
     "review-comment",
     "quality-assess",
-    "revisions"
+    "revisions",
+    "query-save",
+    "queries",
+    "query-run",
+    "query-runs",
+    "query-results",
+    "query-brief",
+    "export-bundle"
   ],
   "import_formats": [
     "json",
@@ -102,5 +115,7 @@
   "observation_lineage_contract": "catalyst-data-observation-lineage/1.0",
   "observation_lineage_schema": "schemas/catalyst_data_observation_lineage_1_0.schema.json",
   "review_workflow_contract": "catalyst-data-review-workflow/1.0",
-  "review_workflow_schema": "schemas/catalyst_data_review_workflow_1_0.schema.json"
+  "review_workflow_schema": "schemas/catalyst_data_review_workflow_1_0.schema.json",
+  "query_contract": "catalyst-data-query/1.0",
+  "query_schema": "schemas/catalyst_data_query_1_0.schema.json"
 }

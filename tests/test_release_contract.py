@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "1.6.0"
+    assert version == "1.7.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -64,6 +64,13 @@ def test_packaged_review_workflow_schema_matches_canonical_schema():
     payload = json.loads(canonical.read_text(encoding="utf-8"))
     assert payload["properties"]["schema_version"]["const"] == "catalyst-data-review-workflow/1.0"
 
+def test_packaged_query_schema_matches_canonical_schema():
+    canonical = ROOT / "schemas/catalyst_data_query_1_0.schema.json"
+    packaged = ROOT / "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json"
+    assert canonical.read_bytes() == packaged.read_bytes()
+    payload = json.loads(canonical.read_text(encoding="utf-8"))
+    assert payload["properties"]["schema_version"]["const"] == "catalyst-data-query/1.0"
+
 
 def test_plugin_distribution_contains_both_contract_assets():
     with zipfile.ZipFile(ROOT / "dist/catalyst-data-demo.zip") as archive:
@@ -74,7 +81,7 @@ def test_plugin_distribution_contains_both_contract_assets():
 
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v1.6.0.md").exists()
+    assert (ROOT / "release/v1.7.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -84,6 +91,7 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/units-and-methodologies.md").exists()
     assert (ROOT / "docs/observation-lineage.md").exists()
     assert (ROOT / "docs/review-quality-revision.md").exists()
+    assert (ROOT / "docs/query-comparison-export-studio.md").exists()
 
 def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
     source = (ROOT / "scripts/check_release.py").read_text(encoding="utf-8")
@@ -111,4 +119,6 @@ def test_python_package_declares_migration_resources():
         "005_questions_instruments_datasets_observations.up.sql",
         "006_review_quality_revision_workflow.down.sql",
         "006_review_quality_revision_workflow.up.sql",
+        "007_query_comparison_export_studio.down.sql",
+        "007_query_comparison_export_studio.up.sql",
     ]

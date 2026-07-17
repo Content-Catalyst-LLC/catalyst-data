@@ -15,6 +15,7 @@ It exists to answer these practical questions:
 9. Which governed indicator, unit, methodology version, framework mapping, and compatibility rules define whether records can be compared?
 10. Which question, instrument, dataset version, batch, observation, and transformation produced the measurement?
 11. Which reviewer assessed the record, which quality dimensions were considered, and which immutable payload was approved?
+12. Which saved query, frozen record versions, comparison rules, warnings, and export manifest produced a published brief?
 
 ## Contract architecture
 
@@ -24,6 +25,7 @@ It exists to answer these practical questions:
 - `schemas/catalyst_data_indicator_governance_1_0.schema.json` governs indicator definitions, units, methodologies, mappings, and comparability metadata.
 - `schemas/catalyst_data_observation_lineage_1_0.schema.json` governs questions, collection instruments, datasets, batches, observations, and transformations.
 - `schemas/catalyst_data_review_workflow_1_0.schema.json` governs review states, assignments, decisions, quality assessments, publication gates, and revision metadata.
+- `schemas/catalyst_data_query_1_0.schema.json` governs reusable query definitions and their filter/sort contract.
 - Python and browser artifacts are generated from those contracts.
 - Cross-field semantic validation verifies derived percentage change and review judgments.
 
@@ -60,10 +62,14 @@ Migration 005 separates stable question, instrument, dataset, batch, and observa
 
 Migration 006 adds a current review case for each canonical record and append-only histories for decisions, comments, quality assessments, approval snapshots, and semantic revision diffs. Publication gates are derived from workflow state, evidence readiness, and quality. An approval snapshot preserves the exact canonical payload checksum reviewed by the approving actor.
 
+## Query and export architecture
+
+Migration 007 stores mutable query identities alongside immutable query-definition versions and immutable query runs. Each run freezes the exact canonical payload and checksum of every selected record. Comparisons use the governed indicator, unit, and methodology rules; warnings preserve publication, quality, evidence, and comparability limitations. Export bundles contain a manifest, frozen records, CSV, comparisons, warnings, provenance, review history, a data dictionary, and a reproducible brief.
+
 ## Extension boundary
 
 The core schema rejects unknown fields. Product-specific metadata belongs under namespaced `extensions` keys so integrations can add context without mutating the canonical meaning of core fields.
 
 ## Scope boundary
 
-v1.6.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review, question-to-observation lineage, attributable review, quality assessment, immutable approval snapshots, and semantic revision history. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.
+v1.7.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review, question-to-observation lineage, attributable review, quality assessment, immutable approval snapshots, and semantic revision history. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.

@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.6.0":
+    if version != "1.7.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -128,6 +128,13 @@ def validate_schemas() -> None:
     workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
     if workflow.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-review-workflow/1.0":
         fail("Review-workflow schema identifier is invalid")
+    query_path = ROOT / "schemas/catalyst_data_query_1_0.schema.json"
+    query_package = ROOT / "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json"
+    if query_path.read_bytes() != query_package.read_bytes():
+        fail("Packaged query schema differs from canonical schema")
+    query_schema = json.loads(query_path.read_text(encoding="utf-8"))
+    if query_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-query/1.0":
+        fail("Query schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
@@ -138,6 +145,7 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(governance)
         Draft202012Validator.check_schema(lineage)
         Draft202012Validator.check_schema(workflow)
+        Draft202012Validator.check_schema(query_schema)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -189,19 +197,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6]:
-        fail("Expected contiguous migrations 1 through 6")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7]:
+        fail("Expected contiguous migrations 1 through 7")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6]:
-            fail("Fresh repository did not apply migrations 1 through 6")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7]:
+            fail("Fresh repository did not apply migrations 1 through 7")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [6]:
-            fail("Migration 6 rollback failed")
-        if repository.migrate() != [6]:
-            fail("Migration 6 reapplication failed")
+        if repository.rollback(1) != [7]:
+            fail("Migration 7 rollback failed")
+        if repository.migrate() != [7]:
+            fail("Migration 7 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -260,6 +268,21 @@ def validate_repository_pipeline() -> None:
         payload = json.loads(json_export.read_text(encoding="utf-8"))
         if payload.get("record_count") != 2:
             fail("Repository export count is invalid")
+        from catalyst_data.query_studio import QueryStudio
+        studio = QueryStudio(repository)
+        query = json.loads((ROOT / "examples/queries/reviewable_records.json").read_text(encoding="utf-8"))
+        saved = studio.save(query, actor="release-check")
+        run = studio.run(saved["query_id"])
+        if run["summary"]["record_count"] < 1 or not run["result_sha256"]:
+            fail("Query studio execution failed")
+        bundle = Path(directory) / "query-bundle.zip"
+        first_bundle = studio.export_bundle(run["run_id"], bundle)
+        first_bytes = bundle.read_bytes()
+        studio.export_bundle(run["run_id"], bundle)
+        if first_bytes != bundle.read_bytes() or not first_bundle["manifest_sha256"]:
+            fail("Query export bundle is not reproducible")
+        if repository.stats()["query_runs"] != 1 or repository.stats()["saved_query_versions"] != 1:
+            fail("Query studio history was not persisted")
 
 
 def validate_python_metadata() -> None:
@@ -281,6 +304,8 @@ def validate_python_metadata() -> None:
         fail("Packaged observation-lineage schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json").exists():
         fail("Packaged review-workflow schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json").exists():
+        fail("Packaged query schema is missing")
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
@@ -347,7 +372,7 @@ def main() -> int:
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
-    print("STEP: repository migrations, review, lineage, governance, evidence, and imports", flush=True)
+    print("STEP: repository migrations, queries, exports, review, lineage, governance, evidence, and imports", flush=True)
     validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()

@@ -1,0 +1,15 @@
+{
+  "schema_version": "catalyst-data-query/1.0",
+  "name": "Reviewable records",
+  "description": "Records with at least 70 confidence and 70 overall quality.",
+  "filters": {
+    "confidence_min": 70,
+    "quality_min": 70
+  },
+  "sort": [
+    {"field": "entity.name", "direction": "asc"},
+    {"field": "indicator.name", "direction": "asc"},
+    {"field": "period.start_date", "direction": "asc"}
+  ],
+  "limit": 1000
+}

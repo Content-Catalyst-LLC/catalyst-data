@@ -10,6 +10,7 @@ from .engine import brief_markdown, build_record, convert_legacy_record
 from .exporter import export_repository
 from .importer import ImportPipelineError, ImportService
 from .repository import CatalystRepository, RepositoryError
+from .query_studio import QueryStudio
 from .validation import RecordValidationError, validate_record
 
 
@@ -184,6 +185,29 @@ def parser() -> argparse.ArgumentParser:
     revisions = subparsers.add_parser("revisions", help="show immutable record revisions and semantic diffs")
     revisions.add_argument("database", type=Path); revisions.add_argument("record_id"); revisions.add_argument("--limit", type=int, default=100)
 
+    query_save = subparsers.add_parser("query-save", help="save or version a query definition")
+    query_save.add_argument("database", type=Path); query_save.add_argument("input", type=Path)
+    query_save.add_argument("--name"); query_save.add_argument("--description"); query_save.add_argument("--actor", default="local")
+
+    queries = subparsers.add_parser("queries", help="list saved query definitions")
+    queries.add_argument("database", type=Path); queries.add_argument("--limit", type=int, default=100)
+
+    query_run = subparsers.add_parser("query-run", help="execute an ad hoc or saved query and freeze its results")
+    query_run.add_argument("database", type=Path); query_run.add_argument("query", help="saved query ID or JSON definition path")
+
+    query_runs = subparsers.add_parser("query-runs", help="list immutable query runs")
+    query_runs.add_argument("database", type=Path); query_runs.add_argument("--query-id"); query_runs.add_argument("--limit", type=int, default=100)
+
+    query_results = subparsers.add_parser("query-results", help="show frozen records, comparisons, warnings, and summary")
+    query_results.add_argument("database", type=Path); query_results.add_argument("run_id")
+
+    query_brief = subparsers.add_parser("query-brief", help="write a reproducible Markdown brief from a frozen run")
+    query_brief.add_argument("database", type=Path); query_brief.add_argument("run_id"); query_brief.add_argument("output", type=Path)
+
+    export_bundle = subparsers.add_parser("export-bundle", help="create a reproducible query export bundle")
+    export_bundle.add_argument("database", type=Path); export_bundle.add_argument("run_id"); export_bundle.add_argument("output", type=Path)
+    export_bundle.add_argument("--format", choices=("zip","directory"), default="zip")
+
     return result
 
 
@@ -215,7 +239,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -379,6 +403,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             action=repository.assess_quality(args.record_id,args.actor,scores,basis=basis); print(action); return 0
         if args.command == "revisions":
             repository.initialize(); print(json.dumps(repository.revision_history(args.record_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+
+        if args.command == "query-save":
+            studio=QueryStudio(repository); definition=_read(args.input)
+            print(json.dumps(studio.save(definition,name=args.name,description=args.description,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "queries":
+            print(json.dumps(QueryStudio(repository).list_queries(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "query-run":
+            studio=QueryStudio(repository); candidate=Path(args.query)
+            source=_read(candidate) if candidate.exists() else args.query
+            print(json.dumps(studio.run(source),indent=2,ensure_ascii=False)); return 0
+        if args.command == "query-runs":
+            print(json.dumps(QueryStudio(repository).list_runs(query_id=args.query_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "query-results":
+            print(json.dumps(QueryStudio(repository).get_run(args.run_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "query-brief":
+            path=QueryStudio(repository).write_brief(args.run_id,args.output); print(f"wrote {path}"); return 0
+        if args.command == "export-bundle":
+            print(json.dumps(QueryStudio(repository).export_bundle(args.run_id,args.output,bundle_format=args.format),indent=2,ensure_ascii=False)); return 0
         return 2
     except ImportPipelineError as exc:
         payload = exc.summary.to_dict()
@@ -386,7 +428,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, RecordValidationError, RepositoryError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

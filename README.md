@@ -4,9 +4,9 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.6.0 — Questions, Instruments, Datasets, and Observations**
+**v1.7.0 — Query, Comparison, and Export Studio**
 
-The release adds the complete question-to-measurement lineage path: research and decision questions, versioned collection instruments, versioned datasets, observation batches, governed observations, dimensions, explicit transformations, append-only lineage events, and automatic v1.4.0 backfill.
+The release adds versioned saved queries, immutable query runs, frozen record snapshots, governed comparisons, warnings, reproducible briefs, and deterministic export bundles without weakening the review, provenance, or lineage contracts.
 
 ## Core capabilities
 
@@ -40,6 +40,10 @@ The release adds the complete question-to-measurement lineage path: research and
 - Import-run and imported-record ledgers.
 - JSON and CSV exports.
 - Review queues, repository statistics, integrity checks, and schema-version reporting.
+- Versioned saved queries and immutable query-run snapshots.
+- Filtered entity, indicator, period, source, framework, quality, evidence, and review queries.
+- Consecutive-period comparisons with unit conversion and comparability warnings.
+- Reproducible Markdown briefs and deterministic JSON/CSV/provenance/review export bundles.
 
 ## Repository contents
 
@@ -94,6 +98,12 @@ catalyst-data review-start catalyst-data.sqlite3 RECORD_ID --actor reviewer@exam
 catalyst-data quality-assess catalyst-data.sqlite3 RECORD_ID quality-assessment.json --actor reviewer@example.org
 catalyst-data review-decide catalyst-data.sqlite3 RECORD_ID approved --actor reviewer@example.org --reason "Evidence and method are sufficient"
 catalyst-data revisions catalyst-data.sqlite3 RECORD_ID
+catalyst-data query-save catalyst-data.sqlite3 examples/queries/reviewable_records.json --actor analyst@example.org
+catalyst-data queries catalyst-data.sqlite3
+catalyst-data query-run catalyst-data.sqlite3 QUERY_ID
+catalyst-data query-results catalyst-data.sqlite3 RUN_ID
+catalyst-data query-brief catalyst-data.sqlite3 RUN_ID outputs/query-brief.md
+catalyst-data export-bundle catalyst-data.sqlite3 RUN_ID outputs/query-bundle.zip
 
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.csv --format csv
@@ -151,7 +161,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.6.0 does not yet provide institutional authorization or remote APIs.
+Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.7.0 does not yet provide institutional authorization or remote APIs.
 
 ## License
 
