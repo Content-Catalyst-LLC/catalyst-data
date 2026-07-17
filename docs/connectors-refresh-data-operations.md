@@ -1,6 +1,6 @@
 # Connectors, Refresh, and Data Operations
 
-Catalyst Data v1.12.0 introduces a governed acquisition layer for recurring external and local data. Connectors remain subordinate to the canonical record, review, provenance, and workspace contracts: a connector may import and refresh evidence, but it cannot silently approve or publish a record.
+Catalyst Data v2.0.0 introduces a governed acquisition layer for recurring external and local data. Connectors remain subordinate to the canonical record, review, provenance, and workspace contracts: a connector may import and refresh evidence, but it cannot silently approve or publish a record.
 
 ## Connector registry
 

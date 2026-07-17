@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Catalyst Data Demo
  * Description: Canonical record demo and persistent public API embed. Adds [catalyst_data_demo] and [catalyst_data_embed].
- * Version: 1.12.0
+ * Version: 2.0.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CATALYST_DATA_DEMO_VERSION', '1.12.0');
+define('CATALYST_DATA_DEMO_VERSION', '2.0.0');
 
 function catalyst_data_demo_register_assets() {
     $base_url = plugin_dir_url(__FILE__);

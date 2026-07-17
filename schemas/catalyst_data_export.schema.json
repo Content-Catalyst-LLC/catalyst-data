@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.12.0.json",
-  "title": "Catalyst Data Export 1.12.0",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-export-2.0.0.json",
+  "title": "Catalyst Data Export 2.0.0",
   "description": "Compatibility export schema for record/1.0 with evidence-chain, indicator-governance, observation-lineage, and review-workflow metadata.",
   "type": "object",
   "additionalProperties": false,

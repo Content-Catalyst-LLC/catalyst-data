@@ -1,6 +1,6 @@
 # Catalyst Data WordPress Plugin
 
-Version 1.12.0 provides two independent shortcodes:
+Version 2.0.0 provides two independent shortcodes:
 
 - `[catalyst_data_demo]` runs the no-server canonical record demonstration.
 - `[catalyst_data_embed api_url="https://data.example.org" limit="12"]` reads externally approved records from the Catalyst Data Public API.

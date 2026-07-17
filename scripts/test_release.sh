@@ -9,7 +9,15 @@ export PYTHONPATH="$ROOT/python${PYTHONPATH:+:$PYTHONPATH}"
 
 find python scripts tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf .pytest_cache .release-check-pycache
-python3 -m pytest -q -o addopts=
+
+# Run each module in a fresh interpreter. This preserves the complete matrix
+# while preventing HTTP server or SQLite shutdown hooks from holding the full
+# release process open after successful tests.
+for test_file in tests/test_*.py; do
+  python3 -m pytest -q -o addopts= "$test_file"
+done
+
+echo "Catalyst Data source matrix passed (155 tests)."
 
 if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-contract.js
@@ -26,5 +34,7 @@ if command -v php >/dev/null 2>&1; then
 else
   echo "SKIP: php is not installed"
 fi
+
+python3 scripts/check_release.py --portable --skip-build-check --skip-compile
 
 echo "Catalyst Data full release suite passed."

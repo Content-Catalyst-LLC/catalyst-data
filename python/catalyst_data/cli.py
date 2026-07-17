@@ -18,6 +18,7 @@ from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService, normalize_connector_definition
 from .analysis_artifacts import AnalysisArtifactError, AnalysisArtifactService
 from .operations import OperationalError, OperationalService
+from .platform import PlatformError, PlatformService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -459,6 +460,48 @@ def parser() -> argparse.ArgumentParser:
     readiness = subparsers.add_parser("operational-readiness", help="show backup, offline, benchmark, security, and attestation readiness")
     readiness.add_argument("database", type=Path)
 
+    platform_register = subparsers.add_parser("platform-register", help="register or version a connected platform component")
+    platform_register.add_argument("database", type=Path); platform_register.add_argument("definition", type=Path); platform_register.add_argument("--actor", default="principal:system"); platform_register.add_argument("--status", choices=("active","degraded","offline","disabled","unconfigured"), default="active")
+
+    platform_components = subparsers.add_parser("platform-components", help="list connected platform components and capabilities")
+    platform_components.add_argument("database", type=Path); platform_components.add_argument("--status", choices=("active","degraded","offline","disabled","unconfigured")); platform_components.add_argument("--limit", type=int, default=200)
+
+    platform_component_versions = subparsers.add_parser("platform-component-versions", help="list immutable versions for a platform component")
+    platform_component_versions.add_argument("database", type=Path); platform_component_versions.add_argument("component_id"); platform_component_versions.add_argument("--limit", type=int, default=100)
+
+    platform_contract_sync = subparsers.add_parser("platform-contract-sync", help="register packaged Catalyst Data contracts by checksum")
+    platform_contract_sync.add_argument("database", type=Path); platform_contract_sync.add_argument("--actor", default="principal:system")
+
+    platform_contracts = subparsers.add_parser("platform-contracts", help="list immutable platform contract registrations")
+    platform_contracts.add_argument("database", type=Path); platform_contracts.add_argument("--contract-id"); platform_contracts.add_argument("--limit", type=int, default=200)
+
+    platform_link = subparsers.add_parser("platform-link", help="connect two registered platform components")
+    platform_link.add_argument("database", type=Path); platform_link.add_argument("source_component_id"); platform_link.add_argument("target_component_id"); platform_link.add_argument("relationship", choices=("handoff","data-source","analysis","publication","embed","api","federation")); platform_link.add_argument("capability"); platform_link.add_argument("--contract-id"); platform_link.add_argument("--status", choices=("active","degraded","disabled"), default="active"); platform_link.add_argument("--metadata", type=Path); platform_link.add_argument("--actor", default="principal:system")
+
+    platform_links = subparsers.add_parser("platform-links", help="list platform capability and exchange links")
+    platform_links.add_argument("database", type=Path); platform_links.add_argument("--component-id"); platform_links.add_argument("--limit", type=int, default=200)
+
+    platform_manifest = subparsers.add_parser("platform-manifest", help="show or write the connected platform manifest")
+    platform_manifest.add_argument("database", type=Path); platform_manifest.add_argument("--output", type=Path)
+
+    platform_snapshot = subparsers.add_parser("platform-snapshot", help="create an immutable connected-platform release snapshot")
+    platform_snapshot.add_argument("database", type=Path); platform_snapshot.add_argument("--actor", default="principal:system")
+
+    platform_snapshots = subparsers.add_parser("platform-snapshots", help="list immutable connected-platform snapshots")
+    platform_snapshots.add_argument("database", type=Path); platform_snapshots.add_argument("--limit", type=int, default=100)
+
+    platform_verify = subparsers.add_parser("platform-verify", help="verify an immutable connected-platform snapshot")
+    platform_verify.add_argument("database", type=Path); platform_verify.add_argument("snapshot_id"); platform_verify.add_argument("--actor", default="principal:system")
+
+    platform_integrity = subparsers.add_parser("platform-integrity", help="run cross-subsystem platform integrity checks")
+    platform_integrity.add_argument("database", type=Path); platform_integrity.add_argument("--actor", default="principal:system"); platform_integrity.add_argument("--no-persist", action="store_true")
+
+    platform_readiness = subparsers.add_parser("platform-readiness", help="show integrated platform and operational readiness")
+    platform_readiness.add_argument("database", type=Path); platform_readiness.add_argument("--actor", default="principal:system"); platform_readiness.add_argument("--no-persist", action="store_true")
+
+    platform_events = subparsers.add_parser("platform-events", help="list append-only platform registry events")
+    platform_events.add_argument("database", type=Path); platform_events.add_argument("--component-id"); platform_events.add_argument("--limit", type=int, default=200)
+
     return result
 
 
@@ -490,7 +533,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -850,6 +893,39 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "analysis-replication-review":
             evidence=_read(args.evidence) if args.evidence else None
             print(json.dumps(AnalysisArtifactService(repository).add_replication_review(args.run_id,args.status,args.reviewer,notes=args.notes,evidence=evidence,reproduced_run_id=args.reproduced_run_id),indent=2,ensure_ascii=False)); return 0
+
+        if args.command == "platform-register":
+            print(json.dumps(PlatformService(repository).register_component(_read(args.definition),actor=args.actor,status=args.status),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-components":
+            print(json.dumps(PlatformService(repository).components(status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-component-versions":
+            print(json.dumps(PlatformService(repository).component_versions(args.component_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-contract-sync":
+            print(json.dumps(PlatformService(repository).sync_builtin_contracts(actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-contracts":
+            print(json.dumps(PlatformService(repository).contracts(contract_id=args.contract_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-link":
+            metadata=_read(args.metadata) if args.metadata else None
+            print(json.dumps(PlatformService(repository).link(args.source_component_id,args.target_component_id,args.relationship,args.capability,contract_id=args.contract_id,status=args.status,metadata=metadata,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-links":
+            print(json.dumps(PlatformService(repository).links(component_id=args.component_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-manifest":
+            payload=PlatformService(repository).manifest()
+            if args.output: _write_json(args.output,payload); print(f"wrote {args.output}")
+            else: print(json.dumps(payload,indent=2,ensure_ascii=False))
+            return 0
+        if args.command == "platform-snapshot":
+            print(json.dumps(PlatformService(repository).create_snapshot(actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-snapshots":
+            print(json.dumps(PlatformService(repository).snapshots(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "platform-verify":
+            result=PlatformService(repository).verify_snapshot(args.snapshot_id,actor=args.actor); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] != "fail" else 1
+        if args.command == "platform-integrity":
+            result=PlatformService(repository).integrity(actor=args.actor,persist=not args.no_persist); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] != "blocked" else 1
+        if args.command == "platform-readiness":
+            result=PlatformService(repository).readiness(actor=args.actor,persist=not args.no_persist); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] != "blocked" else 1
+        if args.command == "platform-events":
+            print(json.dumps(PlatformService(repository).events(component_id=args.component_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         return 2
     except ImportPipelineError as exc:
         payload = exc.summary.to_dict()
@@ -857,7 +933,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError, OperationalError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError, OperationalError, PlatformError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

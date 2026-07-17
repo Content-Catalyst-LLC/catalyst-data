@@ -1,6 +1,6 @@
 # Analysis Artifacts and Reproducible Data Packages
 
-Catalyst Data v1.12.0 records the exact data, parameters, environment, code reference, outputs, provenance, and review state used by an analysis. The analysis layer does not execute arbitrary third-party code. It governs the inputs and outputs of analytical work performed in Catalyst Data, Workbench, Research Lab, Catalyst Analytics R, Decision Studio, or another declared system.
+Catalyst Data v2.0.0 records the exact data, parameters, environment, code reference, outputs, provenance, and review state used by an analysis. The analysis layer does not execute arbitrary third-party code. It governs the inputs and outputs of analytical work performed in Catalyst Data, Workbench, Research Lab, Catalyst Analytics R, Decision Studio, or another declared system.
 
 ## Contract
 

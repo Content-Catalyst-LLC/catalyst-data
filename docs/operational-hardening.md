@@ -1,6 +1,6 @@
 # Accessibility, Offline Use, Performance, and Release Hardening
 
-Catalyst Data v1.12.0 adds an operational layer around the governed repository without changing `catalyst-data-record/1.0`. Migration 012 records verified backups, restores, offline operations and synchronization runs, performance benchmarks, security checks, and release attestations.
+Catalyst Data v2.0.0 adds an operational layer around the governed repository without changing `catalyst-data-record/1.0`. Migration 012 records verified backups, restores, offline operations and synchronization runs, performance benchmarks, security checks, and release attestations.
 
 ## Backup and recovery
 

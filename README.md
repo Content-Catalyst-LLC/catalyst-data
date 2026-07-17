@@ -4,7 +4,7 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.12.0 — Analysis Artifacts and Reproducible Data Packages**
+**v2.0.0 — Connected Evidence and Measurement Platform**
 
 The release freezes exact canonical inputs, parameters, environments, code references, outputs, derived lineage, replication reviews, and invalidation warnings. Deterministic packages preserve the evidence needed to reproduce or independently review an analysis without making Catalyst Data dependent on any single analytical product.
 
@@ -164,6 +164,20 @@ For a partial CSV import that commits valid rows and reports invalid rows:
 catalyst-data import catalyst-data.sqlite3 records.csv --non-atomic --continue-on-error --summary outputs/import-summary.json
 ```
 
+## Connected platform operations
+
+```bash
+catalyst-data platform-contract-sync catalyst-data.sqlite3
+catalyst-data platform-register catalyst-data.sqlite3 examples/platform/decision_studio_component.json
+catalyst-data platform-link catalyst-data.sqlite3 component:catalyst-data component:decision-studio handoff decision-evidence --contract-id catalyst-data-handoff/1.0
+catalyst-data platform-manifest catalyst-data.sqlite3 --output outputs/platform-manifest.json
+catalyst-data platform-snapshot catalyst-data.sqlite3
+catalyst-data platform-integrity catalyst-data.sqlite3
+catalyst-data platform-readiness catalyst-data.sqlite3
+```
+
+The public `GET /v2/platform` endpoint exposes a safe capability manifest. Detailed components, readiness, and release snapshots require `platform:read`; component registration and snapshot creation require `platform:write`. Existing `/v1` endpoints remain supported.
+
 ## Operational hardening
 
 ```bash
@@ -233,7 +247,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.12.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.0.0 provides a connected capability and contract registry without claiming legal or regulatory compliance.
 
 ## License
 

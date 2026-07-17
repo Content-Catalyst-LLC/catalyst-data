@@ -7,6 +7,7 @@ from .importer import ImportService, ImportSummary
 from .repository import CatalystRepository
 from .public_api import ApiRegistry
 from .handoff import create_handoff
+from .platform import PlatformService
 
 
 class CatalystDataService:
@@ -16,6 +17,7 @@ class CatalystDataService:
         self.repository = CatalystRepository(database)
         self.imports = ImportService(self.repository)
         self.api = ApiRegistry(self.repository)
+        self.platform = PlatformService(self.repository)
 
     def initialize(self) -> list[int]:
         return self.repository.initialize()

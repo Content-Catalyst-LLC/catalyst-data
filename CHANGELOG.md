@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 — Connected Evidence and Measurement Platform
+
+- Added the `catalyst-data-platform/2.0` manifest and migration 013.
+- Added immutable contract registrations, versioned platform components, capability links, release snapshots, integrity checks, and integrated readiness.
+- Added v2 platform API and CLI surfaces while preserving all v1 contracts and endpoints.
+
 ## 1.12.0 — Accessibility, Offline Use, Performance, and Release Hardening
 
 - Added `catalyst-data-operational-hardening/1.0` and migration 012.

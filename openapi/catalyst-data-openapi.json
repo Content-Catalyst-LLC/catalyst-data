@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catalyst Data Public API",
-    "version": "1.12.0",
-    "description": "Public-safe records, institutional workspaces, protected writes, typed handoffs, and governed connector operations."
+    "version": "2.0.0",
+    "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
   },
   "servers": [
     {
@@ -120,6 +120,90 @@
           },
           "403": {
             "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/v2/platform": {
+      "get": {
+        "summary": "Connected platform manifest",
+        "responses": {
+          "200": {
+            "description": "Platform manifest"
+          }
+        }
+      }
+    },
+    "/v2/platform/readiness": {
+      "get": {
+        "summary": "Integrated platform readiness",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Readiness"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v2/platform/components": {
+      "get": {
+        "summary": "Connected platform components",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Components"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register or version a platform component",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registered"
+          }
+        }
+      }
+    },
+    "/v2/platform/snapshots": {
+      "get": {
+        "summary": "Immutable platform release snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshots"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a platform release snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Snapshot created"
           }
         }
       }

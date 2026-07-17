@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-platform-2.0.json",
+  "title": "Catalyst Data Connected Platform 2.0",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "product", "release_version", "migration_version", "counts", "contracts", "components", "capabilities"],
+  "properties": {
+    "schema_version": {"const": "catalyst-data-platform/2.0"},
+    "product": {"const": "catalyst-data"},
+    "release_version": {"type": "string", "pattern": "^2\\.0\\.0$"},
+    "repository_id": {"type": ["string", "null"]},
+    "migration_version": {"type": "integer", "minimum": 13},
+    "local_first": {"type": "boolean"},
+    "platform_core_optional": {"type": "boolean"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["contract_id", "contract_version", "schema_sha256"],
+        "properties": {
+          "contract_id": {"type": "string", "minLength": 3},
+          "contract_version": {"type": "string", "minLength": 1},
+          "schema_uri": {"type": ["string", "null"]},
+          "schema_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "product_code", "status", "capabilities", "contracts"],
+        "properties": {
+          "component_id": {"type": "string", "minLength": 3},
+          "product_code": {"type": "string", "minLength": 2},
+          "status": {"enum": ["active", "degraded", "offline", "disabled", "unconfigured"]},
+          "version": {"type": ["string", "null"]},
+          "capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "contracts": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    },
+    "capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "platform_targets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "boundaries": {"type": "array", "items": {"type": "string"}}
+  }
+}

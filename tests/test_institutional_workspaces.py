@@ -46,8 +46,8 @@ def test_migration_009_backfills_existing_records_and_api_keys(tmp_path):
     repository = CatalystRepository(tmp_path / "upgrade.sqlite3")
     repository.initialize()
     record = sample_record(); repository.upsert_record(record)
-    assert repository.rollback(4) == [12, 11, 10, 9]
-    assert repository.migrate() == [9, 10, 11, 12]
+    assert repository.rollback(5) == [13, 12, 11, 10, 9]
+    assert repository.migrate() == [9, 10, 11, 12, 13]
     service = WorkspaceService(repository)
     access = service.record_access(record["record_id"])
     assert access["workspace_id"] == "workspace:default"
@@ -147,9 +147,9 @@ def test_api_key_is_bound_to_one_workspace(tmp_path):
 def test_migration_009_populated_rollback_and_reapply(tmp_path):
     repository = CatalystRepository(tmp_path / "rollback.sqlite3"); repository.initialize()
     record = sample_record(); repository.upsert_record(record)
-    assert repository.rollback(4) == [12, 11, 10, 9]
+    assert repository.rollback(5) == [13, 12, 11, 10, 9]
     with connect(repository.path) as connection:
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='workspaces'").fetchone() is None
         assert connection.execute("SELECT COUNT(*) FROM data_records").fetchone()[0] == 1
-    assert repository.migrate() == [9, 10, 11, 12]
+    assert repository.migrate() == [9, 10, 11, 12, 13]
     assert WorkspaceService(repository).record_access(record["record_id"])["workspace_id"] == "workspace:default"

@@ -32,6 +32,7 @@ from .analysis_artifacts import (
     ANALYSIS_SCHEMA_VERSION, PACKAGE_SCHEMA_VERSION, AnalysisArtifactError,
     AnalysisArtifactService, normalize_analysis_definition,
 )
+from .platform import PLATFORM_SCHEMA_VERSION, PlatformError, PlatformService, platform_schema
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
 from .service import CatalystDataService
@@ -50,6 +51,7 @@ __all__ = [
     "CONNECTOR_CONTRACT", "ConnectorError", "ConnectorFetchError", "ConnectorRateLimited",
     "ConnectorService", "ConnectorValidationError", "connector_schema", "map_source_row",
     "normalize_connector_definition", "schema_fingerprint",
+    "PLATFORM_SCHEMA_VERSION", "PlatformError", "PlatformService", "platform_schema",
     "ANALYSIS_SCHEMA_VERSION", "PACKAGE_SCHEMA_VERSION", "AnalysisArtifactError",
     "AnalysisArtifactService", "normalize_analysis_definition",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",

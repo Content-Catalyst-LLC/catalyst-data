@@ -21,9 +21,10 @@ from .repository import CatalystRepository, RepositoryError, canonical_json
 from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService
+from .platform import PlatformError, PlatformService
 
-API_VERSION = "v1"
-DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "admin:keys")
+API_VERSION = "v2"
+DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
 
 
 def _now() -> str:
@@ -79,7 +80,7 @@ def public_projection(record: Mapping[str, Any]) -> dict[str, Any]:
 def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
     return {
         "openapi": "3.1.0",
-        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Public-safe records, institutional workspaces, protected writes, typed handoffs, and governed connector operations."},
+        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."},
         "servers": [{"url": base_url.rstrip("/")}],
         "paths": {
             "/v1/workspaces": {"get": {"summary": "List the authenticated client workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Workspace"}}}},
@@ -87,6 +88,10 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/connectors": {"get": {"summary": "List connectors bound to the authenticated workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Connector status"}, "401": {"description": "Unauthorized"}}}},
             "/v1/connectors/runs": {"get": {"summary": "List connector runs for the authenticated workspace", "security": [{"bearerAuth": []}], "parameters": [{"name": "connector_id", "in": "query", "schema": {"type": "string"}}], "responses": {"200": {"description": "Connector runs"}}}},
             "/v1/connectors/{connector_id}/run": {"post": {"summary": "Run a connector synchronously", "security": [{"bearerAuth": []}], "parameters": [{"name": "connector_id", "in": "path", "required": True, "schema": {"type": "string"}}], "responses": {"200": {"description": "Run result"}, "403": {"description": "Forbidden"}}}},
+            "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
+            "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
+            "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
+            "/v2/platform/snapshots": {"get": {"summary": "Immutable platform release snapshots", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Snapshots"}}}, "post": {"summary": "Create a platform release snapshot", "security": [{"bearerAuth": []}], "responses": {"201": {"description": "Snapshot created"}}}},
             "/health": {"get": {"summary": "Repository health", "responses": {"200": {"description": "Healthy"}}}},
             "/v1/capabilities": {"get": {"summary": "Capability discovery", "responses": {"200": {"description": "Capabilities"}}}},
             "/v1/records": {
@@ -238,10 +243,27 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 health = self.server.repository.health()
                 self._json(200, {"status": "ok" if health.healthy else "attention", "version": __version__, "migration_version": health.migration_version, "latest_migration": health.latest_migration, "record_count": health.record_count})
                 return
-            if path in ("/openapi.json", "/v1/openapi.json"):
+            if path in ("/openapi.json", "/v1/openapi.json", "/v2/openapi.json"):
                 self._json(200, openapi_document(self.server.public_base_url)); return
+            if path == "/v2/platform":
+                self._json(200, PlatformService(self.server.repository).manifest()); return
+            if path == "/v2/platform/readiness":
+                client = self._auth("platform:read")
+                if not client:
+                    self._error(401, "unauthorized", "A platform:read bearer token is required"); return
+                self._json(200, PlatformService(self.server.repository).readiness(actor=client.principal_id, persist=False)); return
+            if path == "/v2/platform/components":
+                client = self._auth("platform:read")
+                if not client:
+                    self._error(401, "unauthorized", "A platform:read bearer token is required"); return
+                self._json(200, {"components": PlatformService(self.server.repository).components()}); return
+            if path == "/v2/platform/snapshots":
+                client = self._auth("platform:read")
+                if not client:
+                    self._error(401, "unauthorized", "A platform:read bearer token is required"); return
+                self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -297,13 +319,25 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error) as exc:
+        except (ValueError, sqlite3.Error, PlatformError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         client: ApiClient | None = None
         try:
+            if path == "/v2/platform/components":
+                client = self._auth("platform:write")
+                if not client:
+                    self._error(401, "unauthorized", "A platform:write bearer token is required"); return
+                result = PlatformService(self.server.repository).register_component(self._body(), actor=client.principal_id)
+                self._json(200, result); self.server.registry.audit(method="POST",path=path,status_code=200,client=client,scope="platform:write",remote_address=self.client_address[0],details={"component_id":result["component_id"]}); return
+            if path == "/v2/platform/snapshots":
+                client = self._auth("platform:write")
+                if not client:
+                    self._error(401, "unauthorized", "A platform:write bearer token is required"); return
+                result = PlatformService(self.server.repository).create_snapshot(actor=client.principal_id)
+                self._json(201, result); self.server.registry.audit(method="POST",path=path,status_code=201,client=client,scope="platform:write",remote_address=self.client_address[0],details={"snapshot_id":result["snapshot_id"]}); return
             if path == "/v1/connectors":
                 client = self._auth("connectors:read")
                 if not client:

@@ -1,0 +1,11 @@
+{
+  "component_id": "component:decision-studio",
+  "name": "Decision Studio",
+  "product_code": "decision-studio",
+  "component_type": "platform-product",
+  "version": "2.0.0",
+  "endpoint": "https://sustainablecatalyst.com/platform/decision-studio/",
+  "capabilities": ["decision-evidence", "decision-packets", "publication-handoff"],
+  "contracts": ["catalyst-data-handoff/1.0", "catalyst-data-record/1.0"],
+  "metadata": {"optional": true, "local_fallback": true}
+}
