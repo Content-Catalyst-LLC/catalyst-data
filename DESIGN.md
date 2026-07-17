@@ -79,4 +79,12 @@ The core schema rejects unknown fields. Product-specific metadata belongs under 
 
 ## Scope boundary
 
-v1.8.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, persistent embeds, and typed product handoffs in addition to the existing governance, evidence, lineage, review, and query systems. Multi-tenant institutional authorization and scheduled connectors remain later roadmap work.
+v1.9.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, persistent embeds, typed product handoffs, and institutionally governed multi-workspace access in addition to the existing evidence, lineage, review, and query systems. Scheduled connectors and automated refresh operations remain later roadmap work.
+
+## Institutional workspaces and access governance
+
+Migration 009 separates portable canonical records from institutional custody and access policy. Institutions contain workspaces; workspaces may contain projects and memberships. Principals are users, services, or groups, and each active membership grants one of seven roles backed by explicit permissions.
+
+`record_access_governance` assigns every record to exactly one workspace and records its owner, steward, custodian, visibility, classification, retention policy, disposition date, and legal-hold state. Public publication requires both the existing external review gate and public/public access settings. API keys are bound to one principal and workspace, so a valid bearer scope cannot cross a tenant boundary.
+
+Access decisions and workspace transfers are append-only. These controls provide auditable governance mechanics but do not certify privacy, records-management, or regulatory compliance.

@@ -12,6 +12,7 @@ import pytest
 from catalyst_data import CatalystRepository, ImportService
 from catalyst_data.handoff import HandoffValidationError, create_handoff, validate_handoff
 from catalyst_data.public_api import ApiRegistry, CatalystApiServer, openapi_document, public_projection
+from catalyst_data.workspaces import WorkspaceService
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +29,7 @@ def approve(repository: CatalystRepository, record_id: str) -> None:
     repository.submit_review(record_id, "author@example.org", "Ready")
     repository.start_review(record_id, "reviewer@example.org")
     repository.decide_review(record_id, "approved", "reviewer@example.org", reason="Approved for public API")
+    WorkspaceService(repository).set_visibility(record_id, "public", "public", actor="publisher@example.org")
 
 
 def request_json(url: str, *, method: str = "GET", body=None, token: str | None = None):
@@ -41,7 +43,7 @@ def request_json(url: str, *, method: str = "GET", body=None, token: str | None 
 
 def test_migration_008_and_api_registry_are_persistent(tmp_path):
     repository = populated_repository(tmp_path)
-    assert repository.health().migration_version == 8
+    assert repository.health().migration_version == 9
     registry = ApiRegistry(repository)
     created = registry.create_key("Decision Studio", ["records:write", "handoffs:write"])
     assert created["token"].startswith("cd_")
@@ -72,7 +74,7 @@ def test_public_projection_requires_external_approval_and_redacts_internal_field
 def test_typed_handoff_is_valid_and_receipt_is_immutable(tmp_path):
     repository = populated_repository(tmp_path)
     record = repository.list_records(limit=1)[0]
-    handoff = create_handoff([record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.8.0", api_base_url="https://data.example.org")
+    handoff = create_handoff([record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.9.0", api_base_url="https://data.example.org")
     assert validate_handoff(handoff)["schema_version"] == "catalyst-data-handoff/1.0"
     assert handoff["records"][0]["href"].startswith("https://data.example.org/v1/records/")
     receipt = ApiRegistry(repository).receive_handoff(handoff)
@@ -88,7 +90,7 @@ def test_handoff_rejects_unsupported_products(tmp_path):
     repository = populated_repository(tmp_path)
     record = repository.list_records(limit=1)[0]
     with pytest.raises(HandoffValidationError):
-        create_handoff([record], target_product="unknown-product", target_capability="records", source_version="1.8.0")
+        create_handoff([record], target_product="unknown-product", target_capability="records", source_version="1.9.0")
 
 
 def test_http_api_public_reads_protected_writes_openapi_and_handoffs(tmp_path):
@@ -101,7 +103,7 @@ def test_http_api_public_reads_protected_writes_openapi_and_handoffs(tmp_path):
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
         status, health = request_json(base + "/health")
-        assert status == 200 and health["migration_version"] == 8
+        assert status == 200 and health["migration_version"] == 9
         status, page = request_json(base + "/v1/records")
         assert status == 200 and page["pagination"]["total"] == 1
         assert page["records"][0]["record_id"] == records[0]["record_id"]
@@ -113,7 +115,7 @@ def test_http_api_public_reads_protected_writes_openapi_and_handoffs(tmp_path):
             raise AssertionError("protected write accepted without token")
         status, stored = request_json(base + "/v1/records", method="POST", body=records[1], token=key["token"])
         assert status == 200 and stored["record_id"] == records[1]["record_id"]
-        handoff = create_handoff([records[0]], target_product="workbench", target_capability="calculation-input", source_version="1.8.0")
+        handoff = create_handoff([records[0]], target_product="workbench", target_capability="calculation-input", source_version="1.9.0")
         status, accepted = request_json(base + "/v1/handoffs", method="POST", body=handoff, token=key["token"])
         assert status == 202 and accepted["handoff_id"] == handoff["handoff_id"]
         status, spec = request_json(base + "/v1/openapi.json")

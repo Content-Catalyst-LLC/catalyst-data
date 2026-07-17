@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-access-governance-1.0.json",
+  "title": "Catalyst Data Access Governance 1.0",
+  "description": "Institutional workspace assignment, stewardship, visibility, classification, retention, and legal-hold metadata for a governed Catalyst Data record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "institution_id",
+    "workspace_id",
+    "project_id",
+    "owner_principal_id",
+    "steward_principal_id",
+    "custodian_principal_id",
+    "visibility",
+    "classification",
+    "retention_policy_id",
+    "legal_hold",
+    "disposition_due_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "catalyst-data-access-governance/1.0"},
+    "record_id": {"type": "string", "minLength": 3},
+    "institution_id": {"type": "string", "minLength": 3},
+    "workspace_id": {"type": "string", "minLength": 3},
+    "project_id": {"type": ["string", "null"]},
+    "owner_principal_id": {"type": ["string", "null"]},
+    "steward_principal_id": {"type": ["string", "null"]},
+    "custodian_principal_id": {"type": ["string", "null"]},
+    "visibility": {"enum": ["private", "shared", "institutional", "public"]},
+    "classification": {"enum": ["public", "internal", "restricted", "confidential"]},
+    "retention_policy_id": {"type": ["string", "null"]},
+    "legal_hold": {"type": "boolean"},
+    "disposition_due_at": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

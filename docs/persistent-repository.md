@@ -1,6 +1,6 @@
 # Persistent Repository
 
-Catalyst Data v1.8.0 uses SQLite as its zero-cost local repository. The Python service applies ordered migrations from `python/catalyst_data/migrations` and stores each canonical record in two synchronized forms:
+Catalyst Data v1.9.0 uses SQLite as its zero-cost local repository. The Python service applies ordered migrations from `python/catalyst_data/migrations` and stores each canonical record in two synchronized forms:
 
 1. normalized entity, indicator, period, source, and measurement tables; and
 2. the complete validated canonical JSON payload in `data_records`.

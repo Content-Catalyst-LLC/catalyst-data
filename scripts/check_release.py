@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.8.0":
+    if version != "1.9.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -142,6 +142,13 @@ def validate_schemas() -> None:
     handoff_schema = json.loads(handoff_path.read_text(encoding="utf-8"))
     if handoff_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-handoff/1.0":
         fail("Handoff schema identifier is invalid")
+    access_path = ROOT / "schemas/catalyst_data_access_governance_1_0.schema.json"
+    access_package = ROOT / "python/catalyst_data/schemas/catalyst_data_access_governance_1_0.schema.json"
+    if access_path.read_bytes() != access_package.read_bytes():
+        fail("Packaged access-governance schema differs from canonical schema")
+    access_schema = json.loads(access_path.read_text(encoding="utf-8"))
+    if access_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-access-governance/1.0":
+        fail("Access-governance schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
@@ -154,6 +161,7 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(workflow)
         Draft202012Validator.check_schema(query_schema)
         Draft202012Validator.check_schema(handoff_schema)
+        Draft202012Validator.check_schema(access_schema)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -205,19 +213,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8]:
-        fail("Expected contiguous migrations 1 through 8")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+        fail("Expected contiguous migrations 1 through 9")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8]:
-            fail("Fresh repository did not apply migrations 1 through 8")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            fail("Fresh repository did not apply migrations 1 through 9")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [8]:
-            fail("Migration 8 rollback failed")
-        if repository.migrate() != [8]:
-            fail("Migration 8 reapplication failed")
+        if repository.rollback(1) != [9]:
+            fail("Migration 9 rollback failed")
+        if repository.migrate() != [9]:
+            fail("Migration 9 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -291,6 +299,24 @@ def validate_repository_pipeline() -> None:
             fail("Query export bundle is not reproducible")
         if repository.stats()["query_runs"] != 1 or repository.stats()["saved_query_versions"] != 1:
             fail("Query studio history was not persisted")
+        from catalyst_data.workspaces import WorkspaceService
+        workspace_service = WorkspaceService(repository)
+        access = workspace_service.record_access(record_id)
+        if access["workspace_id"] != "workspace:default" or access["visibility"] != "private":
+            fail("Workspace backfill failed")
+        workspace_service.set_visibility(record_id, "public", "public", actor="principal:system")
+        if workspace_service.record_access(record_id)["visibility"] != "public":
+            fail("Workspace publication gate failed")
+        analyst = workspace_service.create_principal("Release Analyst", principal_id="principal:release-analyst")
+        workspace_service.add_member("workspace:default", analyst["principal_id"], "analyst", actor="principal:system")
+        if workspace_service.authorize(analyst["principal_id"], "workspace:default", "records:read").role != "analyst":
+            fail("Workspace role authorization failed")
+        workspace_service.set_legal_hold(record_id, True, actor="principal:system", reason="release validation")
+        if workspace_service.can_dispose(record_id, as_of="2099-01-01T00:00:00Z")["eligible"]:
+            fail("Legal hold did not block disposition")
+        workspace_service.set_legal_hold(record_id, False, actor="principal:system")
+        if repository.stats()["access_governance_events"] < 4:
+            fail("Access governance audit events were not persisted")
         from catalyst_data.public_api import ApiRegistry, openapi_document, public_projection
         from catalyst_data.handoff import create_handoff, validate_handoff
         api_key = ApiRegistry(repository).create_key("release-check", ["records:write", "handoffs:write"])
@@ -299,7 +325,7 @@ def validate_repository_pipeline() -> None:
         projected = public_projection(repository.get_record(record_id))
         if projected["review_workflow"]["assigned_reviewers"] or projected["review_workflow"]["decisions"]:
             fail("Public projection leaked internal review actors")
-        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.8.0")
+        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.9.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         if receipt["status"] != "accepted" or repository.stats()["handoff_receipts"] != 1:
@@ -331,6 +357,8 @@ def validate_python_metadata() -> None:
         fail("Packaged query schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_handoff_1_0.schema.json").exists():
         fail("Packaged handoff schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_access_governance_1_0.schema.json").exists():
+        fail("Packaged access-governance schema is missing")
     from catalyst_data.public_api import openapi_document
     static_openapi = json.loads((ROOT / "openapi/catalyst-data-openapi.json").read_text(encoding="utf-8"))
     if static_openapi != openapi_document("http://127.0.0.1:8765"):

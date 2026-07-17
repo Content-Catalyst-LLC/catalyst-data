@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
-export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="$ROOT/python${PYTHONPATH:+:$PYTHONPATH}"
 
 find python scripts tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf .pytest_cache .release-check-pycache

@@ -14,6 +14,7 @@ from .query_studio import QueryStudio
 from .handoff import create_handoff, read_handoff, validate_handoff
 from .public_api import ApiRegistry, openapi_document, serve
 from .validation import RecordValidationError, validate_record
+from .workspaces import AccessDenied, WorkspaceService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -212,7 +213,9 @@ def parser() -> argparse.ArgumentParser:
 
     api_key_create = subparsers.add_parser("api-key-create", help="create a protected API bearer token")
     api_key_create.add_argument("database", type=Path); api_key_create.add_argument("name")
-    api_key_create.add_argument("--scope", action="append", choices=("records:write","handoffs:write","admin:keys"), required=True)
+    api_key_create.add_argument("--scope", action="append", choices=("records:read","records:write","handoffs:write","admin:keys"), required=True)
+    api_key_create.add_argument("--workspace-id", default="workspace:default")
+    api_key_create.add_argument("--principal-id", default="principal:system")
 
     api_keys = subparsers.add_parser("api-keys", help="list API clients without exposing tokens")
     api_keys.add_argument("database", type=Path)
@@ -239,6 +242,69 @@ def parser() -> argparse.ArgumentParser:
 
     handoff_receive = subparsers.add_parser("handoff-receive", help="store an incoming typed handoff receipt")
     handoff_receive.add_argument("database", type=Path); handoff_receive.add_argument("input", type=Path)
+
+
+    institution_create = subparsers.add_parser("institution-create", help="create an institutional tenant")
+    institution_create.add_argument("database", type=Path); institution_create.add_argument("name"); institution_create.add_argument("--institution-id"); institution_create.add_argument("--actor", default="system")
+
+    institutions = subparsers.add_parser("institutions", help="list institutions")
+    institutions.add_argument("database", type=Path)
+
+    workspace_create = subparsers.add_parser("workspace-create", help="create an institutional workspace")
+    workspace_create.add_argument("database", type=Path); workspace_create.add_argument("institution_id"); workspace_create.add_argument("name")
+    workspace_create.add_argument("--workspace-id"); workspace_create.add_argument("--visibility", choices=("private","shared","institutional","public"), default="private")
+    workspace_create.add_argument("--classification", choices=("public","internal","restricted","confidential"), default="internal"); workspace_create.add_argument("--actor", default="system")
+
+    workspaces = subparsers.add_parser("workspaces", help="list institutional workspaces")
+    workspaces.add_argument("database", type=Path); workspaces.add_argument("--institution-id")
+
+    project_create = subparsers.add_parser("project-create", help="create a project inside a workspace")
+    project_create.add_argument("database", type=Path); project_create.add_argument("workspace_id"); project_create.add_argument("name"); project_create.add_argument("--project-id"); project_create.add_argument("--actor", default="system")
+
+    principal_create = subparsers.add_parser("principal-create", help="create a user, service, or group principal")
+    principal_create.add_argument("database", type=Path); principal_create.add_argument("display_name"); principal_create.add_argument("--principal-type", choices=("user","service","group"), default="user"); principal_create.add_argument("--email"); principal_create.add_argument("--principal-id"); principal_create.add_argument("--actor", default="system")
+
+    principals = subparsers.add_parser("principals", help="list access principals")
+    principals.add_argument("database", type=Path)
+
+    member_add = subparsers.add_parser("workspace-member-add", help="grant or update a workspace role")
+    member_add.add_argument("database", type=Path); member_add.add_argument("workspace_id"); member_add.add_argument("principal_id")
+    member_add.add_argument("role", choices=("viewer","contributor","analyst","reviewer","approver","publisher","administrator")); member_add.add_argument("--actor", required=True); member_add.add_argument("--expires-at")
+
+    members = subparsers.add_parser("workspace-members", help="list workspace members")
+    members.add_argument("database", type=Path); members.add_argument("workspace_id")
+
+    access_set = subparsers.add_parser("record-access-set", help="assign a record to a workspace and governance policy")
+    access_set.add_argument("database", type=Path); access_set.add_argument("record_id"); access_set.add_argument("workspace_id"); access_set.add_argument("--actor", required=True)
+    access_set.add_argument("--project-id"); access_set.add_argument("--owner-principal-id"); access_set.add_argument("--steward-principal-id"); access_set.add_argument("--custodian-principal-id")
+    access_set.add_argument("--visibility", choices=("private","shared","institutional","public")); access_set.add_argument("--classification", choices=("public","internal","restricted","confidential")); access_set.add_argument("--retention-policy-id")
+
+    record_access = subparsers.add_parser("record-access", help="show access governance for one record")
+    record_access.add_argument("database", type=Path); record_access.add_argument("record_id")
+
+    workspace_records = subparsers.add_parser("workspace-records", help="list records visible inside a workspace")
+    workspace_records.add_argument("database", type=Path); workspace_records.add_argument("workspace_id"); workspace_records.add_argument("--principal-id"); workspace_records.add_argument("--limit", type=int, default=100)
+
+    visibility_set = subparsers.add_parser("record-visibility-set", help="set record visibility and classification")
+    visibility_set.add_argument("database", type=Path); visibility_set.add_argument("record_id"); visibility_set.add_argument("visibility", choices=("private","shared","institutional","public")); visibility_set.add_argument("classification", choices=("public","internal","restricted","confidential")); visibility_set.add_argument("--actor", required=True)
+
+    retention_create = subparsers.add_parser("retention-policy-create", help="create an institutional retention policy")
+    retention_create.add_argument("database", type=Path); retention_create.add_argument("institution_id"); retention_create.add_argument("name"); retention_create.add_argument("--retention-days", type=int); retention_create.add_argument("--disposition-action", choices=("review","archive","delete"), default="review"); retention_create.add_argument("--policy-id"); retention_create.add_argument("--description"); retention_create.add_argument("--actor", default="system")
+
+    retention_list = subparsers.add_parser("retention-policies", help="list retention policies")
+    retention_list.add_argument("database", type=Path); retention_list.add_argument("--institution-id")
+
+    legal_hold = subparsers.add_parser("legal-hold", help="set or release a record legal hold")
+    legal_hold.add_argument("database", type=Path); legal_hold.add_argument("record_id"); legal_hold.add_argument("state", choices=("set","release")); legal_hold.add_argument("--actor", required=True); legal_hold.add_argument("--reason")
+
+    disposition = subparsers.add_parser("disposition-check", help="check whether retention permits record disposition")
+    disposition.add_argument("database", type=Path); disposition.add_argument("record_id"); disposition.add_argument("--as-of")
+
+    access_events = subparsers.add_parser("access-events", help="show append-only access governance events")
+    access_events.add_argument("database", type=Path); access_events.add_argument("--workspace-id"); access_events.add_argument("--record-id"); access_events.add_argument("--limit", type=int, default=200)
+
+    workspace_export = subparsers.add_parser("workspace-export-manifest", help="create an auditable workspace export manifest")
+    workspace_export.add_argument("database", type=Path); workspace_export.add_argument("workspace_id"); workspace_export.add_argument("principal_id"); workspace_export.add_argument("output", type=Path); workspace_export.add_argument("--actor")
 
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=Path); handoff_receipts.add_argument("--limit", type=int, default=100)
@@ -274,7 +340,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -465,8 +531,46 @@ def main(argv: Sequence[str] | None = None) -> int:
             path=QueryStudio(repository).write_brief(args.run_id,args.output); print(f"wrote {path}"); return 0
         if args.command == "export-bundle":
             print(json.dumps(QueryStudio(repository).export_bundle(args.run_id,args.output,bundle_format=args.format),indent=2,ensure_ascii=False)); return 0
+        if args.command == "institution-create":
+            service=WorkspaceService(repository); print(json.dumps(service.create_institution(args.name,institution_id=args.institution_id,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "institutions":
+            print(json.dumps(WorkspaceService(repository).institutions(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspace-create":
+            service=WorkspaceService(repository); print(json.dumps(service.create_workspace(args.institution_id,args.name,workspace_id=args.workspace_id,visibility=args.visibility,classification=args.classification,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspaces":
+            print(json.dumps(WorkspaceService(repository).workspaces(institution_id=args.institution_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "project-create":
+            print(json.dumps(WorkspaceService(repository).create_project(args.workspace_id,args.name,project_id=args.project_id,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "principal-create":
+            print(json.dumps(WorkspaceService(repository).create_principal(args.display_name,principal_type=args.principal_type,email=args.email,principal_id=args.principal_id,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "principals":
+            print(json.dumps(WorkspaceService(repository).principals(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspace-member-add":
+            print(json.dumps(WorkspaceService(repository).add_member(args.workspace_id,args.principal_id,args.role,actor=args.actor,expires_at=args.expires_at),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspace-members":
+            print(json.dumps(WorkspaceService(repository).members(args.workspace_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "record-access-set":
+            print(json.dumps(WorkspaceService(repository).assign_record(args.record_id,args.workspace_id,actor=args.actor,project_id=args.project_id,owner_principal_id=args.owner_principal_id,steward_principal_id=args.steward_principal_id,custodian_principal_id=args.custodian_principal_id,visibility=args.visibility,classification=args.classification,retention_policy_id=args.retention_policy_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "record-access":
+            print(json.dumps(WorkspaceService(repository).record_access(args.record_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspace-records":
+            print(json.dumps(WorkspaceService(repository).records(args.workspace_id,principal_id=args.principal_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "record-visibility-set":
+            print(json.dumps(WorkspaceService(repository).set_visibility(args.record_id,args.visibility,args.classification,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "retention-policy-create":
+            print(json.dumps(WorkspaceService(repository).create_retention_policy(args.institution_id,args.name,retention_days=args.retention_days,disposition_action=args.disposition_action,policy_id=args.policy_id,description=args.description,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "retention-policies":
+            print(json.dumps(WorkspaceService(repository).retention_policies(args.institution_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "legal-hold":
+            print(json.dumps(WorkspaceService(repository).set_legal_hold(args.record_id,args.state=="set",actor=args.actor,reason=args.reason),indent=2,ensure_ascii=False)); return 0
+        if args.command == "disposition-check":
+            print(json.dumps(WorkspaceService(repository).can_dispose(args.record_id,as_of=args.as_of),indent=2,ensure_ascii=False)); return 0
+        if args.command == "access-events":
+            print(json.dumps(WorkspaceService(repository).events(workspace_id=args.workspace_id,record_id=args.record_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "workspace-export-manifest":
+            payload=WorkspaceService(repository).export_workspace_manifest(args.workspace_id,principal_id=args.principal_id,actor=args.actor); _write_json(args.output,payload); print(f"wrote {args.output}"); return 0
         if args.command == "api-key-create":
-            payload = ApiRegistry(repository).create_key(args.name, args.scope)
+            payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
             print("WARNING: store the token now; it cannot be recovered.", file=sys.stderr)
             return 0
@@ -500,7 +604,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied) as exc:
         print(f"ERROR: {exc}")
         return 1
 

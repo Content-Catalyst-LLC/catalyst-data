@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.8.0", "producer version failed")
+    check(record["producer"]["version"] == "1.9.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -82,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5, 6, 7, 8], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6, 7, 8, 9], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -109,6 +109,16 @@ def main() -> int:
         repository.start_review(record_id, "reviewer@example.org")
         repository.decide_review(record_id, "approved", "reviewer@example.org", reason="Approved")
         check(bool(repository.review_history(record_id)["approval_snapshots"]), "approval snapshot failed")
+        from catalyst_data.workspaces import WorkspaceService
+        workspaces = WorkspaceService(repository)
+        access = workspaces.record_access(record_id)
+        check(access["schema_version"] == "catalyst-data-access-governance/1.0", "access governance contract failed")
+        check(access["workspace_id"] == "workspace:default" and access["visibility"] == "private", "workspace backfill failed")
+        workspaces.set_visibility(record_id, "public", "public", actor="principal:system")
+        check(workspaces.record_access(record_id)["visibility"] == "public", "workspace publication gate failed")
+        analyst = workspaces.create_principal("Smoke Analyst", principal_id="principal:smoke-analyst")
+        workspaces.add_member("workspace:default", analyst["principal_id"], "analyst", actor="principal:system")
+        check(workspaces.authorize(analyst["principal_id"], "workspace:default", "records:read").role == "analyst", "workspace authorization failed")
         from catalyst_data.query_studio import QueryStudio
         studio = QueryStudio(repository)
         saved = studio.save({"name":"Smoke query","filters":{},"sort":[],"limit":100}, actor="smoke")
@@ -121,7 +131,7 @@ def main() -> int:
         from catalyst_data.handoff import create_handoff, validate_handoff
         key = ApiRegistry(repository).create_key("smoke", ["records:write", "handoffs:write"])
         check(key["token"].startswith("cd_"), "API key creation failed")
-        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.8.0")
+        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.9.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         check(receipt["status"] == "accepted", "handoff receipt failed")

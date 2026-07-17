@@ -19,6 +19,7 @@ from .database import connect, transaction
 from .handoff import handoff_digest, validate_handoff
 from .repository import CatalystRepository, RepositoryError, canonical_json
 from .validation import RecordValidationError, validate_record
+from .workspaces import AccessDenied, WorkspaceService
 
 API_VERSION = "v1"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "admin:keys")
@@ -77,9 +78,11 @@ def public_projection(record: Mapping[str, Any]) -> dict[str, Any]:
 def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
     return {
         "openapi": "3.1.0",
-        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Public-safe records and protected institutional handoffs."},
+        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Public-safe records, institutional workspaces, protected writes, and typed handoffs."},
         "servers": [{"url": base_url.rstrip("/")}],
         "paths": {
+            "/v1/workspaces": {"get": {"summary": "List the authenticated client workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Workspace"}}}},
+            "/v1/workspaces/{workspace_id}/records": {"get": {"summary": "List authorized workspace records", "security": [{"bearerAuth": []}], "parameters": [{"name": "workspace_id", "in": "path", "required": True, "schema": {"type": "string"}}], "responses": {"200": {"description": "Workspace records"}, "403": {"description": "Forbidden"}}}},
             "/health": {"get": {"summary": "Repository health", "responses": {"200": {"description": "Healthy"}}}},
             "/v1/capabilities": {"get": {"summary": "Capability discovery", "responses": {"200": {"description": "Capabilities"}}}},
             "/v1/records": {
@@ -99,27 +102,36 @@ class ApiClient:
     key_id: str
     name: str
     scopes: tuple[str, ...]
+    workspace_id: str
+    principal_id: str
 
 
 class ApiRegistry:
     def __init__(self, repository: CatalystRepository):
         self.repository = repository
 
-    def create_key(self, name: str, scopes: list[str] | tuple[str, ...]) -> dict[str, Any]:
+    def create_key(self, name: str, scopes: list[str] | tuple[str, ...], *, workspace_id: str = "workspace:default", principal_id: str = "principal:system") -> dict[str, Any]:
         self.repository.initialize()
         clean = tuple(sorted(set(str(scope).strip() for scope in scopes if str(scope).strip())))
         if not clean:
             raise ValueError("at least one scope is required")
         token = "cd_" + secrets.token_urlsafe(32)
         key_id = "key:" + hashlib.sha256(token.encode()).hexdigest()[:16]
+        workspace = WorkspaceService(self.repository)
+        if workspace.context(principal_id, workspace_id) is None:
+            raise ValueError("principal must be an active member of the API key workspace")
         with connect(self.repository.path) as connection, transaction(connection):
             connection.execute("INSERT INTO api_clients(key_id,name,token_sha256,scopes_json) VALUES (?,?,?,?)", (key_id, name.strip(), token_digest(token), json.dumps(clean)))
-        return {"key_id": key_id, "name": name.strip(), "scopes": list(clean), "token": token}
+        workspace.bind_api_key(key_id, workspace_id, principal_id)
+        return {"key_id": key_id, "name": name.strip(), "scopes": list(clean), "workspace_id": workspace_id, "principal_id": principal_id, "token": token}
 
     def list_keys(self) -> list[dict[str, Any]]:
         self.repository.initialize()
         with connect(self.repository.path, readonly=True) as connection:
-            rows = connection.execute("SELECT key_id,name,scopes_json,active,created_at,last_used_at FROM api_clients ORDER BY id").fetchall()
+            rows = connection.execute("""SELECT ac.key_id,ac.name,ac.scopes_json,ac.active,ac.created_at,ac.last_used_at,w.workspace_id,p.principal_id
+                                         FROM api_clients ac LEFT JOIN api_client_workspace_bindings b ON b.key_id=ac.key_id
+                                         LEFT JOIN workspaces w ON w.id=b.workspace_id LEFT JOIN principals p ON p.id=b.principal_id
+                                         ORDER BY ac.id""").fetchall()
             return [{**dict(row), "scopes": json.loads(row["scopes_json"])} for row in rows]
 
     def revoke(self, key_id: str) -> bool:
@@ -130,14 +142,17 @@ class ApiRegistry:
     def authenticate(self, token: str, required_scope: str) -> ApiClient | None:
         digest = token_digest(token)
         with connect(self.repository.path) as connection, transaction(connection):
-            row = connection.execute("SELECT key_id,name,scopes_json FROM api_clients WHERE token_sha256=? AND active=1", (digest,)).fetchone()
+            row = connection.execute("""SELECT ac.key_id,ac.name,ac.scopes_json,w.workspace_id,p.principal_id
+                                         FROM api_clients ac JOIN api_client_workspace_bindings b ON b.key_id=ac.key_id
+                                         JOIN workspaces w ON w.id=b.workspace_id JOIN principals p ON p.id=b.principal_id
+                                         WHERE ac.token_sha256=? AND ac.active=1 AND w.status='active' AND p.active=1""", (digest,)).fetchone()
             if not row:
                 return None
             scopes = tuple(json.loads(row["scopes_json"]))
             if required_scope not in scopes and "admin:*" not in scopes:
                 return None
             connection.execute("UPDATE api_clients SET last_used_at=? WHERE key_id=?", (_now(), row["key_id"]))
-            return ApiClient(row["key_id"], row["name"], scopes)
+            return ApiClient(row["key_id"], row["name"], scopes, row["workspace_id"], row["principal_id"])
 
     def audit(self, *, method: str, path: str, status_code: int, client: ApiClient | None = None, scope: str | None = None, record_id: str | None = None, handoff_id: str | None = None, remote_address: str | None = None, details: Mapping[str, Any] | None = None) -> None:
         occurred = _now(); nonce = secrets.token_hex(8)
@@ -222,7 +237,24 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             if path in ("/openapi.json", "/v1/openapi.json"):
                 self._json(200, openapi_document(self.server.public_base_url)); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+            if path == "/v1/workspaces":
+                client = self._auth("records:read")
+                if not client:
+                    self._error(401, "unauthorized", "A records:read bearer token is required"); return
+                service = WorkspaceService(self.server.repository)
+                service.authorize(client.principal_id, client.workspace_id, "records:read")
+                self._json(200, {"workspaces": [service.workspace(client.workspace_id)]}); return
+            if path.startswith("/v1/workspaces/") and path.endswith("/records"):
+                workspace_id = unquote(path[len("/v1/workspaces/"):-len("/records")].rstrip("/"))
+                client = self._auth("records:read")
+                if not client:
+                    self._error(401, "unauthorized", "A records:read bearer token is required"); return
+                if workspace_id != client.workspace_id:
+                    self._error(403, "forbidden", "API key is bound to a different workspace"); return
+                service = WorkspaceService(self.server.repository)
+                records = service.records(workspace_id, principal_id=client.principal_id, limit=100)
+                self._json(200, {"workspace_id": workspace_id, "records": records, "total": len(records)}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -239,6 +271,8 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(404, "record-not-found", "Record not found"); return
                 self._json(200, projected); return
             self._error(404, "not-found", "Endpoint not found")
+        except AccessDenied as exc:
+            self._error(403, "forbidden", str(exc))
         except (ValueError, sqlite3.Error) as exc:
             self._error(400, "invalid-request", str(exc))
 
@@ -250,9 +284,12 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 client = self._auth("records:write")
                 if not client:
                     self._error(401, "unauthorized", "A records:write bearer token is required"); self.server.registry.audit(method="POST",path=path,status_code=401,scope="records:write",remote_address=self.client_address[0]); return
+                service = WorkspaceService(self.server.repository)
+                service.authorize(client.principal_id, client.workspace_id, "records:write", record_id=None)
                 payload = self._body(); validate_record(payload)
                 existing = self.server.repository.get_record(payload["record_id"])
                 action = self.server.repository.upsert_record(payload)
+                service.assign_record(payload["record_id"], client.workspace_id, actor=client.principal_id, owner_principal_id=client.principal_id, steward_principal_id=client.principal_id, custodian_principal_id=client.principal_id)
                 status = 201 if existing is None else 200
                 self._json(status, {"record_id": payload["record_id"], "action": action, "payload_sha256": hashlib.sha256(canonical_json(payload).encode()).hexdigest()})
                 self.server.registry.audit(method="POST",path=path,status_code=status,client=client,scope="records:write",record_id=payload["record_id"],remote_address=self.client_address[0]); return
@@ -260,10 +297,11 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 client = self._auth("handoffs:write")
                 if not client:
                     self._error(401, "unauthorized", "A handoffs:write bearer token is required"); self.server.registry.audit(method="POST",path=path,status_code=401,scope="handoffs:write",remote_address=self.client_address[0]); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "handoffs:write")
                 result = self.server.registry.receive_handoff(self._body())
                 self._json(202, result); self.server.registry.audit(method="POST",path=path,status_code=202,client=client,scope="handoffs:write",handoff_id=result["handoff_id"],remote_address=self.client_address[0]); return
             self._error(404, "not-found", "Endpoint not found")
-        except (ValueError, RecordValidationError, RepositoryError, sqlite3.Error) as exc:
+        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, sqlite3.Error) as exc:
             self._error(400, "invalid-request", str(exc))
             try: self.server.registry.audit(method="POST",path=path,status_code=400,client=client,remote_address=self.client_address[0],details={"error": str(exc)})
             except Exception: pass

@@ -499,8 +499,9 @@ def javascript_constants(record: dict, review: dict) -> str:
 
 def export_alias(canonical: dict) -> dict:
     alias = json.loads(json.dumps(canonical))
-    alias["$id"] = "https://sustainablecatalyst.com/schemas/catalyst-data-export-1.8.0.json"
-    alias["title"] = "Catalyst Data Export 1.8.0"
+    release_version = (ROOT / "VERSION").read_text().strip()
+    alias["$id"] = f"https://sustainablecatalyst.com/schemas/catalyst-data-export-{release_version}.json"
+    alias["title"] = f"Catalyst Data Export {release_version}"
     alias["description"] = "Compatibility export schema for record/1.0 with evidence-chain, indicator-governance, observation-lineage, and review-workflow metadata."
     return alias
 

@@ -4,12 +4,18 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.8.0 — Public API, Embeds, and Platform Handoffs**
+**v1.9.0 — Institutional Workspaces and Access Governance**
 
-The release adds public-safe reads, protected record writes, OpenAPI 3.1, scoped bearer keys, persistent WordPress embeds, and typed Sustainable Catalyst handoffs without making remote services or Platform Core mandatory.
+The release adds institutions, workspaces, projects, principals, seven governed roles, record ownership and stewardship, visibility and classification controls, retention policies, legal holds, immutable transfer history, and workspace-bound API keys without changing the portable canonical record contract.
 
 ## Core capabilities
 
+- Institutional tenants, workspaces, projects, principals, and memberships.
+- Viewer, contributor, analyst, reviewer, approver, publisher, and administrator roles.
+- Record ownership, stewardship, custodianship, visibility, classification, retention, and legal-hold governance.
+- Append-only access decisions and immutable workspace transfer history.
+- Workspace-bound API keys and tenant-safe protected record endpoints.
+- `catalyst-data-access-governance/1.0` repository access metadata.
 - Strict `catalyst-data-record/1.0` validation.
 - Backward-compatible `catalyst-data-review-workflow/1.0` records.
 - Attributable review states, assignments, comments, decisions, and priorities.
@@ -60,6 +66,7 @@ The release adds public-safe reads, protected record writes, OpenAPI 3.1, scoped
 - `python/catalyst_data/service.py` — application service facade.
 - `schemas/` and `contracts/` — canonical record and review contracts.
 - `examples/imports/` — supported JSON and CSV examples.
+- `python/catalyst_data/workspaces.py` — institutions, roles, permissions, retention, transfers, and access auditing.
 - `python/catalyst_data/public_api.py` — public-safe HTTP API and protected writes.
 - `python/catalyst_data/handoff.py` — typed platform handoff contract and validation.
 - `openapi/` — static OpenAPI 3.1 contract.
@@ -113,6 +120,16 @@ catalyst-data query-run catalyst-data.sqlite3 QUERY_ID
 catalyst-data query-results catalyst-data.sqlite3 RUN_ID
 catalyst-data query-brief catalyst-data.sqlite3 RUN_ID outputs/query-brief.md
 catalyst-data export-bundle catalyst-data.sqlite3 RUN_ID outputs/query-bundle.zip
+
+catalyst-data institutions catalyst-data.sqlite3
+catalyst-data workspaces catalyst-data.sqlite3
+catalyst-data principal-create catalyst-data.sqlite3 "Analyst One" --principal-id principal:analyst-one
+catalyst-data workspace-member-add catalyst-data.sqlite3 workspace:default principal:analyst-one analyst --actor principal:system
+catalyst-data record-access catalyst-data.sqlite3 RECORD_ID
+catalyst-data workspace-records catalyst-data.sqlite3 workspace:default --principal-id principal:analyst-one
+catalyst-data legal-hold catalyst-data.sqlite3 RECORD_ID set --actor principal:system --reason "Institutional preservation"
+catalyst-data disposition-check catalyst-data.sqlite3 RECORD_ID
+catalyst-data access-events catalyst-data.sqlite3 --record-id RECORD_ID
 
 catalyst-data api-key-create catalyst-data.sqlite3 "Decision Studio" --scope records:write --scope handoffs:write
 catalyst-data api-keys catalyst-data.sqlite3
@@ -179,7 +196,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.8.0 does not yet provide multi-tenant institutional authorization.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.9.0 provides repository-level institutional authorization without claiming legal or regulatory compliance.
 
 ## License
 

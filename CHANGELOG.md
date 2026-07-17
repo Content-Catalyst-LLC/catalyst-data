@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0 — Institutional Workspaces and Access Governance
+
+- Added migration 009 for institutions, workspaces, projects, principals, memberships, record access, retention, API-key bindings, and append-only access history.
+- Added `catalyst-data-access-governance/1.0`.
+- Added seven institutional roles with explicit permissions and tenant-boundary enforcement.
+- Added ownership, stewardship, custodianship, visibility, classification, retention, legal hold, and transfer controls.
+- Added workspace-scoped protected API reads and principal/workspace-bound bearer keys.
+- Added public API gating that requires both external approval and public workspace access settings.
+- Added workspace and access-governance CLI commands, tests, documentation, packaging, and upgrade validation.
+
 ## 1.8.0 — Public API, Embeds, and Platform Handoffs
 
 - Added migration 008 for scoped API clients, append-only API auditing, embed profiles, typed handoff receipts, and externally approved record views.
