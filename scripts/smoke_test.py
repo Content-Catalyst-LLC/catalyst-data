@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.11.0", "producer version failed")
+    check(record["producer"]["version"] == "1.12.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -82,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -150,11 +150,23 @@ def main() -> int:
         first_bytes = analysis_package.read_bytes()
         analyses.export_package(analysis_run["run_id"], analysis_package)
         check(first_bytes == analysis_package.read_bytes() and bool(first_package["package_sha256"]), "analysis package reproducibility failed")
+        from catalyst_data.operations import OperationalService
+        operations = OperationalService(repository)
+        backup_path = Path(directory) / "smoke-backup.sqlite3"
+        backup = operations.create_backup(backup_path)
+        check(bool(backup["database_sha256"]), "backup creation failed")
+        check(operations.verify_backup(backup_path)["verified"], "backup verification failed")
+        queued = operations.queue_operation("record-upsert", {"record": repository.get_record(record_id)})
+        check(queued["status"] == "queued", "offline queue failed")
+        sync = operations.sync_offline()
+        check(sync["succeeded_count"] == 1, "offline synchronization failed")
+        check(operations.benchmark(iterations=1)["status"] != "fail", "performance benchmark failed")
+        check(operations.security_audit()["status"] != "fail", "security audit failed")
         from catalyst_data.public_api import ApiRegistry, public_projection, openapi_document
         from catalyst_data.handoff import create_handoff, validate_handoff
         key = ApiRegistry(repository).create_key("smoke", ["records:write", "handoffs:write"])
         check(key["token"].startswith("cd_"), "API key creation failed")
-        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.11.0")
+        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.12.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         check(receipt["status"] == "accepted", "handoff receipt failed")

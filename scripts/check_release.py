@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.11.0":
+    if version != "1.12.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -151,6 +151,13 @@ def validate_schemas() -> None:
         fail("Access-governance schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
+    operations_path = ROOT / "schemas/catalyst_data_operational_hardening_1_0.schema.json"
+    operations_package = ROOT / "python/catalyst_data/schemas/catalyst_data_operational_hardening_1_0.schema.json"
+    if operations_path.read_bytes() != operations_package.read_bytes():
+        fail("Packaged operational-hardening schema differs from canonical schema")
+    operations_schema = json.loads(operations_path.read_text(encoding="utf-8"))
+    if operations_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-operational-hardening/1.0":
+        fail("Operational-hardening schema identifier is invalid")
     if Draft202012Validator is not None:
         Draft202012Validator.check_schema(canonical)
         export = json.loads((ROOT / "schemas/catalyst_data_export.schema.json").read_text(encoding="utf-8"))
@@ -162,6 +169,7 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(query_schema)
         Draft202012Validator.check_schema(handoff_schema)
         Draft202012Validator.check_schema(access_schema)
+        Draft202012Validator.check_schema(operations_schema)
         Draft202012Validator.check_schema(json.loads((ROOT / "schemas/catalyst_data_connector_operations_1_0.schema.json").read_text(encoding="utf-8")))
         analysis_schema_path = ROOT / "schemas/catalyst_data_analysis_artifact_1_0.schema.json"
         analysis_package_path = ROOT / "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json"
@@ -233,19 +241,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
-        fail("Expected contiguous migrations 1 through 11")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+        fail("Expected contiguous migrations 1 through 12")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
-            fail("Fresh repository did not apply migrations 1 through 11")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+            fail("Fresh repository did not apply migrations 1 through 12")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [11]:
-            fail("Migration 11 rollback failed")
-        if repository.migrate() != [11]:
-            fail("Migration 11 reapplication failed")
+        if repository.rollback(1) != [12]:
+            fail("Migration 12 rollback failed")
+        if repository.migrate() != [12]:
+            fail("Migration 12 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -369,6 +377,31 @@ def validate_repository_pipeline() -> None:
             fail("Reproducible analysis package is not deterministic")
         if repository.stats()["analysis_runs"] != 1 or repository.stats()["analysis_package_exports"] != 1:
             fail("Analysis artifact history was not persisted")
+        from catalyst_data.operations import OperationalService
+        operations = OperationalService(repository)
+        backup_path = Path(directory) / "release-check-backup.sqlite3"
+        backup = operations.create_backup(backup_path, actor="principal:system")
+        if not operations.verify_backup(backup_path)["verified"] or not backup["database_sha256"]:
+            fail("Verified backup workflow failed")
+        queued = operations.queue_operation("record-upsert", {"record": repository.get_record(record_id)}, actor="principal:system")
+        sync = operations.sync_offline()
+        if queued["status"] != "queued" or sync["succeeded_count"] != 1:
+            fail("Offline queue synchronization failed")
+        benchmark = operations.benchmark(iterations=1)
+        security = operations.security_audit()
+        if benchmark["status"] == "fail" or security["status"] == "fail":
+            fail("Performance or security readiness checks failed")
+        attestation_path = Path(directory) / "release-attestation.json"
+        attestation = operations.create_release_attestation(ROOT, attestation_path, actor="principal:system")
+        if not attestation_path.exists() or not attestation["manifest"]["repository_sha256"]:
+            fail("Release attestation failed")
+        restored_path = Path(directory) / "restored.sqlite3"
+        restored = operations.restore_backup(backup_path, restored_path, actor="principal:system")
+        if restored["migration_version"] != 12 or restored["record_count"] < 2:
+            fail("Backup restore validation failed")
+        readiness = operations.readiness()
+        if readiness["verified_backup_count"] < 1 or readiness["release_attestation_count"] < 1:
+            fail("Operational readiness history was not persisted")
         from catalyst_data.public_api import ApiRegistry, openapi_document, public_projection
         from catalyst_data.handoff import create_handoff, validate_handoff
         api_key = ApiRegistry(repository).create_key("release-check", ["records:write", "handoffs:write"])
@@ -377,7 +410,7 @@ def validate_repository_pipeline() -> None:
         projected = public_projection(repository.get_record(record_id))
         if projected["review_workflow"]["assigned_reviewers"] or projected["review_workflow"]["decisions"]:
             fail("Public projection leaked internal review actors")
-        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.11.0")
+        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.12.0")
         validate_handoff(handoff)
         receipt = ApiRegistry(repository).receive_handoff(handoff)
         if receipt["status"] != "accepted" or repository.stats()["handoff_receipts"] != 1:
@@ -417,6 +450,10 @@ def validate_python_metadata() -> None:
         fail("Packaged analysis-artifact schema is missing")
     if not (ROOT / "python/catalyst_data/migrations/011_analysis_artifacts_reproducible_packages.up.sql").exists():
         fail("Migration 011 is missing from the package")
+    if not (ROOT / "python/catalyst_data/migrations/012_accessibility_offline_performance_hardening.up.sql").exists():
+        fail("Migration 012 is missing from the package")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_operational_hardening_1_0.schema.json").exists():
+        fail("Packaged operational-hardening schema is missing")
     from catalyst_data.public_api import openapi_document
     static_openapi = json.loads((ROOT / "openapi/catalyst-data-openapi.json").read_text(encoding="utf-8"))
     if static_openapi != openapi_document("http://127.0.0.1:8765"):

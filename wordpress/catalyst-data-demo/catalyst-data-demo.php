@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Catalyst Data Demo
  * Description: Canonical record demo and persistent public API embed. Adds [catalyst_data_demo] and [catalyst_data_embed].
- * Version: 1.11.0
+ * Version: 1.12.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CATALYST_DATA_DEMO_VERSION', '1.11.0');
+define('CATALYST_DATA_DEMO_VERSION', '1.12.0');
 
 function catalyst_data_demo_register_assets() {
     $base_url = plugin_dir_url(__FILE__);
@@ -337,14 +337,18 @@ function catalyst_data_embed_shortcode($atts = array()) {
     wp_enqueue_script('catalyst-data-embed-script');
     ob_start();
     ?>
-    <section class="cdata-embed" data-catalyst-data-embed data-api-url="<?php echo esc_url($api_url); ?>" data-limit="<?php echo esc_attr($limit); ?>">
+    <section class="cdata-embed" data-catalyst-data-embed data-api-url="<?php echo esc_url($api_url); ?>" data-limit="<?php echo esc_attr($limit); ?>" aria-busy="true">
         <header class="cdata-embed__header">
             <p class="cdata-embed__eyebrow">Catalyst Data Public API</p>
             <h2><?php echo esc_html($atts['title']); ?></h2>
             <p><?php echo esc_html($atts['description']); ?></p>
         </header>
-        <p class="cdata-embed__status" role="status" aria-live="polite" data-cdata-embed-status>Preparing records…</p>
-        <div class="cdata-embed__grid" data-cdata-embed-grid></div>
+        <div class="cdata-embed__toolbar">
+            <p class="cdata-embed__status" role="status" aria-live="polite" aria-atomic="true" data-cdata-embed-status>Preparing records…</p>
+            <button class="cdata-embed__retry" type="button" data-cdata-embed-retry>Retry</button>
+        </div>
+        <div class="cdata-embed__grid" role="list" aria-label="Published Catalyst Data records" data-cdata-embed-grid></div>
+        <noscript><p class="cdata-embed__notice">JavaScript is required to load records from the Catalyst Data Public API.</p></noscript>
     </section>
     <?php
     return ob_get_clean();

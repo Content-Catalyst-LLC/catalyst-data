@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-operational-hardening-1.0.schema.json",
+  "title": "Catalyst Data Operational Hardening Contract",
+  "type": "object",
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": {"const": "catalyst-data-operational-hardening/1.0"},
+    "backup_id": {"type": "string", "pattern": "^backup:"},
+    "restore_id": {"type": "string", "pattern": "^restore:"},
+    "operation_id": {"type": "string", "pattern": "^offline-operation:"},
+    "sync_id": {"type": "string", "pattern": "^offline-sync:"},
+    "benchmark_id": {"type": "string", "pattern": "^benchmark:"},
+    "attestation_id": {"type": "string", "pattern": "^attestation:"},
+    "database_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "repository_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "status": {"type": "string"},
+    "manifest": {"type": "object"},
+    "checks": {"type": "array", "items": {"type": "object"}},
+    "metrics": {"type": "object"}
+  },
+  "additionalProperties": true
+}

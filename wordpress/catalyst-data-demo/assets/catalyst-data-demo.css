@@ -76,3 +76,17 @@
 .cdata-embed__meta{display:grid;grid-template-columns:auto 1fr;gap:.2rem .75rem;font-size:.82rem;margin:.75rem 0}
 .cdata-embed__meta dt{font-weight:600}.cdata-embed__meta dd{margin:0}
 .cdata-embed__source{display:inline-block;margin-top:.5rem;font-weight:600}
+
+/* v1.12.0 accessibility and offline hardening */
+.cdata-demo :focus-visible,
+.cdata-embed :focus-visible{outline:3px solid currentColor;outline-offset:3px}
+.cdata-embed__toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.75rem 0 1rem}
+.cdata-embed__status{margin:0}
+.cdata-embed__retry{min-height:44px;padding:.65rem 1rem;border:2px solid #111;background:#fff;color:#111;font:inherit;font-weight:700;cursor:pointer}
+.cdata-embed__retry:hover,.cdata-embed__retry:focus-visible{background:#111;color:#fff}
+.cdata-embed--cached{border-left:6px solid #7a4b00}
+.cdata-embed--cached .cdata-embed__status{color:#5d3900;font-weight:700}
+.cdata-embed__notice{padding:.75rem;border:1px solid #777;background:#f7f7f7}
+@media (max-width:640px){.cdata-embed__toolbar{align-items:stretch;flex-direction:column}.cdata-embed__retry{width:100%}}
+@media (prefers-reduced-motion:reduce){.cdata-demo *,.cdata-embed *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+@media (forced-colors:active){.cdata-demo,.cdata-embed,.cdata-demo__form,.cdata-demo__output,.cdata-embed__card{border:1px solid CanvasText}.cdata-embed__retry{forced-color-adjust:auto}}

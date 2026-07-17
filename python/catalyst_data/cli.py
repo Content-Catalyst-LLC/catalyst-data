@@ -17,6 +17,7 @@ from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService, normalize_connector_definition
 from .analysis_artifacts import AnalysisArtifactError, AnalysisArtifactService
+from .operations import OperationalError, OperationalService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -409,6 +410,55 @@ def parser() -> argparse.ArgumentParser:
     analysis_replication = subparsers.add_parser("analysis-replication-review", help="append an independent replication review")
     analysis_replication.add_argument("database", type=Path); analysis_replication.add_argument("run_id"); analysis_replication.add_argument("status", choices=("pending","confirmed","partial","failed","not-reproducible")); analysis_replication.add_argument("reviewer"); analysis_replication.add_argument("--notes"); analysis_replication.add_argument("--evidence", type=Path); analysis_replication.add_argument("--reproduced-run-id")
 
+
+    backup_create = subparsers.add_parser("backup-create", help="create and verify an online SQLite backup")
+    backup_create.add_argument("database", type=Path); backup_create.add_argument("output", type=Path); backup_create.add_argument("--actor", default="principal:system")
+
+    backup_verify = subparsers.add_parser("backup-verify", help="verify backup checksum, integrity, and migration compatibility")
+    backup_verify.add_argument("database", type=Path); backup_verify.add_argument("backup", type=Path)
+
+    backups = subparsers.add_parser("backups", help="list immutable backup history")
+    backups.add_argument("database", type=Path); backups.add_argument("--limit", type=int, default=100)
+
+    restore = subparsers.add_parser("restore", help="restore a verified SQLite backup")
+    restore.add_argument("database", type=Path); restore.add_argument("backup", type=Path); restore.add_argument("--target", type=Path); restore.add_argument("--force", action="store_true"); restore.add_argument("--actor", default="principal:system")
+
+    restore_history = subparsers.add_parser("restore-history", help="list append-only restore events")
+    restore_history.add_argument("database", type=Path); restore_history.add_argument("--limit", type=int, default=100)
+
+    offline_queue = subparsers.add_parser("offline-queue", help="queue an operation for later synchronization")
+    offline_queue.add_argument("database", type=Path); offline_queue.add_argument("operation_type", choices=("record-upsert","connector-run","query-run","analysis-run","handoff-receive","custom")); offline_queue.add_argument("payload", type=Path); offline_queue.add_argument("--workspace-id", default="workspace:default"); offline_queue.add_argument("--actor", default="principal:system"); offline_queue.add_argument("--max-attempts", type=int, default=3)
+
+    offline_operations = subparsers.add_parser("offline-operations", help="list queued and synchronized offline operations")
+    offline_operations.add_argument("database", type=Path); offline_operations.add_argument("--status", choices=("queued","running","succeeded","failed","cancelled")); offline_operations.add_argument("--workspace-id"); offline_operations.add_argument("--limit", type=int, default=100)
+
+    offline_sync = subparsers.add_parser("offline-sync", help="process queued offline operations")
+    offline_sync.add_argument("database", type=Path); offline_sync.add_argument("--workspace-id"); offline_sync.add_argument("--actor", default="principal:system"); offline_sync.add_argument("--limit", type=int, default=100); offline_sync.add_argument("--retry-failed", action="store_true")
+
+    offline_sync_runs = subparsers.add_parser("offline-sync-runs", help="list immutable offline synchronization runs")
+    offline_sync_runs.add_argument("database", type=Path); offline_sync_runs.add_argument("--limit", type=int, default=100)
+
+    benchmark = subparsers.add_parser("benchmark", help="run and persist repository performance checks")
+    benchmark.add_argument("database", type=Path); benchmark.add_argument("--iterations", type=int, default=3); benchmark.add_argument("--actor", default="principal:system")
+
+    benchmarks = subparsers.add_parser("benchmarks", help="list repository performance history")
+    benchmarks.add_argument("database", type=Path); benchmarks.add_argument("--limit", type=int, default=100)
+
+    security_audit = subparsers.add_parser("security-audit", help="run database, key, connector-secret, and file-permission checks")
+    security_audit.add_argument("database", type=Path); security_audit.add_argument("--actor", default="principal:system")
+
+    security_events = subparsers.add_parser("security-events", help="list append-only security audit checks")
+    security_events.add_argument("database", type=Path); security_events.add_argument("--limit", type=int, default=100)
+
+    release_attest = subparsers.add_parser("release-attest", help="write a release file manifest and lightweight SBOM")
+    release_attest.add_argument("database", type=Path); release_attest.add_argument("source_root", type=Path); release_attest.add_argument("output", type=Path); release_attest.add_argument("--actor", default="principal:system")
+
+    attestations = subparsers.add_parser("attestations", help="list immutable release attestations")
+    attestations.add_argument("database", type=Path); attestations.add_argument("--limit", type=int, default=100)
+
+    readiness = subparsers.add_parser("operational-readiness", help="show backup, offline, benchmark, security, and attestation readiness")
+    readiness.add_argument("database", type=Path)
+
     return result
 
 
@@ -440,7 +490,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -734,6 +784,38 @@ def main(argv: Sequence[str] | None = None) -> int:
             repository.initialize(); result=ApiRegistry(repository).receive_handoff(read_handoff(args.input)); print(json.dumps(result,indent=2)); return 0
         if args.command == "handoff-receipts":
             repository.initialize(); print(json.dumps(ApiRegistry(repository).receipts(args.limit),indent=2)); return 0
+        if args.command == "backup-create":
+            print(json.dumps(OperationalService(repository).create_backup(args.output,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "backup-verify":
+            print(json.dumps(OperationalService(repository).verify_backup(args.backup),indent=2,ensure_ascii=False)); return 0
+        if args.command == "backups":
+            print(json.dumps(OperationalService(repository).backups(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "restore":
+            print(json.dumps(OperationalService(repository).restore_backup(args.backup,args.target,actor=args.actor,force=args.force),indent=2,ensure_ascii=False)); return 0
+        if args.command == "restore-history":
+            print(json.dumps(OperationalService(repository).restore_history(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "offline-queue":
+            print(json.dumps(OperationalService(repository).queue_operation(args.operation_type,_read(args.payload),workspace_id=args.workspace_id,actor=args.actor,max_attempts=args.max_attempts),indent=2,ensure_ascii=False)); return 0
+        if args.command == "offline-operations":
+            print(json.dumps(OperationalService(repository).operations(status=args.status,workspace_id=args.workspace_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "offline-sync":
+            result=OperationalService(repository).sync_offline(workspace_id=args.workspace_id,actor=args.actor,limit=args.limit,retry_failed=args.retry_failed); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] in ("completed","partial") else 1
+        if args.command == "offline-sync-runs":
+            print(json.dumps(OperationalService(repository).sync_runs(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "benchmark":
+            result=OperationalService(repository).benchmark(actor=args.actor,iterations=args.iterations); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] != "fail" else 1
+        if args.command == "benchmarks":
+            print(json.dumps(OperationalService(repository).benchmarks(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "security-audit":
+            result=OperationalService(repository).security_audit(actor=args.actor); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["status"] != "fail" else 1
+        if args.command == "security-events":
+            print(json.dumps(OperationalService(repository).security_events(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "release-attest":
+            print(json.dumps(OperationalService(repository).create_release_attestation(args.source_root,args.output,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "attestations":
+            print(json.dumps(OperationalService(repository).attestations(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "operational-readiness":
+            print(json.dumps(OperationalService(repository).readiness(),indent=2,ensure_ascii=False)); return 0
         if args.command == "analysis-register":
             print(json.dumps(AnalysisArtifactService(repository).register(_read(args.definition),actor=args.actor,activate=not args.no_activate),indent=2,ensure_ascii=False)); return 0
         if args.command == "analyses":
@@ -775,7 +857,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError, OperationalError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

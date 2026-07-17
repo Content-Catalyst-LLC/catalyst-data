@@ -9,9 +9,7 @@ export PYTHONPATH="$ROOT/python${PYTHONPATH:+:$PYTHONPATH}"
 
 find python scripts tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf .pytest_cache .release-check-pycache
-for test_file in tests/test_*.py; do
-  python3 -m pytest -q -o addopts='' "$test_file"
-done
+python3 -m pytest -q -o addopts=
 
 if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-contract.js

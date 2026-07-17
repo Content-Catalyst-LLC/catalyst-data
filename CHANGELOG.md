@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.0 — Accessibility, Offline Use, Performance, and Release Hardening
+
+- Added `catalyst-data-operational-hardening/1.0` and migration 012.
+- Added verified online backups, SHA-256 manifests, migration-aware restores, and pre-restore safety copies.
+- Added checksum-bound offline queues and immutable synchronization summaries.
+- Added persisted performance benchmarks, security audits, release file manifests, and a lightweight SBOM.
+- Hardened the WordPress public embed for keyboard use, live status announcements, reduced motion, retry, and clearly labeled cached fallback.
+- Added rollback, isolated-package, upgrade, recovery, and deterministic-package validation.
+
 ## 1.11.0 — Analysis Artifacts and Reproducible Data Packages
 
 - Added `catalyst-data-analysis-artifact/1.0` and migration 011.

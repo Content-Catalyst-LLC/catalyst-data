@@ -4,7 +4,7 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.11.0 — Analysis Artifacts and Reproducible Data Packages**
+**v1.12.0 — Analysis Artifacts and Reproducible Data Packages**
 
 The release freezes exact canonical inputs, parameters, environments, code references, outputs, derived lineage, replication reviews, and invalidation warnings. Deterministic packages preserve the evidence needed to reproduce or independently review an analysis without making Catalyst Data dependent on any single analytical product.
 
@@ -82,6 +82,7 @@ The release freezes exact canonical inputs, parameters, environments, code refer
 - `python/catalyst_data/workspaces.py` — institutions, roles, permissions, retention, transfers, and access auditing.
 - `python/catalyst_data/public_api.py` — public-safe HTTP API and protected writes.
 - `python/catalyst_data/handoff.py` — typed platform handoff contract and validation.
+- `python/catalyst_data/operations.py` — backup, restore, offline synchronization, performance, security, and release attestation.
 - `openapi/` — static OpenAPI 3.1 contract.
 - `wordpress/catalyst-data-demo/` — browser-only demo and persistent public API embed.
 
@@ -163,6 +164,29 @@ For a partial CSV import that commits valid rows and reports invalid rows:
 catalyst-data import catalyst-data.sqlite3 records.csv --non-atomic --continue-on-error --summary outputs/import-summary.json
 ```
 
+## Operational hardening
+
+```bash
+catalyst-data backup-create catalyst-data.sqlite3 backups/catalyst-data.sqlite3
+catalyst-data backup-verify catalyst-data.sqlite3 backups/catalyst-data.sqlite3
+catalyst-data backups catalyst-data.sqlite3
+
+catalyst-data offline-queue catalyst-data.sqlite3 record-upsert queued-record.json
+catalyst-data offline-sync catalyst-data.sqlite3
+catalyst-data offline-operations catalyst-data.sqlite3
+
+catalyst-data benchmark catalyst-data.sqlite3 --iterations 5
+catalyst-data security-audit catalyst-data.sqlite3
+catalyst-data operational-readiness catalyst-data.sqlite3
+catalyst-data release-attest catalyst-data.sqlite3 . outputs/release-attestation.json
+```
+
+Restore a verified backup to a separate repository first:
+
+```bash
+catalyst-data restore catalyst-data.sqlite3 backups/catalyst-data.sqlite3 --target restored.sqlite3
+```
+
 ## Migration operations
 
 ```bash
@@ -171,7 +195,7 @@ catalyst-data rollback catalyst-data.sqlite3 --steps 1
 catalyst-data migrate catalyst-data.sqlite3
 ```
 
-Create a backup before rolling back a repository containing important data.
+Create a verified backup before rolling back a repository containing important data.
 
 ## Record utilities
 
@@ -205,11 +229,11 @@ python3 scripts/build_release.py
 python3 scripts/check_release.py
 ```
 
-The release suite validates generated contracts, schemas, review transitions, quality assessments, immutable approvals, semantic revision history, governed indicator semantics, unit conversion, comparability, migrations, rollback/remigration, repository persistence, imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
+The release suite validates generated contracts, schemas, review transitions, quality assessments, immutable approvals, semantic revision history, governed indicator semantics, unit conversion, comparability, migrations, populated rollback/remigration, repository persistence, imports, exports, verified backup/restore, offline synchronization, performance and security checks, release attestations, accessibility markers, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.11.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.12.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
 
 ## License
 
