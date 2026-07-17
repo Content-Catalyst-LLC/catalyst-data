@@ -6,7 +6,7 @@
 - **Record ID:** `measurement:entity-project-5ada7e550380:f71a831661c3`
 - **Created:** 2026-07-16T12:00:00Z
 - **Updated:** 2026-07-16T12:00:00Z
-- **Producer:** Catalyst Data v1.3.0 (python-engine)
+- **Producer:** Catalyst Data v1.4.0 (python-engine)
 
 ## Measurement
 
@@ -30,6 +30,15 @@
 - **Evidence sources:** 2
 - **Evidence completeness:** 100%
 - **Open evidence gaps:** 0
+
+## Indicator Governance
+
+- **Registry:** sc:data-completeness-score:beee78cb26c8
+- **Status:** active
+- **Frequency:** annual
+- **Aggregation:** point-estimate
+- **Unit definition:** score (score)
+- **Methodology:** Data completeness score methodology v1.0 (draft)
 
 ## Method
 

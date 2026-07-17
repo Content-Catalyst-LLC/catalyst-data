@@ -31,3 +31,18 @@ class CatalystDataService:
 
     def source_history(self, source_id: str | None = None, *, limit: int = 100):
         return self.repository.source_history(source_id, limit=limit)
+
+    def indicators(self, indicator_id: str | None = None, *, limit: int = 100):
+        return self.repository.indicator_registry(indicator_id, limit=limit)
+
+    def methodologies(self, methodology_id: str | None = None, *, limit: int = 100):
+        return self.repository.methodology_history(methodology_id, limit=limit)
+
+    def units(self, unit_id: str | None = None, *, limit: int = 100):
+        return self.repository.unit_registry(unit_id, limit=limit)
+
+    def compare(self, left_record_id: str, right_record_id: str):
+        return self.repository.compare(left_record_id, right_record_id)
+
+    def convert(self, value: float, from_unit_id: str, to_unit_id: str):
+        return self.repository.convert(value, from_unit_id, to_unit_id)

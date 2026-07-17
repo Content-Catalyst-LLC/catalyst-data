@@ -11,6 +11,12 @@ from .database import DatabaseHealth, connect, transaction
 from .engine import validate_record_semantics
 from .migrations import MigrationManager, discover_migrations
 from .provenance import normalize_evidence_chain, source_digest, source_payload
+from .governance import (
+    compare_governance,
+    convert_value as convert_unit_value,
+    governance_digest,
+    normalize_indicator_governance,
+)
 from .validation import validate_record
 
 
@@ -27,6 +33,11 @@ def _event_id(record_id: str, event_type: str, occurred_at: str, digest: str, so
     return "event:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
 
 
+def _governance_event_id(indicator_id: str, event_type: str, occurred_at: str, digest: str) -> str:
+    value = f"{indicator_id}|{event_type}|{occurred_at}|{digest}"
+    return "governance-event:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+
+
 class RepositoryError(RuntimeError):
     pass
 
@@ -40,8 +51,11 @@ class CatalystRepository:
             manager = MigrationManager(connection)
             applied = manager.migrate(target)
             current = manager.current_version
-        if current >= 3:
+        latest = discover_migrations()[-1].version
+        if current == latest and current >= 3:
             self._backfill_evidence_storage()
+        if current == latest and current >= 4:
+            self._backfill_governance_storage()
         return applied
 
     def _backfill_evidence_storage(self) -> int:
@@ -79,6 +93,31 @@ class CatalystRepository:
                     occurred_at=record["updated_at"],
                 )
             self.upsert_record(record, _force_evidence_rebuild=True)
+            count += 1
+        return count
+
+
+    def _backfill_governance_storage(self) -> int:
+        """Enrich v1.3 records and populate the governed indicator registry."""
+        with closing(connect(self.path)) as connection:
+            rows = connection.execute(
+                """
+                SELECT dr.payload_json
+                FROM data_records dr
+                JOIN indicators i ON i.id = dr.indicator_id
+                WHERE json_extract(dr.payload_json, '$.indicator_governance') IS NULL
+                   OR NOT EXISTS (SELECT 1 FROM indicator_versions iv WHERE iv.indicator_id = i.id)
+                ORDER BY dr.record_id
+                """
+            ).fetchall()
+        count = 0
+        for row in rows:
+            record = json.loads(row[0])
+            if "indicator_governance" not in record:
+                record["indicator_governance"] = normalize_indicator_governance(
+                    record["indicator"], record["method"], None
+                )
+            self.upsert_record(record, _force_governance_rebuild=True)
             count += 1
         return count
 
@@ -132,13 +171,112 @@ class CatalystRepository:
     @staticmethod
     def _upsert_indicator(connection: sqlite3.Connection, record: Mapping[str, Any]) -> int:
         indicator = record["indicator"]
+        governance = record["indicator_governance"]
         connection.execute("""
-            INSERT INTO indicators(canonical_id, name, framework, unit, direction, version)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(canonical_id) DO UPDATE SET name=excluded.name, framework=excluded.framework,
-                unit=excluded.unit, direction=excluded.direction, version=excluded.version
-        """, (indicator["id"], indicator["name"], indicator.get("framework"), indicator.get("unit"), indicator["direction"], indicator["version"]))
+            INSERT INTO indicators(canonical_id, code, name, framework, unit, direction, version, namespace, domain, custodian, status, definition, frequency, aggregation, disaggregation_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(canonical_id) DO UPDATE SET code=excluded.code, name=excluded.name, framework=excluded.framework,
+                unit=excluded.unit, direction=excluded.direction, version=excluded.version, namespace=excluded.namespace,
+                domain=excluded.domain, custodian=excluded.custodian, status=excluded.status, definition=excluded.definition,
+                frequency=excluded.frequency, aggregation=excluded.aggregation, disaggregation_json=excluded.disaggregation_json
+        """, (
+            indicator["id"], governance["code"], indicator["name"], indicator.get("framework"),
+            indicator.get("unit"), indicator["direction"], indicator["version"], governance["namespace"],
+            governance["domain"], governance["custodian"], governance["status"], governance["definition"],
+            governance["frequency"], governance["aggregation"], json.dumps(governance["disaggregation_dimensions"], ensure_ascii=False),
+        ))
         return int(connection.execute("SELECT id FROM indicators WHERE canonical_id = ?", (indicator["id"],)).fetchone()[0])
+
+    @staticmethod
+    def _append_governance_event(
+        connection: sqlite3.Connection, *, indicator_id: int, indicator_canonical_id: str,
+        event_type: str, actor: str, occurred_at: str, digest: str, details: Mapping[str, Any],
+        indicator_version_id: int | None = None, methodology_version_id: int | None = None, unit_id: int | None = None,
+    ) -> None:
+        event_id = _governance_event_id(indicator_canonical_id, event_type, occurred_at, digest + canonical_json(details))
+        connection.execute(
+            """INSERT OR IGNORE INTO governance_events(
+                event_id, indicator_id, indicator_version_id, methodology_version_id, unit_id, event_type, actor, details_json, occurred_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (event_id, indicator_id, indicator_version_id, methodology_version_id, unit_id, event_type, actor, canonical_json(details), occurred_at),
+        )
+
+    @classmethod
+    def _persist_indicator_governance(
+        cls, connection: sqlite3.Connection, record: Mapping[str, Any], indicator_id: int
+    ) -> tuple[int, int, int]:
+        governance = record["indicator_governance"]
+        indicator = record["indicator"]
+        digest = governance_digest(governance)
+        actor = record["producer"]["component"]
+        occurred_at = record["updated_at"]
+
+        unit = governance["unit"]
+        existing_unit = connection.execute("SELECT id FROM unit_definitions WHERE canonical_id=?", (unit["id"],)).fetchone()
+        connection.execute("""
+            INSERT INTO unit_definitions(canonical_id,symbol,name,dimension,canonical_unit_id,conversion_factor,conversion_offset,updated_at)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON CONFLICT(canonical_id) DO UPDATE SET symbol=excluded.symbol,name=excluded.name,dimension=excluded.dimension,
+                canonical_unit_id=excluded.canonical_unit_id,conversion_factor=excluded.conversion_factor,
+                conversion_offset=excluded.conversion_offset,updated_at=excluded.updated_at
+        """, (unit["id"], unit["symbol"], unit["name"], unit["dimension"], unit["canonical_unit_id"], unit["conversion_factor"], unit["conversion_offset"], occurred_at))
+        unit_id = int(connection.execute("SELECT id FROM unit_definitions WHERE canonical_id=?", (unit["id"],)).fetchone()[0])
+        if existing_unit is None:
+            cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type="unit_registered", actor=actor, occurred_at=occurred_at, digest=digest, details={"unit_id": unit["id"]}, unit_id=unit_id)
+
+        version_row = connection.execute("SELECT id FROM indicator_versions WHERE indicator_id=? AND payload_sha256=?", (indicator_id, digest)).fetchone()
+        version_created = version_row is None
+        if version_row is None:
+            revision = int(connection.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM indicator_versions WHERE indicator_id=? AND version=?", (indicator_id, indicator["version"])).fetchone()[0])
+            cursor = connection.execute("""
+                INSERT INTO indicator_versions(indicator_id,version,revision_number,status,payload_json,payload_sha256,effective_from)
+                VALUES (?,?,?,?,?,?,?)
+            """, (indicator_id, indicator["version"], revision, governance["status"], canonical_json(governance), digest, occurred_at))
+            indicator_version_id = int(cursor.lastrowid)
+        else:
+            indicator_version_id = int(version_row[0])
+
+        methodology = governance["methodology"]
+        connection.execute("""
+            INSERT INTO methodologies(canonical_id,title,current_status,updated_at) VALUES (?,?,?,?)
+            ON CONFLICT(canonical_id) DO UPDATE SET title=excluded.title,current_status=excluded.current_status,updated_at=excluded.updated_at
+        """, (methodology["id"], methodology["title"], methodology["status"], occurred_at))
+        methodology_id = int(connection.execute("SELECT id FROM methodologies WHERE canonical_id=?", (methodology["id"],)).fetchone()[0])
+        methodology_digest = hashlib.sha256(canonical_json(methodology).encode("utf-8")).hexdigest()
+        methodology_row = connection.execute("SELECT id FROM methodology_versions WHERE methodology_id=? AND payload_sha256=?", (methodology_id, methodology_digest)).fetchone()
+        methodology_created = methodology_row is None
+        if methodology_row is None:
+            revision = int(connection.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM methodology_versions WHERE methodology_id=? AND version=?", (methodology_id, methodology["version"])).fetchone()[0])
+            cursor = connection.execute("""
+                INSERT INTO methodology_versions(methodology_id,version,revision_number,status,payload_json,payload_sha256,approved_by,approved_at)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (methodology_id, methodology["version"], revision, methodology["status"], canonical_json(methodology), methodology_digest, methodology.get("approved_by"), methodology.get("approved_at")))
+            methodology_version_id = int(cursor.lastrowid)
+        else:
+            methodology_version_id = int(methodology_row[0])
+
+        connection.execute("INSERT OR IGNORE INTO indicator_unit_assignments(indicator_version_id,unit_id,role) VALUES (?,?,'reporting')", (indicator_version_id, unit_id))
+        connection.execute("INSERT OR IGNORE INTO indicator_methodologies(indicator_version_id,methodology_version_id,role) VALUES (?,?,'primary')", (indicator_version_id, methodology_version_id))
+        for alias in governance["aliases"]:
+            connection.execute("INSERT OR IGNORE INTO indicator_aliases(indicator_id,alias) VALUES (?,?)", (indicator_id, alias))
+        for mapping in governance["framework_mappings"]:
+            cursor = connection.execute("""INSERT OR IGNORE INTO framework_mappings(indicator_version_id,framework,mapping_code,relationship,notes) VALUES (?,?,?,?,?)""", (indicator_version_id, mapping["framework"], mapping["code"], mapping["relationship"], mapping.get("notes")))
+            if cursor.rowcount:
+                cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type="framework_mapped", actor=actor, occurred_at=occurred_at, digest=digest, details=mapping, indicator_version_id=indicator_version_id)
+        compatibility = governance["compatibility"]
+        for comparable_version in compatibility["comparable_versions"]:
+            cursor = connection.execute("""
+                INSERT OR IGNORE INTO indicator_compatibility_rules(indicator_version_id,comparable_version,required_dimensions_json,methodology_equivalence_json,notes)
+                VALUES (?,?,?,?,?)
+            """, (indicator_version_id, comparable_version, json.dumps(compatibility["required_dimensions"], ensure_ascii=False), json.dumps(compatibility["methodology_equivalence"], ensure_ascii=False), compatibility.get("notes")))
+            if cursor.rowcount:
+                cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type="compatibility_rule_added", actor=actor, occurred_at=occurred_at, digest=digest, details={"comparable_version": comparable_version}, indicator_version_id=indicator_version_id)
+        if version_created:
+            event_type = "indicator_registered" if connection.execute("SELECT COUNT(*) FROM indicator_versions WHERE indicator_id=?", (indicator_id,)).fetchone()[0] == 1 else "indicator_versioned"
+            cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type=event_type, actor=actor, occurred_at=occurred_at, digest=digest, details={"version": indicator["version"], "payload_sha256": digest}, indicator_version_id=indicator_version_id)
+        if methodology_created:
+            cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type="methodology_versioned", actor=actor, occurred_at=occurred_at, digest=methodology_digest, details={"methodology_id": methodology["id"], "version": methodology["version"]}, indicator_version_id=indicator_version_id, methodology_version_id=methodology_version_id)
+        return indicator_version_id, methodology_version_id, unit_id
 
     @staticmethod
     def _upsert_period(connection: sqlite3.Connection, record: Mapping[str, Any]) -> int:
@@ -190,14 +328,23 @@ class CatalystRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (event_id, record_id, measurement_id, source_id, event_type, actor, canonical_json(details), previous[0] if previous else None, occurred_at))
 
-    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False) -> str:
+    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False) -> str:
         validate_record(record); validate_record_semantics(record)
         own_connection = connection is None; conn = connection or connect(self.path)
         try:
             self._require_current(conn)
             digest = payload_hash(record)
             existing = conn.execute("SELECT payload_sha256 FROM data_records WHERE record_id=?", (record["record_id"],)).fetchone()
-            if existing and existing[0] == digest and not _force_evidence_rebuild:
+            same_payload = bool(existing and existing[0] == digest)
+            revision_exists = bool(conn.execute(
+                "SELECT 1 FROM record_revisions WHERE record_id=? AND payload_sha256=? LIMIT 1",
+                (record["record_id"], digest),
+            ).fetchone())
+            provenance_exists = bool(conn.execute(
+                "SELECT 1 FROM provenance_events WHERE record_id=? LIMIT 1",
+                (record["record_id"],),
+            ).fetchone())
+            if same_payload and not _force_evidence_rebuild and not _force_governance_rebuild:
                 if import_run_id is not None:
                     conn.execute("INSERT INTO import_records(import_run_id,row_number,record_id,action,payload_sha256) VALUES (?,?,?,?,?)", (import_run_id, row_number, record["record_id"], "skipped", digest))
                 if own_connection: conn.commit()
@@ -205,6 +352,7 @@ class CatalystRepository:
 
             with transaction(conn):
                 entity_id = self._upsert_entity(conn, record); indicator_id = self._upsert_indicator(conn, record); period_id = self._upsert_period(conn, record)
+                self._persist_indicator_governance(conn, record, indicator_id)
                 chain = record.get("evidence_chain") or {"sources": [{"role": "primary", "source": record["source"], "locator": {}, "supports": ["measurement.current"], "notes": None}], "relationships": [], "transformations": [], "gaps": []}
                 source_rows: dict[str, tuple[int, int, bool]] = {}
                 for link in chain["sources"]:
@@ -221,7 +369,7 @@ class CatalystRepository:
                         uncertainty=excluded.uncertainty,quality_flags=excluded.quality_flags,reviewer_notes=excluded.reviewer_notes,updated_at=excluded.updated_at
                 """, (record["record_id"], entity_id, indicator_id, period_id, primary_source_id, measurement["current"], measurement.get("baseline"), record["confidence"]["score"], method.get("notes"), json.dumps(method.get("assumptions", []), ensure_ascii=False), json.dumps(method.get("limitations", []), ensure_ascii=False), method.get("uncertainty"), json.dumps(method.get("quality_flags", []), ensure_ascii=False), review.get("reviewer_notes"), record["updated_at"]))
                 measurement_id = int(conn.execute("SELECT id FROM measurements WHERE canonical_id=?", (record["record_id"],)).fetchone()[0])
-                action = "updated" if existing else "inserted"; payload_json = canonical_json(record)
+                action = "skipped" if same_payload else ("updated" if existing else "inserted"); payload_json = canonical_json(record)
                 conn.execute("""
                     INSERT INTO data_records(record_id,schema_version,record_type,payload_json,payload_sha256,entity_id,indicator_id,period_id,source_id,measurement_id,created_at,updated_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
@@ -232,7 +380,11 @@ class CatalystRepository:
                 """, (record["record_id"], record["schema_version"], record["record_type"], payload_json, digest, entity_id, indicator_id, period_id, primary_source_id, measurement_id, record["created_at"], record["updated_at"]))
 
                 revision_number = int(conn.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM record_revisions WHERE record_id=?", (record["record_id"],)).fetchone()[0])
-                conn.execute("INSERT INTO record_revisions(record_id,revision_number,action,payload_json,payload_sha256,import_run_id) VALUES (?,?,?,?,?,?)", (record["record_id"], revision_number, action, payload_json, digest, import_run_id))
+                if not same_payload or not revision_exists:
+                    revision_action = action if not same_payload else ("inserted" if revision_number == 1 else "updated")
+                    conn.execute("INSERT INTO record_revisions(record_id,revision_number,action,payload_json,payload_sha256,import_run_id) VALUES (?,?,?,?,?,?)", (record["record_id"], revision_number, revision_action, payload_json, digest, import_run_id))
+                else:
+                    revision_number = max(1, revision_number - 1)
 
                 conn.execute("DELETE FROM measurement_sources WHERE measurement_id=?", (measurement_id,))
                 for position, link in enumerate(chain["sources"]):
@@ -253,8 +405,9 @@ class CatalystRepository:
                 for gap in chain["gaps"]:
                     conn.execute("INSERT INTO evidence_gaps(measurement_id,gap_code,severity,description) VALUES (?,?,?,?)", (measurement_id, gap["code"], gap["severity"], gap["description"]))
 
-                event_type = "record_updated" if existing else "record_created"
-                self._append_event(conn, record_id=record["record_id"], measurement_id=measurement_id, event_type=event_type, actor=record["producer"]["component"], occurred_at=record["updated_at"], digest=digest, details={"revision": revision_number, "payload_sha256": digest})
+                if not same_payload or not provenance_exists:
+                    event_type = "record_updated" if existing and provenance_exists else "record_created"
+                    self._append_event(conn, record_id=record["record_id"], measurement_id=measurement_id, event_type=event_type, actor=record["producer"]["component"], occurred_at=record["updated_at"], digest=digest, details={"revision": revision_number, "payload_sha256": digest})
                 for transformation in chain["transformations"]:
                     self._append_event(conn, record_id=record["record_id"], measurement_id=measurement_id, event_type="transformed", actor=record["producer"]["component"], occurred_at=transformation.get("occurred_at") or record["updated_at"], digest=digest, details=transformation)
                 if import_run_id is not None:
@@ -336,8 +489,68 @@ class CatalystRepository:
                 revisions.append(dict(row))
             return {"record_id": record_id, "chain": record.get("evidence_chain"), "summary": dict(summary) if summary else {}, "open_gaps": gaps, "revisions": revisions, "provenance": self.provenance(record_id)}
 
+    def indicator_registry(self, indicator_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql = "SELECT * FROM indicator_registry_current"; params: list[Any] = []
+            if indicator_id:
+                sql += " WHERE indicator_id=?"; params.append(indicator_id)
+            sql += " ORDER BY indicator_id LIMIT ?"; params.append(limit)
+            rows = []
+            for row in connection.execute(sql, params):
+                item = dict(row); item["disaggregation_dimensions"] = json.loads(item.pop("disaggregation_json")); rows.append(item)
+            return rows
+
+    def methodology_history(self, methodology_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql = """SELECT m.canonical_id AS methodology_id,m.title,m.current_status,mv.version,mv.revision_number,mv.status,mv.payload_json,mv.payload_sha256,mv.approved_by,mv.approved_at,mv.created_at FROM methodology_versions mv JOIN methodologies m ON m.id=mv.methodology_id"""; params: list[Any] = []
+            if methodology_id:
+                sql += " WHERE m.canonical_id=?"; params.append(methodology_id)
+            sql += " ORDER BY m.canonical_id,mv.created_at DESC,mv.id DESC LIMIT ?"; params.append(limit)
+            rows=[]
+            for row in connection.execute(sql, params):
+                item=dict(row); item["payload"] = json.loads(item.pop("payload_json")); rows.append(item)
+            return rows
+
+    def unit_registry(self, unit_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql="SELECT canonical_id AS unit_id,symbol,name,dimension,canonical_unit_id,conversion_factor,conversion_offset,created_at,updated_at FROM unit_definitions"; params: list[Any]=[]
+            if unit_id:
+                sql += " WHERE canonical_id=?"; params.append(unit_id)
+            sql += " ORDER BY dimension,symbol LIMIT ?"; params.append(limit)
+            return [dict(row) for row in connection.execute(sql, params)]
+
+    def convert(self, value: float, from_unit_id: str, to_unit_id: str) -> float:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            rows = connection.execute("SELECT canonical_id AS id,symbol,name,dimension,canonical_unit_id,conversion_factor,conversion_offset FROM unit_definitions WHERE canonical_id IN (?,?)", (from_unit_id,to_unit_id)).fetchall()
+            units={row["id"]:dict(row) for row in rows}
+            if from_unit_id not in units or to_unit_id not in units:
+                raise RepositoryError("one or both units were not found")
+            return convert_unit_value(value, units[from_unit_id], units[to_unit_id])
+
+    def compare(self, left_record_id: str, right_record_id: str) -> dict[str, Any]:
+        left=self.get_record(left_record_id); right=self.get_record(right_record_id)
+        if left is None or right is None:
+            raise RepositoryError("one or both records were not found")
+        result=compare_governance(left,right)
+        result.update({"left_record_id":left_record_id,"right_record_id":right_record_id})
+        if result["conversion_available"] and left["indicator_governance"]["unit"]["id"] != right["indicator_governance"]["unit"]["id"]:
+            result["right_value_in_left_unit"] = convert_unit_value(right["measurement"]["current"], right["indicator_governance"]["unit"], left["indicator_governance"]["unit"])
+        return result
+
+    def governance_events(self, indicator_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            rows=[]
+            for row in connection.execute("""SELECT ge.event_id,ge.event_type,ge.actor,ge.details_json,ge.occurred_at,ge.created_at FROM governance_events ge JOIN indicators i ON i.id=ge.indicator_id WHERE i.canonical_id=? ORDER BY ge.id LIMIT ?""", (indicator_id,limit)):
+                item=dict(row); item["details"]=json.loads(item.pop("details_json")); rows.append(item)
+            return rows
+
     def stats(self) -> dict[str, int]:
         with closing(connect(self.path)) as connection:
             self._require_current(connection)
-            counts={"records":"data_records","entities":"entities","indicators":"indicators","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps"}
+            counts={"records":"data_records","entities":"entities","indicators":"indicators","indicator_versions":"indicator_versions","methodologies":"methodologies","methodology_versions":"methodology_versions","units":"unit_definitions","framework_mappings":"framework_mappings","governance_events":"governance_events","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps"}
             return {name:int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for name,table in counts.items()}

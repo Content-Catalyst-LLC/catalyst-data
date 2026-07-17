@@ -1,6 +1,6 @@
 # Import Pipeline
 
-The v1.3.0 import pipeline accepts JSON and CSV files.
+The v1.4.0 import pipeline accepts JSON and CSV files.
 
 ## JSON forms
 

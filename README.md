@@ -4,13 +4,18 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.3.0 — Sources, Provenance, and Evidence Chain**
+**v1.4.0 — Indicator Registry, Units, and Methodology Governance**
 
-The release adds a versioned multi-source evidence system to the persistent repository: immutable source versions and snapshots, append-only record revisions and provenance events, role-bearing evidence links, source relationships, transformation lineage, evidence gaps, and completeness scoring.
+The release adds governed indicator definitions above the persistent evidence repository: immutable indicator and methodology versions, unit dimensions and conversions, framework mappings, compatibility rules, comparability decisions, governance history, and automatic v1.3.0 registry backfill.
 
 ## Core capabilities
 
 - Strict `catalyst-data-record/1.0` validation.
+- Backward-compatible `catalyst-data-indicator-governance/1.0` records.
+- Namespaced indicator registry with lifecycle status, custody, definitions, frequency, aggregation, and disaggregation metadata.
+- Immutable indicator and methodology versions with append-only governance events.
+- Governed units, conversion bases, framework mappings, and explicit compatibility rules.
+- Deterministic equivalent, convertible, limited, and incompatible comparison results.
 - Backward-compatible `catalyst-data-evidence-chain/1.0` records.
 - Multiple evidence sources with primary, supporting, conflicting, derived, and contextual roles.
 - Immutable source versions, snapshots, record revisions, and provenance events.
@@ -62,6 +67,11 @@ catalyst-data review catalyst-data.sqlite3
 catalyst-data sources catalyst-data.sqlite3
 catalyst-data provenance catalyst-data.sqlite3 RECORD_ID
 catalyst-data evidence catalyst-data.sqlite3 RECORD_ID
+catalyst-data indicators catalyst-data.sqlite3
+catalyst-data methods catalyst-data.sqlite3
+catalyst-data units catalyst-data.sqlite3
+catalyst-data compare catalyst-data.sqlite3 LEFT_RECORD_ID RIGHT_RECORD_ID
+catalyst-data governance-events catalyst-data.sqlite3 INDICATOR_ID
 
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.csv --format csv
@@ -115,11 +125,11 @@ python3 scripts/build_release.py
 python3 scripts/check_release.py
 ```
 
-The release suite validates generated contracts, schemas, migrations, rollback/remigration, repository persistence, dry-run behavior, idempotent imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
+The release suite validates generated contracts, schemas, governed indicator semantics, unit conversion, comparability, immutable version history, migrations, rollback/remigration, repository persistence, dry-run behavior, idempotent imports, exports, SQL/Python/browser parity, PHP and JavaScript syntax, package contents, and deterministic ZIP reproduction.
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.3.0 does not yet provide institutional authorization or remote APIs.
+Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.4.0 does not yet provide institutional authorization or remote APIs.
 
 ## License
 

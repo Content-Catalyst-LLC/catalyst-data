@@ -28,6 +28,7 @@ from ._record_contract import (
 from ._version import __version__
 from .validation import RecordValidationError, validate_record
 from .provenance import normalize_evidence_chain, validate_evidence_chain_semantics
+from .governance import normalize_indicator_governance, validate_indicator_governance
 
 
 def _number(value: Any, field: str) -> float:
@@ -306,6 +307,9 @@ def convert_legacy_record(
         },
         "extensions": extensions,
     }
+    record["indicator_governance"] = normalize_indicator_governance(
+        record["indicator"], record["method"], payload.get("indicator_governance")
+    )
     record["evidence_chain"] = normalize_evidence_chain(
         record["source"],
         payload.get("evidence_chain") or ({"sources": payload.get("sources", [])} if payload.get("sources") else None),
@@ -334,6 +338,7 @@ def validate_record_semantics(record: Mapping[str, Any]) -> None:
         raise RecordValidationError(f"review.signal_status must be {expected_signal!r}")
     try:
         validate_evidence_chain_semantics(record)
+        validate_indicator_governance(record["indicator_governance"], record["indicator"])
     except ValueError as exc:
         raise RecordValidationError(str(exc)) from exc
 
@@ -348,6 +353,8 @@ def build_record(
         raise ValueError("payload must be an object")
     if is_canonical_record(payload):
         record = deepcopy(dict(payload))
+        if "indicator_governance" not in record:
+            record["indicator_governance"] = normalize_indicator_governance(record["indicator"], record["method"], None)
         if "evidence_chain" not in record:
             record["evidence_chain"] = normalize_evidence_chain(
                 record["source"], None, method=record["method"], confidence=record["confidence"], occurred_at=record["updated_at"]
@@ -403,6 +410,15 @@ def brief_markdown(record: Mapping[str, Any]) -> str:
 - **Evidence sources:** {len(record.get('evidence_chain', {}).get('sources', [source]))}
 - **Evidence completeness:** {record.get('evidence_chain', {}).get('completeness_score', 'Not assessed')}%
 - **Open evidence gaps:** {len(record.get('evidence_chain', {}).get('gaps', []))}
+
+## Indicator Governance
+
+- **Registry:** {record['indicator_governance']['namespace']}:{record['indicator_governance']['code']}
+- **Status:** {record['indicator_governance']['status']}
+- **Frequency:** {record['indicator_governance']['frequency']}
+- **Aggregation:** {record['indicator_governance']['aggregation']}
+- **Unit definition:** {record['indicator_governance']['unit']['name']} ({record['indicator_governance']['unit']['dimension']})
+- **Methodology:** {record['indicator_governance']['methodology']['title']} v{record['indicator_governance']['methodology']['version']} ({record['indicator_governance']['methodology']['status']})
 
 ## Method
 

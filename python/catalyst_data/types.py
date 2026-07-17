@@ -30,6 +30,69 @@ class IndicatorRecord(TypedDict):
     version: str
 
 
+class IndicatorComponent(TypedDict):
+    name: str
+    unit_id: Optional[str]
+    description: Optional[str]
+
+
+class UnitDefinition(TypedDict):
+    id: str
+    symbol: str
+    name: str
+    dimension: str
+    canonical_unit_id: str
+    conversion_factor: float
+    conversion_offset: float
+
+
+class MethodologyDefinition(TypedDict):
+    id: str
+    version: str
+    title: str
+    description: str
+    formula: Optional[str]
+    references: List[str]
+    status: str
+    approved_by: Optional[str]
+    approved_at: Optional[str]
+    revision_notes: Optional[str]
+
+
+class FrameworkMapping(TypedDict):
+    framework: str
+    code: str
+    relationship: str
+    notes: Optional[str]
+
+
+class CompatibilityDefinition(TypedDict):
+    comparable_versions: List[str]
+    required_dimensions: List[str]
+    methodology_equivalence: List[str]
+    notes: Optional[str]
+
+
+class IndicatorGovernance(TypedDict):
+    schema_version: str
+    namespace: str
+    code: str
+    domain: str
+    custodian: str
+    status: str
+    aliases: List[str]
+    definition: str
+    frequency: str
+    aggregation: str
+    disaggregation_dimensions: List[str]
+    numerator: Optional[IndicatorComponent]
+    denominator: Optional[IndicatorComponent]
+    unit: UnitDefinition
+    methodology: MethodologyDefinition
+    framework_mappings: List[FrameworkMapping]
+    compatibility: CompatibilityDefinition
+
+
 class PeriodRecord(TypedDict):
     id: str
     label: str
@@ -136,6 +199,7 @@ CatalystDataRecord = TypedDict(
         "producer": ProducerRecord,
         "entity": EntityRecord,
         "indicator": IndicatorRecord,
+        "indicator_governance": IndicatorGovernance,
         "period": PeriodRecord,
         "measurement": MeasurementRecord,
         "source": SourceRecord,

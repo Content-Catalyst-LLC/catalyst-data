@@ -81,12 +81,17 @@ DROP VIEW IF EXISTS measurement_review;
 CREATE VIEW measurement_review AS
 SELECT
     m.id AS measurement_id,
+    m.canonical_id AS record_id,
+    e.canonical_id AS entity_id,
     e.name AS entity,
     e.entity_type,
+    i.canonical_id AS indicator_id,
     i.name AS indicator,
     i.framework,
     i.unit,
     i.direction,
+    i.version AS indicator_version,
+    p.canonical_id AS period_id,
     p.label AS period,
     m.baseline_value,
     m.value,
@@ -94,8 +99,11 @@ SELECT
         WHEN m.baseline_value IS NULL OR m.baseline_value = 0 THEN NULL
         ELSE ROUND(((m.value - m.baseline_value) / ABS(m.baseline_value)) * 100.0, 2)
     END AS percent_change,
+    s.canonical_id AS source_id,
     s.name AS source,
     s.source_type,
+    s.publisher,
+    s.license,
     m.confidence,
     CASE
         WHEN m.source_id IS NULL THEN 'missing source'
@@ -112,7 +120,11 @@ SELECT
         ELSE 'declining'
     END AS signal_status,
     m.method,
-    m.assumptions
+    m.assumptions,
+    m.limitations,
+    m.uncertainty,
+    m.quality_flags,
+    m.reviewer_notes
 FROM measurements m
 JOIN entities e ON e.id = m.entity_id
 JOIN indicators i ON i.id = m.indicator_id

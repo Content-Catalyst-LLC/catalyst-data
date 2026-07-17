@@ -24,3 +24,8 @@ def test_repository_exports_json_and_csv(tmp_path):
     with csv_path.open(encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     assert rows[0]["entity_name"] == "Urban Tree Canopy Program"
+    assert rows[0]["indicator_namespace"] == "sc"
+    assert rows[0]["unit_symbol"] == "score"
+    assert rows[0]["methodology_version"] == "1.0"
+    governance = json.loads(rows[0]["indicator_governance_json"])
+    assert governance["schema_version"] == "catalyst-data-indicator-governance/1.0"

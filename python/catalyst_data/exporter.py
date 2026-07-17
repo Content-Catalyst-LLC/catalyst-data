@@ -16,6 +16,10 @@ CSV_FIELDS = [
     "citation", "checksum", "confidence", "confidence_basis", "review_status", "signal_status",
     "method_notes", "assumptions", "limitations", "uncertainty", "quality_flags", "reviewer_notes",
     "evidence_source_count", "evidence_completeness_score", "evidence_gap_codes", "evidence_chain_json",
+    "indicator_namespace", "indicator_code", "indicator_domain", "indicator_custodian", "indicator_status",
+    "indicator_frequency", "indicator_aggregation", "unit_id", "unit_symbol", "unit_name", "unit_dimension",
+    "unit_canonical_id", "unit_conversion_factor", "unit_conversion_offset", "methodology_id",
+    "methodology_version", "methodology_status", "indicator_governance_json",
     "created_at", "updated_at",
 ]
 
@@ -25,6 +29,9 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
     measurement, source = record["measurement"], record["source"]
     confidence, review, method = record["confidence"], record["review"], record["method"]
     evidence = record.get("evidence_chain", {})
+    governance = record.get("indicator_governance", {})
+    governed_unit = governance.get("unit", {})
+    governed_method = governance.get("methodology", {})
     return {
         "record_id": record["record_id"], "schema_version": record["schema_version"],
         "entity_id": entity["id"], "entity_name": entity["name"], "entity_type": entity["type"],
@@ -48,6 +55,16 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_completeness_score": evidence.get("completeness_score"),
         "evidence_gap_codes": " | ".join(item.get("code", "") for item in evidence.get("gaps", [])),
         "evidence_chain_json": json.dumps(evidence, ensure_ascii=False, sort_keys=True),
+        "indicator_namespace": governance.get("namespace"), "indicator_code": governance.get("code"),
+        "indicator_domain": governance.get("domain"), "indicator_custodian": governance.get("custodian"),
+        "indicator_status": governance.get("status"), "indicator_frequency": governance.get("frequency"),
+        "indicator_aggregation": governance.get("aggregation"), "unit_id": governed_unit.get("id"),
+        "unit_symbol": governed_unit.get("symbol"), "unit_name": governed_unit.get("name"),
+        "unit_dimension": governed_unit.get("dimension"), "unit_canonical_id": governed_unit.get("canonical_unit_id"),
+        "unit_conversion_factor": governed_unit.get("conversion_factor"), "unit_conversion_offset": governed_unit.get("conversion_offset"),
+        "methodology_id": governed_method.get("id"),
+        "methodology_version": governed_method.get("version"), "methodology_status": governed_method.get("status"),
+        "indicator_governance_json": json.dumps(governance, ensure_ascii=False, sort_keys=True),
         "created_at": record["created_at"], "updated_at": record["updated_at"],
     }
 

@@ -42,13 +42,18 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.3.0", "producer version failed")
+    check(record["producer"]["version"] == "1.4.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
     check(record["evidence_chain"]["schema_version"] == "catalyst-data-evidence-chain/1.0", "evidence contract failed")
     check(len(record["evidence_chain"]["sources"]) == 2, "multi-source evidence failed")
     check(record["evidence_chain"]["completeness_score"] == 100, "evidence completeness failed")
+    governance = record["indicator_governance"]
+    check(governance["schema_version"] == "catalyst-data-indicator-governance/1.0", "indicator governance contract failed")
+    check(governance["status"] == "active", "indicator status failed")
+    check(governance["unit"]["symbol"] == record["indicator"]["unit"], "governed unit failed")
+    check(governance["methodology"]["version"] == record["indicator"]["version"], "methodology version failed")
 
     invalid = deepcopy(record)
     invalid["unexpected"] = True
@@ -73,7 +78,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3], "repository migrations failed")
+        check(applied == [1, 2, 3, 4], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -85,8 +90,15 @@ def main() -> int:
         stats = repository.stats()
         check(stats["source_versions"] >= 2, "source version history failed")
         check(stats["record_revisions"] == 2, "record revision history failed")
-        record_id = repository.list_records(limit=1)[0]["record_id"]
+        check(stats["indicator_versions"] >= 2, "indicator version history failed")
+        check(stats["methodology_versions"] >= 2, "methodology version history failed")
+        stored = repository.list_records(limit=1)[0]
+        record_id = stored["record_id"]
         check(repository.evidence(record_id) is not None, "evidence inspection failed")
+        check(repository.indicator_registry(stored["indicator"]["id"]), "indicator registry failed")
+        unit_id = stored["indicator_governance"]["unit"]["id"]
+        check(repository.convert(5, unit_id, unit_id) == 5, "unit conversion failed")
+        check(repository.compare(record_id, record_id)["status"] == "equivalent", "comparability failed")
 
     database = sqlite3.connect(":memory:")
     database.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))

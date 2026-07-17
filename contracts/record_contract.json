@@ -102,5 +102,65 @@
     "conflicting-evidence",
     "restricted-source",
     "stale-source"
+  ],
+  "indicator_governance_contract": "catalyst-data-indicator-governance/1.0",
+  "indicator_statuses": [
+    "draft",
+    "active",
+    "deprecated",
+    "replaced",
+    "archived"
+  ],
+  "indicator_frequencies": [
+    "continuous",
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "annual",
+    "irregular",
+    "event",
+    "custom"
+  ],
+  "indicator_aggregations": [
+    "sum",
+    "mean",
+    "median",
+    "minimum",
+    "maximum",
+    "count",
+    "ratio",
+    "index",
+    "point-estimate",
+    "cumulative",
+    "custom"
+  ],
+  "methodology_statuses": [
+    "draft",
+    "in-review",
+    "approved",
+    "deprecated",
+    "archived"
+  ],
+  "framework_mapping_relationships": [
+    "exactMatch",
+    "closeMatch",
+    "broaderMatch",
+    "narrowerMatch",
+    "relatedMatch"
+  ],
+  "comparability_statuses": [
+    "equivalent",
+    "convertible",
+    "limited",
+    "incompatible"
+  ],
+  "governance_event_types": [
+    "indicator_registered",
+    "indicator_versioned",
+    "methodology_versioned",
+    "unit_registered",
+    "framework_mapped",
+    "compatibility_rule_added"
   ]
 }

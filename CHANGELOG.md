@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 — Indicator Registry, Units, and Methodology Governance
+
+- Added the backward-compatible `catalyst-data-indicator-governance/1.0` contract.
+- Added migration 004 with immutable indicator and methodology versions, governed units, framework mappings, compatibility rules, and governance events.
+- Added automatic v1.3.0 registry backfill.
+- Added unit conversion and record comparability services.
+- Added indicator, methodology, unit, comparison, conversion, and governance-history CLI commands.
+- Added governance-aware JSON and CSV import/export fields.
+- Added schema, migration, semantic, repository, CLI, browser, and package validation.
+
 ## 1.3.0 — Sources, Provenance, and Evidence Chain
 
 - Added the backward-compatible `catalyst-data-evidence-chain/1.0` contract.

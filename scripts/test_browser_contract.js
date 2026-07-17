@@ -44,7 +44,7 @@ const values = {
 const first = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 const second = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 equal(first.schema_version, 'catalyst-data-record/1.0', 'record contract');
-equal(first.producer.version, '1.3.0', 'producer version');
+equal(first.producer.version, '1.4.0', 'producer version');
 equal(first.measurement.percent_change, 25, 'record percent change');
 equal(first.review.status, 'reviewable', 'record review status');
 equal(first.review.signal_status, 'improving', 'record signal status');
@@ -55,5 +55,9 @@ equal(first.source.checksum, 'sha256:' + 'a'.repeat(64), 'checksum');
 equal(first.evidence_chain.schema_version, 'catalyst-data-evidence-chain/1.0', 'evidence contract');
 equal(first.evidence_chain.sources.length, 1, 'browser evidence sources');
 equal(first.evidence_chain.completeness_score, 95, 'browser evidence completeness');
+equal(first.indicator_governance.schema_version, 'catalyst-data-indicator-governance/1.0', 'indicator governance contract');
+equal(first.indicator_governance.status, 'active', 'indicator governance status');
+equal(first.indicator_governance.unit.symbol, 'score', 'governed unit');
+equal(first.indicator_governance.methodology.version, '1.0', 'governed methodology version');
 
 console.log('Browser contract parity passed.');

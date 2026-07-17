@@ -92,6 +92,38 @@ def parser() -> argparse.ArgumentParser:
     evidence.add_argument("database", type=Path)
     evidence.add_argument("record_id")
 
+
+    indicators = subparsers.add_parser("indicators", help="show the governed indicator registry")
+    indicators.add_argument("database", type=Path)
+    indicators.add_argument("--indicator-id")
+    indicators.add_argument("--limit", type=int, default=100)
+
+    methods = subparsers.add_parser("methods", help="show immutable methodology version history")
+    methods.add_argument("database", type=Path)
+    methods.add_argument("--methodology-id")
+    methods.add_argument("--limit", type=int, default=100)
+
+    units = subparsers.add_parser("units", help="show governed unit definitions")
+    units.add_argument("database", type=Path)
+    units.add_argument("--unit-id")
+    units.add_argument("--limit", type=int, default=100)
+
+    convert = subparsers.add_parser("convert", help="convert a value between compatible governed units")
+    convert.add_argument("database", type=Path)
+    convert.add_argument("value", type=float)
+    convert.add_argument("from_unit")
+    convert.add_argument("to_unit")
+
+    compare = subparsers.add_parser("compare", help="compare two records using indicator governance rules")
+    compare.add_argument("database", type=Path)
+    compare.add_argument("left_record_id")
+    compare.add_argument("right_record_id")
+
+    governance_events = subparsers.add_parser("governance-events", help="show indicator governance history")
+    governance_events.add_argument("database", type=Path)
+    governance_events.add_argument("indicator_id")
+    governance_events.add_argument("--limit", type=int, default=200)
+
     return result
 
 
@@ -123,7 +155,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -216,6 +248,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"ERROR: record not found: {args.record_id}")
                 return 1
             print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "indicators":
+            repository.initialize()
+            print(json.dumps(repository.indicator_registry(args.indicator_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "methods":
+            repository.initialize()
+            print(json.dumps(repository.methodology_history(args.methodology_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "units":
+            repository.initialize()
+            print(json.dumps(repository.unit_registry(args.unit_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "convert":
+            repository.initialize()
+            print(json.dumps({"value": args.value, "from_unit": args.from_unit, "to_unit": args.to_unit, "converted_value": repository.convert(args.value, args.from_unit, args.to_unit)}, indent=2))
+            return 0
+        if args.command == "compare":
+            repository.initialize()
+            print(json.dumps(repository.compare(args.left_record_id, args.right_record_id), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "governance-events":
+            repository.initialize()
+            print(json.dumps(repository.governance_events(args.indicator_id, limit=args.limit), indent=2, ensure_ascii=False))
             return 0
         return 2
     except ImportPipelineError as exc:

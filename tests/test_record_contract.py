@@ -115,3 +115,35 @@ def test_invalid_quality_flag_is_rejected():
     record["method"]["quality_flags"] = ["mystery"]
     with pytest.raises(RecordValidationError, match="mystery|quality_flags"):
         validate_record(record)
+
+
+def test_indicator_governance_is_part_of_canonical_record():
+    record = canonical_record()
+    governance = record["indicator_governance"]
+    assert governance["schema_version"] == "catalyst-data-indicator-governance/1.0"
+    assert governance["unit"]["symbol"] == record["indicator"]["unit"]
+    validate_record(record)
+    validate_record_semantics(record)
+
+
+def test_indicator_governance_unit_mismatch_is_rejected_semantically():
+    record = canonical_record()
+    record["indicator_governance"]["unit"]["symbol"] = "different"
+    with pytest.raises(RecordValidationError, match="unit.symbol"):
+        validate_record_semantics(record)
+
+
+def test_approved_methodology_without_approval_metadata_is_rejected_semantically():
+    record = canonical_record()
+    record["indicator_governance"]["methodology"]["status"] = "approved"
+    record["indicator_governance"]["methodology"]["approved_by"] = None
+    record["indicator_governance"]["methodology"]["approved_at"] = None
+    with pytest.raises(RecordValidationError, match="approved methodology"):
+        validate_record_semantics(record)
+
+
+def test_indicator_version_must_be_declared_comparable():
+    record = canonical_record()
+    record["indicator_governance"]["compatibility"]["comparable_versions"] = ["9.9"]
+    with pytest.raises(RecordValidationError, match="indicator version"):
+        validate_record_semantics(record)

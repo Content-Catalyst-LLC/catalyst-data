@@ -20,6 +20,12 @@ from ._record_contract import (
     EVIDENCE_CONTRACT,
     EVIDENCE_ROLES,
     SOURCE_RELATIONSHIPS,
+    INDICATOR_GOVERNANCE_CONTRACT,
+    INDICATOR_STATUSES,
+    INDICATOR_FREQUENCIES,
+    INDICATOR_AGGREGATIONS,
+    METHODOLOGY_STATUSES,
+    FRAMEWORK_MAPPING_RELATIONSHIPS,
 )
 from ._contract import DIRECTIONS, REVIEW_STATUSES, SIGNAL_STATUSES
 
@@ -59,7 +65,7 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         "producer", "entity", "indicator", "period", "measurement", "source", "confidence",
         "review", "method", "extensions"
     }
-    unknown = set(record) - (required | {"evidence_chain"})
+    unknown = set(record) - (required | {"evidence_chain", "indicator_governance"})
     missing = required - set(record)
     if missing:
         raise RecordValidationError(f"record is missing required fields: {', '.join(sorted(missing))}")
@@ -139,6 +145,26 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         score = chain["completeness_score"]
         if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
             raise RecordValidationError("evidence_chain.completeness_score must be an integer from 0 to 100")
+
+
+    governance = record.get("indicator_governance")
+    if governance is not None:
+        if not isinstance(governance, Mapping) or governance.get("schema_version") != INDICATOR_GOVERNANCE_CONTRACT:
+            raise RecordValidationError("indicator_governance schema version is invalid")
+        required_governance = {"schema_version", "namespace", "code", "domain", "custodian", "status", "aliases", "definition", "frequency", "aggregation", "disaggregation_dimensions", "numerator", "denominator", "unit", "methodology", "framework_mappings", "compatibility"}
+        if set(governance) != required_governance:
+            raise RecordValidationError("indicator_governance has invalid fields")
+        if governance["status"] not in INDICATOR_STATUSES:
+            raise RecordValidationError("indicator_governance.status is invalid")
+        if governance["frequency"] not in INDICATOR_FREQUENCIES:
+            raise RecordValidationError("indicator_governance.frequency is invalid")
+        if governance["aggregation"] not in INDICATOR_AGGREGATIONS:
+            raise RecordValidationError("indicator_governance.aggregation is invalid")
+        if governance["methodology"].get("status") not in METHODOLOGY_STATUSES:
+            raise RecordValidationError("indicator_governance.methodology.status is invalid")
+        for mapping in governance["framework_mappings"]:
+            if mapping.get("relationship") not in FRAMEWORK_MAPPING_RELATIONSHIPS:
+                raise RecordValidationError("indicator_governance framework mapping is invalid")
 
     extensions = record["extensions"]
     if not isinstance(extensions, Mapping):

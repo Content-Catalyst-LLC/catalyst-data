@@ -135,6 +135,42 @@
     };
   }
 
+
+  function indicatorGovernance(indicator, method){
+    var dimension = slug(indicator.unit) || 'unspecified';
+    var unitId = stableId('unit', dimension, indicator.unit);
+    var methodId = stableId('method', indicator.id, indicator.name + ' methodology');
+    return {
+      schema_version: recordContract.indicator_governance_contract,
+      namespace: 'sc',
+      code: indicator.id.split(':').slice(1).join(':'),
+      domain: indicator.framework || 'general',
+      custodian: 'Content Catalyst LLC',
+      status: 'active',
+      aliases: [],
+      definition: indicator.name,
+      frequency: 'annual',
+      aggregation: 'point-estimate',
+      disaggregation_dimensions: [],
+      numerator: null,
+      denominator: null,
+      unit: {
+        id: unitId, symbol: indicator.unit, name: indicator.unit, dimension: dimension,
+        canonical_unit_id: unitId, conversion_factor: 1, conversion_offset: 0
+      },
+      methodology: {
+        id: methodId, version: indicator.version, title: indicator.name + ' methodology',
+        description: method.notes || '', formula: null, references: [], status: 'draft',
+        approved_by: null, approved_at: null, revision_notes: null
+      },
+      framework_mappings: indicator.framework ? [{framework: indicator.framework, code: indicator.id.split(':').slice(1).join(':'), relationship: 'exactMatch', notes: null}] : [],
+      compatibility: {
+        comparable_versions: [indicator.version], required_dimensions: [],
+        methodology_equivalence: [methodId], notes: null
+      }
+    };
+  }
+
   function buildRecord(values, now){
     var entityName = String(values.entity || '').trim() || 'Unnamed entity';
     var entityType = values.entityType || 'other';
@@ -169,6 +205,10 @@
       notes: String(values.notes || '').trim(), assumptions: textList(values.assumptions), limitations: textList(values.limitations),
       uncertainty: nullableText(values.uncertainty), quality_flags: qualityFlags(values.qualityFlags)
     };
+    var indicatorRecord = {
+      id: indicatorId, name: indicatorName, unit: unit, direction: direction,
+      framework: nullableText(values.framework), version: String(values.indicatorVersion || '1.0').trim() || '1.0'
+    };
 
     return {
       '$schema': recordContract.schema_uri,
@@ -188,14 +228,8 @@
         type: entityType,
         external_ids: values.externalId ? {'org.sustainablecatalyst.demo': String(values.externalId).trim()} : {}
       },
-      indicator: {
-        id: indicatorId,
-        name: indicatorName,
-        unit: unit,
-        direction: direction,
-        framework: nullableText(values.framework),
-        version: String(values.indicatorVersion || '1.0').trim() || '1.0'
-      },
+      indicator: indicatorRecord,
+      indicator_governance: indicatorGovernance(indicatorRecord, methodRecord),
       period: {
         id: periodId,
         label: periodLabel,

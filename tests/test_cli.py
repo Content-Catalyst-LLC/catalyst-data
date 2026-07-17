@@ -99,3 +99,37 @@ def test_evidence_cli_commands_in_process(tmp_path, capsys):
     assert main(["evidence", str(database), record["record_id"]]) == 0
     output = capsys.readouterr().out
     assert "completeness_score" in output
+
+
+def test_governance_cli_commands_in_process(tmp_path, capsys):
+    from catalyst_data.cli import main
+    from catalyst_data.importer import ImportService
+    from catalyst_data.repository import CatalystRepository
+
+    database = tmp_path / "governance.db"
+    repository = CatalystRepository(database)
+    source = tmp_path / "records.json"
+    source.write_text(json.dumps({"records": [json.loads((ROOT / "examples/sample_project.json").read_text(encoding="utf-8"))]}), encoding="utf-8")
+    ImportService(repository).run(source)
+    record = repository.list_records(limit=1)[0]
+    indicator_id = record["indicator"]["id"]
+    methodology_id = record["indicator_governance"]["methodology"]["id"]
+    unit_id = record["indicator_governance"]["unit"]["id"]
+
+    assert main(["indicators", str(database), "--indicator-id", indicator_id]) == 0
+    assert indicator_id in capsys.readouterr().out
+
+    assert main(["methods", str(database), "--methodology-id", methodology_id]) == 0
+    assert methodology_id in capsys.readouterr().out
+
+    assert main(["units", str(database), "--unit-id", unit_id]) == 0
+    assert unit_id in capsys.readouterr().out
+
+    assert main(["convert", str(database), "12", unit_id, unit_id]) == 0
+    assert '"converted_value": 12.0' in capsys.readouterr().out
+
+    assert main(["compare", str(database), record["record_id"], record["record_id"]]) == 0
+    assert '"status": "equivalent"' in capsys.readouterr().out
+
+    assert main(["governance-events", str(database), indicator_id]) == 0
+    assert "indicator_registered" in capsys.readouterr().out

@@ -12,12 +12,14 @@ It exists to answer these practical questions:
 6. What evidence-readiness and directional judgments have been derived?
 7. Which versioned contract and stable identifiers allow the record to move safely between products?
 8. Which repository, migration, and import run stored or changed the record?
+9. Which governed indicator, unit, methodology version, framework mapping, and compatibility rules define whether records can be compared?
 
 ## Contract architecture
 
 - `contracts/review_contract.json` governs confidence thresholds and directional classification.
 - `contracts/record_contract.json` governs record types, enums, ID patterns, provenance vocabulary, quality flags, and extension rules.
 - `schemas/catalyst_data_record_1_0.schema.json` is the normative exchange schema.
+- `schemas/catalyst_data_indicator_governance_1_0.schema.json` governs indicator definitions, units, methodologies, mappings, and comparability metadata.
 - Python and browser artifacts are generated from those contracts.
 - Cross-field semantic validation verifies derived percentage change and review judgments.
 
@@ -42,10 +44,14 @@ JSON and CSV imports run through the same canonical record builder and validator
 - import-run and record-action ledgers; and
 - deterministic file-based timestamps when authoring inputs omit timestamps.
 
+## Indicator governance architecture
+
+Migration 004 separates stable indicator identities from immutable indicator and methodology versions. Unit definitions carry dimensions and canonical conversion bases. Framework mappings preserve external relationships without collapsing distinct indicators. Compatibility rules make comparability explicit and the comparison engine returns equivalent, convertible, limited, or incompatible outcomes.
+
 ## Extension boundary
 
 The core schema rejects unknown fields. Product-specific metadata belongs under namespaced `extensions` keys so integrations can add context without mutating the canonical meaning of core fields.
 
 ## Scope boundary
 
-v1.3.0 supports local persistence, governed ingestion, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.
+v1.4.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.

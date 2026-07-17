@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "component": "migration-tool"
   },
   "entity": {
@@ -65,6 +65,53 @@
     "quality_flags": []
   },
   "extensions": {},
+  "indicator_governance": {
+    "schema_version": "catalyst-data-indicator-governance/1.0",
+    "namespace": "sc",
+    "code": "estimated-co2e-avoided:0664b9d2c2d6",
+    "domain": "general",
+    "custodian": "Content Catalyst LLC",
+    "status": "active",
+    "aliases": [],
+    "definition": "Estimated CO2e avoided",
+    "frequency": "annual",
+    "aggregation": "point-estimate",
+    "disaggregation_dimensions": [],
+    "numerator": null,
+    "denominator": null,
+    "unit": {
+      "id": "unit:f2c8f1572ae658503555",
+      "symbol": "tCO2e",
+      "name": "tCO2e",
+      "dimension": "tco2e",
+      "canonical_unit_id": "unit:f2c8f1572ae658503555",
+      "conversion_factor": 1.0,
+      "conversion_offset": 0.0
+    },
+    "methodology": {
+      "id": "method:d45fc53d7275a0683ec6",
+      "version": "1.0",
+      "title": "Estimated CO2e avoided methodology",
+      "description": "Imported from a Catalyst Data v1.0.x browser export.",
+      "formula": null,
+      "references": [],
+      "status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "revision_notes": null
+    },
+    "framework_mappings": [],
+    "compatibility": {
+      "comparable_versions": [
+        "1.0"
+      ],
+      "required_dimensions": [],
+      "methodology_equivalence": [
+        "method:d45fc53d7275a0683ec6"
+      ],
+      "notes": null
+    }
+  },
   "evidence_chain": {
     "schema_version": "catalyst-data-evidence-chain/1.0",
     "sources": [
