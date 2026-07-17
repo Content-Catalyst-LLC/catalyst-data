@@ -5,6 +5,8 @@ from pathlib import Path
 from .exporter import export_repository
 from .importer import ImportService, ImportSummary
 from .repository import CatalystRepository
+from .public_api import ApiRegistry
+from .handoff import create_handoff
 
 
 class CatalystDataService:
@@ -13,6 +15,7 @@ class CatalystDataService:
     def __init__(self, database: str | Path):
         self.repository = CatalystRepository(database)
         self.imports = ImportService(self.repository)
+        self.api = ApiRegistry(self.repository)
 
     def initialize(self) -> list[int]:
         return self.repository.initialize()
@@ -61,3 +64,15 @@ class CatalystDataService:
 
     def lineage(self, record_id: str):
         return self.repository.lineage(record_id)
+
+    def create_api_key(self, name: str, scopes):
+        return self.api.create_key(name, scopes)
+
+    def create_handoff(self, record_ids, *, target_product: str, target_capability: str, source_version: str, api_base_url: str | None = None):
+        records=[]
+        for record_id in record_ids:
+            record=self.repository.get_record(record_id)
+            if record is None:
+                raise KeyError(record_id)
+            records.append(record)
+        return create_handoff(records, target_product=target_product, target_capability=target_capability, source_version=source_version, api_base_url=api_base_url)

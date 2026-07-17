@@ -42,7 +42,7 @@ def main() -> int:
     record = build_record(payload)
     validate_record(record)
     check(record["schema_version"] == "catalyst-data-record/1.0", "record contract failed")
-    check(record["producer"]["version"] == "1.7.0", "producer version failed")
+    check(record["producer"]["version"] == "1.8.0", "producer version failed")
     check(record["review"]["status"] == "reviewable", "sample review status failed")
     check(record["review"]["signal_status"] == "improving", "sample signal status failed")
     check(record["source"]["publisher"] == "Content Catalyst LLC", "source provenance failed")
@@ -82,7 +82,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         repository = CatalystRepository(Path(directory) / "catalyst-data.sqlite3")
         applied = repository.initialize()
-        check(applied == [1, 2, 3, 4, 5, 6, 7], "repository migrations failed")
+        check(applied == [1, 2, 3, 4, 5, 6, 7, 8], "repository migrations failed")
         dry_run = ImportService(repository).run(ROOT / "examples/imports/records.json", dry_run=True)
         check(dry_run.inserted == 2 and dry_run.rolled_back, "repository dry run failed")
         check(repository.stats()["records"] == 0, "dry run persisted records")
@@ -117,6 +117,15 @@ def main() -> int:
         bundle = Path(directory) / "smoke-bundle.zip"
         studio.export_bundle(run["run_id"], bundle)
         check(bundle.exists(), "query bundle failed")
+        from catalyst_data.public_api import ApiRegistry, public_projection, openapi_document
+        from catalyst_data.handoff import create_handoff, validate_handoff
+        key = ApiRegistry(repository).create_key("smoke", ["records:write", "handoffs:write"])
+        check(key["token"].startswith("cd_"), "API key creation failed")
+        handoff = create_handoff([stored], target_product="decision-studio", target_capability="decision-evidence", source_version="1.8.0")
+        validate_handoff(handoff)
+        receipt = ApiRegistry(repository).receive_handoff(handoff)
+        check(receipt["status"] == "accepted", "handoff receipt failed")
+        check(openapi_document()["openapi"] == "3.1.0", "OpenAPI generation failed")
 
     database = sqlite3.connect(":memory:")
     database.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))

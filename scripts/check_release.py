@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.7.0":
+    if version != "1.8.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -135,6 +135,13 @@ def validate_schemas() -> None:
     query_schema = json.loads(query_path.read_text(encoding="utf-8"))
     if query_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-query/1.0":
         fail("Query schema identifier is invalid")
+    handoff_path = ROOT / "schemas/catalyst_data_handoff_1_0.schema.json"
+    handoff_package = ROOT / "python/catalyst_data/schemas/catalyst_data_handoff_1_0.schema.json"
+    if handoff_path.read_bytes() != handoff_package.read_bytes():
+        fail("Packaged handoff schema differs from canonical schema")
+    handoff_schema = json.loads(handoff_path.read_text(encoding="utf-8"))
+    if handoff_schema.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-handoff/1.0":
+        fail("Handoff schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
@@ -146,6 +153,7 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(lineage)
         Draft202012Validator.check_schema(workflow)
         Draft202012Validator.check_schema(query_schema)
+        Draft202012Validator.check_schema(handoff_schema)
     else:
         print("INFO: jsonschema unavailable; runtime fallback validation remains active")
 
@@ -197,19 +205,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7]:
-        fail("Expected contiguous migrations 1 through 7")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8]:
+        fail("Expected contiguous migrations 1 through 8")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7]:
-            fail("Fresh repository did not apply migrations 1 through 7")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8]:
+            fail("Fresh repository did not apply migrations 1 through 8")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [7]:
-            fail("Migration 7 rollback failed")
-        if repository.migrate() != [7]:
-            fail("Migration 7 reapplication failed")
+        if repository.rollback(1) != [8]:
+            fail("Migration 8 rollback failed")
+        if repository.migrate() != [8]:
+            fail("Migration 8 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -283,6 +291,21 @@ def validate_repository_pipeline() -> None:
             fail("Query export bundle is not reproducible")
         if repository.stats()["query_runs"] != 1 or repository.stats()["saved_query_versions"] != 1:
             fail("Query studio history was not persisted")
+        from catalyst_data.public_api import ApiRegistry, openapi_document, public_projection
+        from catalyst_data.handoff import create_handoff, validate_handoff
+        api_key = ApiRegistry(repository).create_key("release-check", ["records:write", "handoffs:write"])
+        if not api_key["token"].startswith("cd_") or ApiRegistry(repository).authenticate(api_key["token"], "records:write") is None:
+            fail("API key registry failed")
+        projected = public_projection(repository.get_record(record_id))
+        if projected["review_workflow"]["assigned_reviewers"] or projected["review_workflow"]["decisions"]:
+            fail("Public projection leaked internal review actors")
+        handoff = create_handoff([first_record], target_product="decision-studio", target_capability="decision-evidence", source_version="1.8.0")
+        validate_handoff(handoff)
+        receipt = ApiRegistry(repository).receive_handoff(handoff)
+        if receipt["status"] != "accepted" or repository.stats()["handoff_receipts"] != 1:
+            fail("Typed handoff receipt failed")
+        if openapi_document().get("openapi") != "3.1.0":
+            fail("OpenAPI generation failed")
 
 
 def validate_python_metadata() -> None:
@@ -306,6 +329,12 @@ def validate_python_metadata() -> None:
         fail("Packaged review-workflow schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json").exists():
         fail("Packaged query schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_handoff_1_0.schema.json").exists():
+        fail("Packaged handoff schema is missing")
+    from catalyst_data.public_api import openapi_document
+    static_openapi = json.loads((ROOT / "openapi/catalyst-data-openapi.json").read_text(encoding="utf-8"))
+    if static_openapi != openapi_document("http://127.0.0.1:8765"):
+        fail("Static OpenAPI document is stale")
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
@@ -320,6 +349,7 @@ def validate_plugin_zip(skip_build_check: bool) -> None:
             "catalyst-data-demo/assets/catalyst-data-contract.js",
             "catalyst-data-demo/assets/catalyst-data-record-contract.js",
             "catalyst-data-demo/assets/catalyst-data-demo.css",
+            "catalyst-data-demo/assets/catalyst-data-embed.js",
             "catalyst-data-demo/README.md",
         }
         missing = required - names
@@ -372,7 +402,7 @@ def main() -> int:
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
-    print("STEP: repository migrations, queries, exports, review, lineage, governance, evidence, and imports", flush=True)
+    print("STEP: repository migrations, API, handoffs, queries, exports, review, lineage, governance, evidence, and imports", flush=True)
     validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()
@@ -383,6 +413,7 @@ def main() -> int:
         command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-contract.js"])
         command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js"])
         command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-demo.js"])
+        command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-embed.js"])
         command(["node", "scripts/test_browser_contract.js"])
         command(["php", "-l", "wordpress/catalyst-data-demo/catalyst-data-demo.php"])
     print("STEP: plugin package", flush=True)

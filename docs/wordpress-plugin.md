@@ -12,7 +12,7 @@ python3 scripts/build_release.py
 
 Do not edit files inside the ZIP directly.
 
-## v1.7.0 behavior
+## v1.8.0 behavior
 
 - Loads generated review and record contracts before the demo engine.
 - Emits `catalyst-data-record/1.0` with stable semantic IDs.
@@ -25,3 +25,7 @@ Do not edit files inside the ZIP directly.
 - Generates unique field IDs when the shortcode appears more than once on a page.
 
 The WordPress component remains a browser-only demonstration. Persistent repository operations are provided by the Python CLI and service layer, not by the shortcode.
+
+## Persistent public records
+
+Use `[catalyst_data_embed api_url="https://data.example.org" limit="12"]` to render externally approved records. The embed is read-only and never receives API write credentials.

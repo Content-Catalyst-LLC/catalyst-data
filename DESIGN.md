@@ -16,6 +16,7 @@ It exists to answer these practical questions:
 10. Which question, instrument, dataset version, batch, observation, and transformation produced the measurement?
 11. Which reviewer assessed the record, which quality dimensions were considered, and which immutable payload was approved?
 12. Which saved query, frozen record versions, comparison rules, warnings, and export manifest produced a published brief?
+13. Which public projection, API client, audit event, and typed handoff exposed or transferred the record?
 
 ## Contract architecture
 
@@ -66,10 +67,16 @@ Migration 006 adds a current review case for each canonical record and append-on
 
 Migration 007 stores mutable query identities alongside immutable query-definition versions and immutable query runs. Each run freezes the exact canonical payload and checksum of every selected record. Comparisons use the governed indicator, unit, and methodology rules; warnings preserve publication, quality, evidence, and comparability limitations. Export bundles contain a manifest, frozen records, CSV, comparisons, warnings, provenance, review history, a data dictionary, and a reproducible brief.
 
+## API and handoff architecture
+
+Migration 008 separates public-safe reads from protected writes. Only approved records with external publication gates enter `public_api_records`. Bearer tokens are stored only as SHA-256 digests and carry explicit scopes. API request history and handoff receipts are append-only. `catalyst-data-handoff/1.0` exchanges checksum-bound references with named Sustainable Catalyst products; Platform Core is optional.
+
+The WordPress persistent embed consumes public reads only. It cannot accept or expose bearer tokens. The browser-only demonstration remains available when no server is configured.
+
 ## Extension boundary
 
 The core schema rejects unknown fields. Product-specific metadata belongs under namespaced `extensions` keys so integrations can add context without mutating the canonical meaning of core fields.
 
 ## Scope boundary
 
-v1.7.0 supports local persistence, governed ingestion, governed indicator and methodology registries, unit conversion, explicit comparability, multiple evidence sources per measurement, immutable source and record history, provenance events, and evidence-gap review, question-to-observation lineage, attributable review, quality assessment, immutable approval snapshots, and semantic revision history. Institutional authorization, remote APIs, and scheduled connectors remain later roadmap work.
+v1.8.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, persistent embeds, and typed product handoffs in addition to the existing governance, evidence, lineage, review, and query systems. Multi-tenant institutional authorization and scheduled connectors remain later roadmap work.

@@ -91,6 +91,6 @@ def test_migration_007_populated_rollback_and_reapply(tmp_path):
     repository.initialize()
     record, _ = two_period_records(); repository.upsert_record(record)
     studio = QueryStudio(repository); saved = studio.save({"name": "Rollback", "filters": {}, "limit": 10}); studio.run(saved["query_id"])
-    assert repository.rollback(1) == [7]
-    assert repository.migrate() == [7]
+    assert repository.rollback(2) == [8, 7]
+    assert repository.migrate() == [7, 8]
     assert repository.stats()["saved_queries"] == 0

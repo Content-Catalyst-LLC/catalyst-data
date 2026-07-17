@@ -11,6 +11,8 @@ from .exporter import export_repository
 from .importer import ImportPipelineError, ImportService
 from .repository import CatalystRepository, RepositoryError
 from .query_studio import QueryStudio
+from .handoff import create_handoff, read_handoff, validate_handoff
+from .public_api import ApiRegistry, openapi_document, serve
 from .validation import RecordValidationError, validate_record
 
 
@@ -208,6 +210,39 @@ def parser() -> argparse.ArgumentParser:
     export_bundle.add_argument("database", type=Path); export_bundle.add_argument("run_id"); export_bundle.add_argument("output", type=Path)
     export_bundle.add_argument("--format", choices=("zip","directory"), default="zip")
 
+    api_key_create = subparsers.add_parser("api-key-create", help="create a protected API bearer token")
+    api_key_create.add_argument("database", type=Path); api_key_create.add_argument("name")
+    api_key_create.add_argument("--scope", action="append", choices=("records:write","handoffs:write","admin:keys"), required=True)
+
+    api_keys = subparsers.add_parser("api-keys", help="list API clients without exposing tokens")
+    api_keys.add_argument("database", type=Path)
+
+    api_key_revoke = subparsers.add_parser("api-key-revoke", help="revoke an API client")
+    api_key_revoke.add_argument("database", type=Path); api_key_revoke.add_argument("key_id")
+
+    api_serve = subparsers.add_parser("serve", help="serve the Catalyst Data HTTP API")
+    api_serve.add_argument("database", type=Path); api_serve.add_argument("--host", default="127.0.0.1"); api_serve.add_argument("--port", type=int, default=8765)
+    api_serve.add_argument("--allow-origin"); api_serve.add_argument("--public-base-url")
+
+    openapi = subparsers.add_parser("openapi", help="write the OpenAPI 3.1 document")
+    openapi.add_argument("output", type=Path); openapi.add_argument("--base-url", default="http://127.0.0.1:8765")
+
+    handoff_create = subparsers.add_parser("handoff-create", help="create a typed platform handoff from repository records")
+    handoff_create.add_argument("database", type=Path); handoff_create.add_argument("output", type=Path); handoff_create.add_argument("record_ids", nargs="+")
+    handoff_create.add_argument("--target", required=True, choices=("knowledge-library","research-librarian","site-intelligence","workbench","research-lab","catalyst-analytics-r","catalyst-canvas","decision-studio","platform-core"))
+    handoff_create.add_argument("--capability", required=True); handoff_create.add_argument("--api-base-url")
+    handoff_create.add_argument("--action", choices=("record-reference","record-transfer","query-run-reference","export-bundle-reference"), default="record-reference")
+    handoff_create.add_argument("--query-run-id"); handoff_create.add_argument("--bundle-uri")
+
+    handoff_validate = subparsers.add_parser("handoff-validate", help="validate a catalyst-data-handoff/1.0 envelope")
+    handoff_validate.add_argument("input", type=Path)
+
+    handoff_receive = subparsers.add_parser("handoff-receive", help="store an incoming typed handoff receipt")
+    handoff_receive.add_argument("database", type=Path); handoff_receive.add_argument("input", type=Path)
+
+    handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
+    handoff_receipts.add_argument("database", type=Path); handoff_receipts.add_argument("--limit", type=int, default=100)
+
     return result
 
 
@@ -239,7 +274,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -264,6 +299,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(json_output, record)
             print(f"wrote {args.output}")
             print(f"wrote {json_output}")
+            return 0
+
+        if args.command == "openapi":
+            _write_json(args.output, openapi_document(args.base_url))
+            print(f"wrote {args.output}")
+            return 0
+        if args.command == "handoff-validate":
+            validate_handoff(_read(args.input))
+            print(f"valid {args.input}")
             return 0
 
         repository = CatalystRepository(args.database)
@@ -421,6 +465,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             path=QueryStudio(repository).write_brief(args.run_id,args.output); print(f"wrote {path}"); return 0
         if args.command == "export-bundle":
             print(json.dumps(QueryStudio(repository).export_bundle(args.run_id,args.output,bundle_format=args.format),indent=2,ensure_ascii=False)); return 0
+        if args.command == "api-key-create":
+            payload = ApiRegistry(repository).create_key(args.name, args.scope)
+            print(json.dumps(payload, indent=2))
+            print("WARNING: store the token now; it cannot be recovered.", file=sys.stderr)
+            return 0
+        if args.command == "api-keys":
+            print(json.dumps(ApiRegistry(repository).list_keys(), indent=2)); return 0
+        if args.command == "api-key-revoke":
+            revoked = ApiRegistry(repository).revoke(args.key_id)
+            print("revoked" if revoked else "not found")
+            return 0 if revoked else 1
+        if args.command == "serve":
+            print(f"serving Catalyst Data on http://{args.host}:{args.port}")
+            serve(repository, args.host, args.port, allow_origin=args.allow_origin, public_base_url=args.public_base_url)
+            return 0
+        if args.command == "handoff-create":
+            repository.initialize(); records=[]
+            for record_id in args.record_ids:
+                record=repository.get_record(record_id)
+                if record is None: raise RepositoryError(f"record not found: {record_id}")
+                records.append(record)
+            from . import __version__
+            payload=create_handoff(records,target_product=args.target,target_capability=args.capability,source_version=__version__,api_base_url=args.api_base_url,action=args.action,query_run_id=args.query_run_id,bundle_uri=args.bundle_uri)
+            _write_json(args.output,payload); print(f"wrote {args.output}"); return 0
+        if args.command == "handoff-receive":
+            repository.initialize(); result=ApiRegistry(repository).receive_handoff(read_handoff(args.input)); print(json.dumps(result,indent=2)); return 0
+        if args.command == "handoff-receipts":
+            repository.initialize(); print(json.dumps(ApiRegistry(repository).receipts(args.limit),indent=2)); return 0
         return 2
     except ImportPipelineError as exc:
         payload = exc.summary.to_dict()

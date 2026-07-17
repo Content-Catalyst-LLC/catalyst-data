@@ -1,6 +1,6 @@
 # Query, Comparison, and Export Studio
 
-Catalyst Data v1.7.0 adds a local-first analytical layer over the governed repository. It does not bypass canonical validation, provenance, indicator governance, observation lineage, or review controls.
+Catalyst Data v1.7.0 introduced a local-first analytical layer over the governed repository. It does not bypass canonical validation, provenance, indicator governance, observation lineage, or review controls.
 
 ## Saved queries
 

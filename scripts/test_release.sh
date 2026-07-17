@@ -15,6 +15,7 @@ if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-contract.js
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-demo.js
+  node --check wordpress/catalyst-data-demo/assets/catalyst-data-embed.js
   node scripts/test_browser_contract.js
 else
   echo "SKIP: node is not installed"

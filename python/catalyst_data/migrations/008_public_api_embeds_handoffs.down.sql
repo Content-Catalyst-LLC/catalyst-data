@@ -1,0 +1,11 @@
+DROP TRIGGER IF EXISTS handoff_receipts_no_delete;
+DROP TRIGGER IF EXISTS api_audit_events_no_delete;
+DROP TRIGGER IF EXISTS api_audit_events_no_update;
+DROP VIEW IF EXISTS public_api_records;
+DROP INDEX IF EXISTS idx_handoff_receipts_target;
+DROP INDEX IF EXISTS idx_api_audit_occurred;
+DROP INDEX IF EXISTS idx_api_clients_active;
+DROP TABLE IF EXISTS handoff_receipts;
+DROP TABLE IF EXISTS embed_profiles;
+DROP TABLE IF EXISTS api_audit_events;
+DROP TABLE IF EXISTS api_clients;

@@ -4,9 +4,9 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.7.0 — Query, Comparison, and Export Studio**
+**v1.8.0 — Public API, Embeds, and Platform Handoffs**
 
-The release adds versioned saved queries, immutable query runs, frozen record snapshots, governed comparisons, warnings, reproducible briefs, and deterministic export bundles without weakening the review, provenance, or lineage contracts.
+The release adds public-safe reads, protected record writes, OpenAPI 3.1, scoped bearer keys, persistent WordPress embeds, and typed Sustainable Catalyst handoffs without making remote services or Platform Core mandatory.
 
 ## Core capabilities
 
@@ -44,6 +44,12 @@ The release adds versioned saved queries, immutable query runs, frozen record sn
 - Filtered entity, indicator, period, source, framework, quality, evidence, and review queries.
 - Consecutive-period comparisons with unit conversion and comparability warnings.
 - Reproducible Markdown briefs and deterministic JSON/CSV/provenance/review export bundles.
+- Externally approved public-record views with privacy-aware projections.
+- Dependency-light HTTP API with health, capabilities, pagination, CORS, and OpenAPI 3.1.
+- SHA-256-only bearer-token storage with scopes, revocation, and audit history.
+- Protected canonical record writes and typed handoff receipt.
+- `catalyst-data-handoff/1.0` for Sustainable Catalyst product exchange.
+- Persistent WordPress API embeds while preserving the no-server demo.
 
 ## Repository contents
 
@@ -54,7 +60,10 @@ The release adds versioned saved queries, immutable query runs, frozen record sn
 - `python/catalyst_data/service.py` — application service facade.
 - `schemas/` and `contracts/` — canonical record and review contracts.
 - `examples/imports/` — supported JSON and CSV examples.
-- `wordpress/catalyst-data-demo/` — browser-only canonical-record demonstration.
+- `python/catalyst_data/public_api.py` — public-safe HTTP API and protected writes.
+- `python/catalyst_data/handoff.py` — typed platform handoff contract and validation.
+- `openapi/` — static OpenAPI 3.1 contract.
+- `wordpress/catalyst-data-demo/` — browser-only demo and persistent public API embed.
 
 ## Install
 
@@ -105,6 +114,15 @@ catalyst-data query-results catalyst-data.sqlite3 RUN_ID
 catalyst-data query-brief catalyst-data.sqlite3 RUN_ID outputs/query-brief.md
 catalyst-data export-bundle catalyst-data.sqlite3 RUN_ID outputs/query-bundle.zip
 
+catalyst-data api-key-create catalyst-data.sqlite3 "Decision Studio" --scope records:write --scope handoffs:write
+catalyst-data api-keys catalyst-data.sqlite3
+catalyst-data serve catalyst-data.sqlite3 --host 127.0.0.1 --port 8765 --allow-origin https://sustainablecatalyst.com
+catalyst-data openapi outputs/catalyst-data-openapi.json --base-url https://data.example.org
+catalyst-data handoff-create catalyst-data.sqlite3 outputs/handoff.json RECORD_ID --target decision-studio --capability decision-evidence --api-base-url https://data.example.org
+catalyst-data handoff-validate outputs/handoff.json
+catalyst-data handoff-receive catalyst-data.sqlite3 outputs/handoff.json
+catalyst-data handoff-receipts catalyst-data.sqlite3
+
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.json
 catalyst-data export catalyst-data.sqlite3 outputs/repository-export.csv --format csv
 ```
@@ -146,9 +164,9 @@ summary = service.import_file("examples/imports/records.json")
 service.export_file("outputs/export.json")
 ```
 
-## WordPress demo
+## WordPress demo and persistent embed
 
-Install `dist/catalyst-data-demo.zip`, activate it, and add `[catalyst_data_demo]`. The demo remains browser-only and does not write to the SQLite repository.
+Install `dist/catalyst-data-demo.zip`. `[catalyst_data_demo]` remains browser-only and does not write to SQLite. `[catalyst_data_embed api_url="https://data.example.org" limit="12"]` reads externally approved records from the public API and never accepts a write token.
 
 ## Build and validation
 
@@ -161,7 +179,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, and provenance history. It does not certify truth, compliance, or impact, and v1.7.0 does not yet provide institutional authorization or remote APIs.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.8.0 does not yet provide multi-tenant institutional authorization.
 
 ## License
 

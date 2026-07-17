@@ -44,7 +44,7 @@ const values = {
 const first = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 const second = engine.buildRecord(values, '2026-07-16T12:00:00Z');
 equal(first.schema_version, 'catalyst-data-record/1.0', 'record contract');
-equal(first.producer.version, '1.7.0', 'producer version');
+equal(first.producer.version, '1.8.0', 'producer version');
 equal(first.measurement.percent_change, 25, 'record percent change');
 equal(first.review.status, 'reviewable', 'record review status');
 equal(first.review.signal_status, 'improving', 'record signal status');

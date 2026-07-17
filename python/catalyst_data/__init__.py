@@ -21,6 +21,8 @@ from .governance import compare_governance, convert_value, normalize_indicator_g
 from .lineage import normalize_observation_lineage, validate_observation_lineage
 from .review import append_comment, append_decision, derive_quality, normalize_review_workflow, validate_review_workflow
 from .query_studio import QueryStudio, apply_query, comparison_rows, normalize_query_definition, query_summary, query_warnings
+from .handoff import HANDOFF_CONTRACT, HandoffValidationError, create_handoff, handoff_schema, validate_handoff
+from .public_api import ApiRegistry, CatalystApiServer, openapi_document, public_projection, serve
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
 from .service import CatalystDataService
@@ -34,6 +36,8 @@ __all__ = [
     "normalize_observation_lineage", "validate_observation_lineage",
     "append_comment", "append_decision", "derive_quality", "normalize_review_workflow", "validate_review_workflow",
     "QueryStudio", "apply_query", "comparison_rows", "normalize_query_definition", "query_summary", "query_warnings",
+    "HANDOFF_CONTRACT", "HandoffValidationError", "create_handoff", "handoff_schema", "validate_handoff",
+    "ApiRegistry", "CatalystApiServer", "openapi_document", "public_projection", "serve",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",

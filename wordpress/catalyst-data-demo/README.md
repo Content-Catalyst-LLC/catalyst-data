@@ -1,13 +1,8 @@
-# Catalyst Data Demo
+# Catalyst Data WordPress Plugin
 
-Version 1.7.0 emits the canonical `catalyst-data-record/1.0` structure in the browser.
+Version 1.8.0 provides two independent shortcodes:
 
-Use shortcode:
+- `[catalyst_data_demo]` runs the no-server canonical record demonstration.
+- `[catalyst_data_embed api_url="https://data.example.org" limit="12"]` reads externally approved records from the Catalyst Data Public API.
 
-```text
-[catalyst_data_demo]
-```
-
-The demo does not send data to a server. It creates a local JSON record with stable semantic IDs, producer metadata, source provenance, structured method limitations, confidence, review readiness, and signal status.
-
-The generated record now includes a complete `catalyst-data-observation-lineage/1.0` section with a research question, collection instrument, dataset, observation batch, baseline/current observations, and measurement transformation.
+The persistent embed never accepts or exposes write tokens. Configure CORS on the API with `catalyst-data serve --allow-origin=https://example.org`.

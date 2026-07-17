@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Catalyst Data Demo
- * Description: Browser-based canonical Catalyst Data record demo. Adds the [catalyst_data_demo] shortcode.
- * Version: 1.7.0
+ * Description: Canonical record demo and persistent public API embed. Adds [catalyst_data_demo] and [catalyst_data_embed].
+ * Version: 1.8.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CATALYST_DATA_DEMO_VERSION', '1.7.0');
+define('CATALYST_DATA_DEMO_VERSION', '1.8.0');
 
 function catalyst_data_demo_register_assets() {
     $base_url = plugin_dir_url(__FILE__);
@@ -41,6 +41,13 @@ function catalyst_data_demo_register_assets() {
         'catalyst-data-demo-script',
         $base_url . 'assets/catalyst-data-demo.js',
         array('catalyst-data-demo-record-contract'),
+        CATALYST_DATA_DEMO_VERSION,
+        true
+    );
+    wp_register_script(
+        'catalyst-data-embed-script',
+        $base_url . 'assets/catalyst-data-embed.js',
+        array(),
         CATALYST_DATA_DEMO_VERSION,
         true
     );
@@ -307,3 +314,39 @@ function catalyst_data_demo_shortcode($atts = array()) {
     return ob_get_clean();
 }
 add_shortcode('catalyst_data_demo', 'catalyst_data_demo_shortcode');
+
+
+/**
+ * Render externally approved records from a persistent Catalyst Data API.
+ * No bearer token is accepted in shortcode attributes; this surface is public-read only.
+ */
+function catalyst_data_embed_shortcode($atts = array()) {
+    $atts = shortcode_atts(
+        array(
+            'api_url' => '',
+            'limit' => '12',
+            'title' => 'Published Evidence Records',
+            'description' => 'Externally approved Catalyst Data records with governed provenance and review metadata.',
+        ),
+        $atts,
+        'catalyst_data_embed'
+    );
+    $api_url = esc_url_raw(trim($atts['api_url']));
+    $limit = max(1, min(100, absint($atts['limit'])));
+    wp_enqueue_style('catalyst-data-demo-style');
+    wp_enqueue_script('catalyst-data-embed-script');
+    ob_start();
+    ?>
+    <section class="cdata-embed" data-catalyst-data-embed data-api-url="<?php echo esc_url($api_url); ?>" data-limit="<?php echo esc_attr($limit); ?>">
+        <header class="cdata-embed__header">
+            <p class="cdata-embed__eyebrow">Catalyst Data Public API</p>
+            <h2><?php echo esc_html($atts['title']); ?></h2>
+            <p><?php echo esc_html($atts['description']); ?></p>
+        </header>
+        <p class="cdata-embed__status" role="status" aria-live="polite" data-cdata-embed-status>Preparing records…</p>
+        <div class="cdata-embed__grid" data-cdata-embed-grid></div>
+    </section>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('catalyst_data_embed', 'catalyst_data_embed_shortcode');

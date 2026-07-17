@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0 — Public API, Embeds, and Platform Handoffs
+
+- Added migration 008 for scoped API clients, append-only API auditing, embed profiles, typed handoff receipts, and externally approved record views.
+- Added dependency-light public API endpoints, protected writes, CORS, capability discovery, and OpenAPI 3.1.
+- Added SHA-256-only bearer-token storage, scoped authentication, last-use tracking, and revocation.
+- Added `catalyst-data-handoff/1.0` for checksum-bound Sustainable Catalyst product exchange.
+- Added public-safe record projections and the persistent `[catalyst_data_embed]` WordPress shortcode.
+- Added API, handoff, OpenAPI, embed, migration, rollback, package, and upgrade validation.
+
 ## 1.7.0 — Query, Comparison, and Export Studio
 
 - Added `catalyst-data-query/1.0` and migration 007.

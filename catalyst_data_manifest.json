@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.7.0",
-  "module_type": "query, comparison, export, review, quality, revision, provenance, lineage, and governed measurements",
+  "version": "1.8.0",
+  "module_type": "public API, embeds, platform handoffs, query, review, provenance, lineage, and governed measurements",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -25,9 +25,12 @@
     "saved query",
     "frozen query run",
     "comparison warnings",
-    "reproducible export bundle"
+    "reproducible export bundle",
+    "public projection",
+    "API audit event",
+    "typed platform handoff"
   ],
-  "wordpress_shortcode": "[catalyst_data_demo]",
+  "wordpress_shortcode": "[catalyst_data_demo] and [catalyst_data_embed api_url=\"https://data.example.org\"]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
   "boundaries": [
     "educational",
@@ -35,7 +38,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Query, Comparison, and Export Studio",
+  "release": "Public API, Embeds, and Platform Handoffs",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -53,7 +56,10 @@
     "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json",
     "schemas/catalyst_data_review_workflow_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_query_1_0.schema.json",
-    "schemas/catalyst_data_query_1_0.schema.json"
+    "schemas/catalyst_data_query_1_0.schema.json",
+    "python/catalyst_data/schemas/catalyst_data_handoff_1_0.schema.json",
+    "schemas/catalyst_data_handoff_1_0.schema.json",
+    "openapi/catalyst-data-openapi.json"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -99,7 +105,16 @@
     "query-runs",
     "query-results",
     "query-brief",
-    "export-bundle"
+    "export-bundle",
+    "api-key-create",
+    "api-keys",
+    "api-key-revoke",
+    "serve",
+    "openapi",
+    "handoff-create",
+    "handoff-validate",
+    "handoff-receive",
+    "handoff-receipts"
   ],
   "import_formats": [
     "json",
@@ -117,5 +132,9 @@
   "review_workflow_contract": "catalyst-data-review-workflow/1.0",
   "review_workflow_schema": "schemas/catalyst_data_review_workflow_1_0.schema.json",
   "query_contract": "catalyst-data-query/1.0",
-  "query_schema": "schemas/catalyst_data_query_1_0.schema.json"
+  "query_schema": "schemas/catalyst_data_query_1_0.schema.json",
+  "handoff_contract": "catalyst-data-handoff/1.0",
+  "handoff_schema": "schemas/catalyst_data_handoff_1_0.schema.json",
+  "openapi": "openapi/catalyst-data-openapi.json",
+  "api_version": "v1"
 }
