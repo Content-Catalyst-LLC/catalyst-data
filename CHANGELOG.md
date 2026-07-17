@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.0 — Connectors, Refresh, and Data Operations
+
+- Added `catalyst-data-connector-operations/1.0`.
+- Added governed JSON and CSV file/HTTP connector definitions with immutable versions and activation history.
+- Added manual, scheduled, retry, replay, and recovery runs with immutable payload snapshots.
+- Added idempotent refresh, row checksums, change detection, reconciliation, quarantine, and dead-letter queues.
+- Added freshness, licensing, schema-drift, population-drift, rate-limit, and connector-health alerts.
+- Added workspace-bound connector API operations and a complete connector CLI.
+- Added migration 010 with safe rollback and upgrade from v1.9.0.
+
 ## 1.9.0 — Institutional Workspaces and Access Governance
 
 - Added migration 009 for institutions, workspaces, projects, principals, memberships, record access, retention, API-key bindings, and append-only access history.

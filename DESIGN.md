@@ -79,7 +79,7 @@ The core schema rejects unknown fields. Product-specific metadata belongs under 
 
 ## Scope boundary
 
-v1.9.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, persistent embeds, typed product handoffs, and institutionally governed multi-workspace access in addition to the existing evidence, lineage, review, and query systems. Scheduled connectors and automated refresh operations remain later roadmap work.
+v1.10.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, persistent embeds, typed product handoffs, institutionally governed multi-workspace access, and governed scheduled connector refresh operations with replay, reconciliation, quarantine, and alerts.
 
 ## Institutional workspaces and access governance
 

@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-connector-operations-1.0.json",
+  "title": "Catalyst Data Connector Operations 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "connector_id",
+    "name",
+    "connector_type",
+    "version",
+    "workspace_id",
+    "principal_id",
+    "status",
+    "source",
+    "governance",
+    "auth",
+    "capabilities",
+    "mapping",
+    "transformations",
+    "schedule",
+    "metadata"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://sustainablecatalyst.com/schemas/catalyst-data-connector-operations-1.0.json"
+    },
+    "schema_version": {
+      "const": "catalyst-data-connector-operations/1.0"
+    },
+    "connector_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "connector_type": {
+      "enum": [
+        "http-json",
+        "http-csv",
+        "file-json",
+        "file-csv",
+        "manual",
+        "replay"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "principal_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "disabled",
+        "archived"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uri",
+        "records_path",
+        "source_key_path",
+        "modified_at_path",
+        "content_type",
+        "headers",
+        "max_payload_bytes"
+      ],
+      "properties": {
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "records_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_key_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modified_at_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "max_payload_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "license",
+        "license_url",
+        "license_status",
+        "freshness_sla_seconds",
+        "request_timeout_seconds",
+        "rate_limit_per_hour",
+        "max_attempts",
+        "retry_backoff_seconds",
+        "drift_missing_ratio",
+        "publisher",
+        "citation",
+        "access_notes"
+      ],
+      "properties": {
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license_status": {
+          "enum": [
+            "compliant",
+            "restricted",
+            "unknown"
+          ]
+        },
+        "freshness_sla_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "request_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "rate_limit_per_hour": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "retry_backoff_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "drift_missing_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "publisher": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "citation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "access_notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "credential_env",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "none",
+            "bearer-env",
+            "header-env",
+            "query-env"
+          ]
+        },
+        "credential_env": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z][A-Z0-9_]{1,127}$"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "transformations": {
+      "type": "object"
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "frequency_minutes",
+        "next_run_at"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "frequency_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 60
+        },
+        "next_run_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}

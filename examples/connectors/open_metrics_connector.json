@@ -1,0 +1,61 @@
+{
+  "schema_version": "catalyst-data-connector-operations/1.0",
+  "connector_id": "connector:open-metrics",
+  "name": "Sustainable Catalyst Open Metrics",
+  "connector_type": "file-json",
+  "version": "1.0.0",
+  "workspace_id": "workspace:default",
+  "principal_id": "principal:system",
+  "source": {
+    "uri": "examples/connectors/open_metrics.json",
+    "records_path": "records",
+    "source_key_path": "id",
+    "modified_at_path": "updated_at",
+    "content_type": "application/json"
+  },
+  "governance": {
+    "license": "Creative Commons Attribution 4.0 International",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "license_status": "compliant",
+    "freshness_sla_seconds": 31536000,
+    "request_timeout_seconds": 30,
+    "rate_limit_per_hour": null,
+    "max_attempts": 3,
+    "retry_backoff_seconds": 1,
+    "drift_missing_ratio": 0.25,
+    "publisher": "Content Catalyst LLC",
+    "citation": "Content Catalyst LLC. Sustainable Catalyst Open Metrics feed.",
+    "access_notes": "Open example data packaged with Catalyst Data."
+  },
+  "auth": {"type": "none"},
+  "capabilities": ["read", "snapshot", "replay", "change-detection", "reconciliation", "quarantine"],
+  "mapping": {
+    "entity.name": {"source": "entity_name", "required": true, "transforms": ["trim"]},
+    "entity.type": {"source": "entity_type", "default": "other"},
+    "indicator.name": {"source": "indicator_name", "required": true},
+    "indicator.unit": {"source": "unit", "required": true},
+    "indicator.direction": {"source": "direction", "default": "neutral"},
+    "indicator.framework": {"source": "framework"},
+    "indicator.version": {"source": "indicator_version", "default": "1.0"},
+    "period.label": {"source": "period_label", "required": true},
+    "period.start_date": {"source": "period_start"},
+    "period.end_date": {"source": "period_end"},
+    "values.baseline": {"source": "baseline", "transforms": ["float"]},
+    "values.current": {"source": "current", "required": true, "transforms": ["float"]},
+    "confidence.score": {"source": "confidence", "required": true, "transforms": ["float"]},
+    "confidence.basis": {"source": "confidence_basis"},
+    "method.notes": {"source": "method_notes"},
+    "updated_at": {"source": "updated_at"},
+    "created_at": {"source": "updated_at"}
+  },
+  "transformations": {
+    "defaults": {
+      "method": {"assumptions": [], "limitations": [], "uncertainty": null, "quality_flags": []},
+      "reviewer_notes": "Imported from a governed connector and awaiting human review.",
+      "extensions": {}
+    },
+    "atomic": false
+  },
+  "schedule": {"enabled": false, "frequency_minutes": 1440},
+  "metadata": {"fixture": true, "cost_model": "free-and-open"}
+}

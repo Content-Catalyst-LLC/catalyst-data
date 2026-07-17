@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catalyst Data Public API",
-    "version": "1.9.0",
-    "description": "Public-safe records, institutional workspaces, protected writes, and typed handoffs."
+    "version": "1.10.0",
+    "description": "Public-safe records, institutional workspaces, protected writes, typed handoffs, and governed connector operations."
   },
   "servers": [
     {
@@ -47,6 +47,76 @@
         "responses": {
           "200": {
             "description": "Workspace records"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/connectors": {
+      "get": {
+        "summary": "List connectors bound to the authenticated workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connector status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/connectors/runs": {
+      "get": {
+        "summary": "List connector runs for the authenticated workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connector_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connector runs"
+          }
+        }
+      }
+    },
+    "/v1/connectors/{connector_id}/run": {
+      "post": {
+        "summary": "Run a connector synchronously",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connector_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run result"
           },
           "403": {
             "description": "Forbidden"

@@ -23,6 +23,11 @@ from .review import append_comment, append_decision, derive_quality, normalize_r
 from .query_studio import QueryStudio, apply_query, comparison_rows, normalize_query_definition, query_summary, query_warnings
 from .handoff import HANDOFF_CONTRACT, HandoffValidationError, create_handoff, handoff_schema, validate_handoff
 from .public_api import ApiRegistry, CatalystApiServer, openapi_document, public_projection, serve
+from .connectors import (
+    CONNECTOR_CONTRACT, ConnectorError, ConnectorFetchError, ConnectorRateLimited,
+    ConnectorService, ConnectorValidationError, connector_schema, map_source_row,
+    normalize_connector_definition, schema_fingerprint,
+)
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
 from .service import CatalystDataService
@@ -38,6 +43,9 @@ __all__ = [
     "QueryStudio", "apply_query", "comparison_rows", "normalize_query_definition", "query_summary", "query_warnings",
     "HANDOFF_CONTRACT", "HandoffValidationError", "create_handoff", "handoff_schema", "validate_handoff",
     "ApiRegistry", "CatalystApiServer", "openapi_document", "public_projection", "serve",
+    "CONNECTOR_CONTRACT", "ConnectorError", "ConnectorFetchError", "ConnectorRateLimited",
+    "ConnectorService", "ConnectorValidationError", "connector_schema", "map_source_row",
+    "normalize_connector_definition", "schema_fingerprint",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",

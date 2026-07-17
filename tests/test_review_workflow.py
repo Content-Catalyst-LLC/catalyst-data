@@ -74,14 +74,14 @@ def test_invalid_transition_is_rejected(tmp_path):
 def test_migration_six_populated_rollback_and_backfill(tmp_path):
     repository = CatalystRepository(tmp_path / "upgrade.sqlite3")
     repository.initialize(); record = sample_record(); repository.upsert_record(record)
-    assert repository.rollback(4) == [9, 8, 7, 6]
+    assert repository.rollback(5) == [10, 9, 8, 7, 6]
     with connect(repository.path) as connection:
         payload = json.loads(connection.execute("SELECT payload_json FROM data_records WHERE record_id=?", (record["record_id"],)).fetchone()[0])
         payload.pop("review_workflow", None)
         connection.execute("UPDATE data_records SET payload_json=? WHERE record_id=?", (json.dumps(payload,sort_keys=True,separators=(",",":")),record["record_id"]))
         connection.commit()
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='review_cases'").fetchone() is None
-    assert repository.migrate() == [6, 7, 8, 9]
+    assert repository.migrate() == [6, 7, 8, 9, 10]
     stored = repository.get_record(record["record_id"])
     assert stored and stored["review_workflow"]["schema_version"] == "catalyst-data-review-workflow/1.0"
     assert repository.stats()["review_cases"] == 1

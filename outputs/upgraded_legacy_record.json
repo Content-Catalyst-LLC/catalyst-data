@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "component": "migration-tool"
   },
   "entity": {

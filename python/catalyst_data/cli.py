@@ -15,6 +15,7 @@ from .handoff import create_handoff, read_handoff, validate_handoff
 from .public_api import ApiRegistry, openapi_document, serve
 from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
+from .connectors import ConnectorError, ConnectorService, normalize_connector_definition
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -213,7 +214,7 @@ def parser() -> argparse.ArgumentParser:
 
     api_key_create = subparsers.add_parser("api-key-create", help="create a protected API bearer token")
     api_key_create.add_argument("database", type=Path); api_key_create.add_argument("name")
-    api_key_create.add_argument("--scope", action="append", choices=("records:read","records:write","handoffs:write","admin:keys"), required=True)
+    api_key_create.add_argument("--scope", action="append", choices=("records:read","records:write","handoffs:write","connectors:read","connectors:run","connectors:admin","admin:keys"), required=True)
     api_key_create.add_argument("--workspace-id", default="workspace:default")
     api_key_create.add_argument("--principal-id", default="principal:system")
 
@@ -306,6 +307,59 @@ def parser() -> argparse.ArgumentParser:
     workspace_export = subparsers.add_parser("workspace-export-manifest", help="create an auditable workspace export manifest")
     workspace_export.add_argument("database", type=Path); workspace_export.add_argument("workspace_id"); workspace_export.add_argument("principal_id"); workspace_export.add_argument("output", type=Path); workspace_export.add_argument("--actor")
 
+
+    connector_register = subparsers.add_parser("connector-register", help="register or version a governed connector")
+    connector_register.add_argument("database", type=Path); connector_register.add_argument("definition", type=Path)
+    connector_register.add_argument("--actor", default="principal:system"); connector_register.add_argument("--no-activate", action="store_true")
+
+    connectors = subparsers.add_parser("connectors", help="list connector operational status")
+    connectors.add_argument("database", type=Path); connectors.add_argument("--workspace-id")
+
+    connector_versions = subparsers.add_parser("connector-versions", help="list immutable connector versions")
+    connector_versions.add_argument("database", type=Path); connector_versions.add_argument("connector_id")
+
+    connector_activate = subparsers.add_parser("connector-activate", help="activate an immutable connector version")
+    connector_activate.add_argument("database", type=Path); connector_activate.add_argument("connector_id"); connector_activate.add_argument("version"); connector_activate.add_argument("--actor", default="principal:system")
+
+    connector_run = subparsers.add_parser("connector-run", help="run a connector synchronously")
+    connector_run.add_argument("database", type=Path); connector_run.add_argument("connector_id"); connector_run.add_argument("--payload", type=Path); connector_run.add_argument("--source-uri"); connector_run.add_argument("--max-attempts", type=int)
+
+    connector_runs = subparsers.add_parser("connector-runs", help="list connector run history")
+    connector_runs.add_argument("database", type=Path); connector_runs.add_argument("--connector-id"); connector_runs.add_argument("--status", choices=("queued","running","succeeded","partial","failed","quarantined","dead-letter","cancelled")); connector_runs.add_argument("--limit", type=int, default=100)
+
+    connector_run_show = subparsers.add_parser("connector-run-show", help="show one connector run with logs and reconciliation")
+    connector_run_show.add_argument("database", type=Path); connector_run_show.add_argument("run_id")
+
+    connector_replay = subparsers.add_parser("connector-replay", help="replay an immutable connector payload snapshot")
+    connector_replay.add_argument("database", type=Path); connector_replay.add_argument("run_id")
+
+    connector_schedule = subparsers.add_parser("connector-schedule", help="create or update a connector schedule")
+    connector_schedule.add_argument("database", type=Path); connector_schedule.add_argument("connector_id"); connector_schedule.add_argument("frequency_minutes", type=int); connector_schedule.add_argument("--disabled", action="store_true"); connector_schedule.add_argument("--next-run-at"); connector_schedule.add_argument("--actor", default="principal:system")
+
+    connector_due = subparsers.add_parser("connector-due", help="list connectors due for refresh")
+    connector_due.add_argument("database", type=Path); connector_due.add_argument("--as-of"); connector_due.add_argument("--workspace-id")
+
+    connector_run_due = subparsers.add_parser("connector-run-due", help="run all due connectors synchronously")
+    connector_run_due.add_argument("database", type=Path); connector_run_due.add_argument("--as-of"); connector_run_due.add_argument("--workspace-id")
+
+    connector_quarantine = subparsers.add_parser("connector-quarantine", help="list quarantined connector rows")
+    connector_quarantine.add_argument("database", type=Path); connector_quarantine.add_argument("--connector-id"); connector_quarantine.add_argument("--status", choices=("open","released","discarded","resolved"), default="open"); connector_quarantine.add_argument("--limit", type=int, default=100)
+
+    connector_quarantine_recover = subparsers.add_parser("connector-quarantine-recover", help="retry a quarantined row with the active connector version")
+    connector_quarantine_recover.add_argument("database", type=Path); connector_quarantine_recover.add_argument("quarantine_id")
+
+    connector_dead_letters = subparsers.add_parser("connector-dead-letters", help="list connector dead letters")
+    connector_dead_letters.add_argument("database", type=Path); connector_dead_letters.add_argument("--connector-id"); connector_dead_letters.add_argument("--status", choices=("open","replayed","resolved","discarded"), default="open"); connector_dead_letters.add_argument("--limit", type=int, default=100)
+
+    connector_dead_letter_replay = subparsers.add_parser("connector-dead-letter-replay", help="replay a connector dead letter")
+    connector_dead_letter_replay.add_argument("database", type=Path); connector_dead_letter_replay.add_argument("dead_letter_id")
+
+    connector_alerts = subparsers.add_parser("connector-alerts", help="list connector operational alerts")
+    connector_alerts.add_argument("database", type=Path); connector_alerts.add_argument("--connector-id"); connector_alerts.add_argument("--status", choices=("open","acknowledged","resolved"), default="open"); connector_alerts.add_argument("--limit", type=int, default=100)
+
+    connector_alert_update = subparsers.add_parser("connector-alert-update", help="acknowledge or resolve a connector alert")
+    connector_alert_update.add_argument("database", type=Path); connector_alert_update.add_argument("alert_id"); connector_alert_update.add_argument("status", choices=("acknowledged","resolved"))
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=Path); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -340,7 +394,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -569,6 +623,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(WorkspaceService(repository).events(workspace_id=args.workspace_id,record_id=args.record_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         if args.command == "workspace-export-manifest":
             payload=WorkspaceService(repository).export_workspace_manifest(args.workspace_id,principal_id=args.principal_id,actor=args.actor); _write_json(args.output,payload); print(f"wrote {args.output}"); return 0
+        if args.command == "connector-register":
+            service=ConnectorService(repository); payload=_read(args.definition)
+            print(json.dumps(service.register(payload,actor=args.actor,activate=not args.no_activate),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connectors":
+            print(json.dumps(ConnectorService(repository).list(workspace_id=args.workspace_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-versions":
+            print(json.dumps(ConnectorService(repository).versions(args.connector_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-activate":
+            print(json.dumps(ConnectorService(repository).activate_version(args.connector_id,args.version,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-run":
+            payload=args.payload.read_bytes() if args.payload else None
+            result=ConnectorService(repository).run(args.connector_id,payload=payload,source_uri=args.source_uri,max_attempts=args.max_attempts)
+            print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["run"]["status"] in ("succeeded","partial") else 1
+        if args.command == "connector-runs":
+            print(json.dumps(ConnectorService(repository).runs(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-run-show":
+            print(json.dumps(ConnectorService(repository).run_details(args.run_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-replay":
+            result=ConnectorService(repository).replay(args.run_id); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["run"]["status"] in ("succeeded","partial") else 1
+        if args.command == "connector-schedule":
+            print(json.dumps(ConnectorService(repository).set_schedule(args.connector_id,args.frequency_minutes,enabled=not args.disabled,next_run_at=args.next_run_at,actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-due":
+            print(json.dumps(ConnectorService(repository).due(as_of=args.as_of,workspace_id=args.workspace_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-run-due":
+            results=ConnectorService(repository).run_due(as_of=args.as_of,workspace_id=args.workspace_id); print(json.dumps(results,indent=2,ensure_ascii=False)); return 0 if all(item["run"]["status"] in ("succeeded","partial") for item in results) else 1
+        if args.command == "connector-quarantine":
+            print(json.dumps(ConnectorService(repository).quarantine(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-quarantine-recover":
+            result=ConnectorService(repository).recover_quarantine(args.quarantine_id); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["run"]["status"] in ("succeeded","partial") else 1
+        if args.command == "connector-dead-letters":
+            print(json.dumps(ConnectorService(repository).dead_letters(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-dead-letter-replay":
+            result=ConnectorService(repository).replay_dead_letter(args.dead_letter_id); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0 if result["run"]["status"] in ("succeeded","partial") else 1
+        if args.command == "connector-alerts":
+            print(json.dumps(ConnectorService(repository).alerts(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "connector-alert-update":
+            print(json.dumps(ConnectorService(repository).set_alert_status(args.alert_id,args.status),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
@@ -604,7 +695,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

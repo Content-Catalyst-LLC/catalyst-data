@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "1.9.0",
-  "module_type": "institutional workspaces, access governance, public API, embeds, platform handoffs, query, review, provenance, lineage, and governed measurements",
+  "version": "1.10.0",
+  "module_type": "governed connectors, refresh operations, institutional workspaces, public API, query, review, provenance, lineage, and governed measurements",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -39,7 +39,17 @@
     "retention policy",
     "legal hold",
     "access audit event",
-    "workspace transfer"
+    "workspace transfer",
+    "connector registry",
+    "connector version",
+    "connector schedule",
+    "connector run",
+    "payload snapshot",
+    "change detection",
+    "reconciliation",
+    "quarantine",
+    "dead letter",
+    "operational alert"
   ],
   "wordpress_shortcode": "[catalyst_data_demo] and [catalyst_data_embed api_url=\"https://data.example.org\"]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
@@ -49,7 +59,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Institutional Workspaces and Access Governance",
+  "release": "Connectors, Refresh, and Data Operations",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -72,7 +82,9 @@
     "schemas/catalyst_data_handoff_1_0.schema.json",
     "openapi/catalyst-data-openapi.json",
     "python/catalyst_data/schemas/catalyst_data_access_governance_1_0.schema.json",
-    "schemas/catalyst_data_access_governance_1_0.schema.json"
+    "schemas/catalyst_data_access_governance_1_0.schema.json",
+    "python/catalyst_data/schemas/catalyst_data_connector_operations_1_0.schema.json",
+    "schemas/catalyst_data_connector_operations_1_0.schema.json"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -146,7 +158,24 @@
     "legal-hold",
     "disposition-check",
     "access-events",
-    "workspace-export-manifest"
+    "workspace-export-manifest",
+    "connector-register",
+    "connectors",
+    "connector-versions",
+    "connector-activate",
+    "connector-run",
+    "connector-runs",
+    "connector-run-show",
+    "connector-replay",
+    "connector-schedule",
+    "connector-due",
+    "connector-run-due",
+    "connector-quarantine",
+    "connector-quarantine-recover",
+    "connector-dead-letters",
+    "connector-dead-letter-replay",
+    "connector-alerts",
+    "connector-alert-update"
   ],
   "import_formats": [
     "json",
@@ -171,5 +200,7 @@
   "api_version": "v1",
   "access_governance_contract": "catalyst-data-access-governance/1.0",
   "access_governance_schema": "schemas/catalyst_data_access_governance_1_0.schema.json",
-  "current_migration": 9
+  "current_migration": 10,
+  "connector_operations_contract": "catalyst-data-connector-operations/1.0",
+  "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json"
 }

@@ -36,7 +36,8 @@
     "migration-tool",
     "external",
     "import-service",
-    "repository-service"
+    "repository-service",
+    "connector-service"
   ],
   "quality_flags": [
     "estimated",

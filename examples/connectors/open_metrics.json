@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-07-17T12:00:00Z",
+  "records": [
+    {
+      "id": "urban-tree-canopy-2026-q3",
+      "entity_name": "Urban Tree Canopy Program",
+      "entity_type": "project",
+      "indicator_name": "Data completeness score",
+      "unit": "score",
+      "direction": "higher",
+      "framework": "Sustainable Catalyst Evidence Readiness",
+      "indicator_version": "1.0",
+      "period_label": "2026-Q3",
+      "period_start": "2026-07-01",
+      "period_end": "2026-09-30",
+      "baseline": 78,
+      "current": 84,
+      "confidence": 81,
+      "confidence_basis": "Automated source record with documented open-data provenance.",
+      "method_notes": "Quarterly completeness score supplied by the governed open metrics feed.",
+      "updated_at": "2026-07-17T12:00:00Z"
+    },
+    {
+      "id": "community-energy-2026-q3",
+      "entity_name": "Community Energy Retrofit Program",
+      "entity_type": "program",
+      "indicator_name": "Energy intensity",
+      "unit": "kWh / sq ft",
+      "direction": "lower",
+      "framework": "Sustainable Catalyst Operational Metrics",
+      "indicator_version": "1.0",
+      "period_label": "2026-Q3",
+      "period_start": "2026-07-01",
+      "period_end": "2026-09-30",
+      "baseline": 22.4,
+      "current": 19.8,
+      "confidence": 76,
+      "confidence_basis": "Meter exports reconciled to the quarterly program roster.",
+      "method_notes": "Mean site energy intensity across reporting facilities.",
+      "updated_at": "2026-07-17T12:00:00Z"
+    }
+  ]
+}

@@ -4,12 +4,19 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v1.9.0 — Institutional Workspaces and Access Governance**
+**v1.10.0 — Connectors, Refresh, and Data Operations**
 
-The release adds institutions, workspaces, projects, principals, seven governed roles, record ownership and stewardship, visibility and classification controls, retention policies, legal holds, immutable transfer history, and workspace-bound API keys without changing the portable canonical record contract.
+The release adds governed connector definitions and immutable versions, scheduled or manual refresh runs, source snapshots, change detection, reconciliation, quarantine, dead-letter recovery, freshness and licensing checks, operational alerts, and offline replay without making remote infrastructure mandatory.
 
 ## Core capabilities
 
+- Governed file and HTTP connectors for JSON and CSV sources.
+- Immutable connector versions with explicit activation history.
+- Manual, scheduled, retry, replay, and quarantine-recovery runs.
+- Payload snapshots, row checksums, idempotent refresh, and source-key state.
+- Freshness, licensing, schema-drift, population-drift, and health alerts.
+- Reconciliation reports, quarantine queues, dead letters, and offline replay.
+- Workspace-bound connector access and protected API operations.
 - Institutional tenants, workspaces, projects, principals, and memberships.
 - Viewer, contributor, analyst, reviewer, approver, publisher, and administrator roles.
 - Record ownership, stewardship, custodianship, visibility, classification, retention, and legal-hold governance.
@@ -196,7 +203,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.9.0 provides repository-level institutional authorization without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Remote API operation and Platform Core integration are optional, and v1.10.0 provides governed connector operations and repository-level institutional authorization without claiming legal or regulatory compliance.
 
 ## License
 

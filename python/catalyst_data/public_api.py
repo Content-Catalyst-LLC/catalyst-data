@@ -20,9 +20,10 @@ from .handoff import handoff_digest, validate_handoff
 from .repository import CatalystRepository, RepositoryError, canonical_json
 from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
+from .connectors import ConnectorError, ConnectorService
 
 API_VERSION = "v1"
-DEFAULT_SCOPES = ("records:write", "handoffs:write", "admin:keys")
+DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "admin:keys")
 
 
 def _now() -> str:
@@ -78,11 +79,14 @@ def public_projection(record: Mapping[str, Any]) -> dict[str, Any]:
 def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
     return {
         "openapi": "3.1.0",
-        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Public-safe records, institutional workspaces, protected writes, and typed handoffs."},
+        "info": {"title": "Catalyst Data Public API", "version": __version__, "description": "Public-safe records, institutional workspaces, protected writes, typed handoffs, and governed connector operations."},
         "servers": [{"url": base_url.rstrip("/")}],
         "paths": {
             "/v1/workspaces": {"get": {"summary": "List the authenticated client workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Workspace"}}}},
             "/v1/workspaces/{workspace_id}/records": {"get": {"summary": "List authorized workspace records", "security": [{"bearerAuth": []}], "parameters": [{"name": "workspace_id", "in": "path", "required": True, "schema": {"type": "string"}}], "responses": {"200": {"description": "Workspace records"}, "403": {"description": "Forbidden"}}}},
+            "/v1/connectors": {"get": {"summary": "List connectors bound to the authenticated workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Connector status"}, "401": {"description": "Unauthorized"}}}},
+            "/v1/connectors/runs": {"get": {"summary": "List connector runs for the authenticated workspace", "security": [{"bearerAuth": []}], "parameters": [{"name": "connector_id", "in": "query", "schema": {"type": "string"}}], "responses": {"200": {"description": "Connector runs"}}}},
+            "/v1/connectors/{connector_id}/run": {"post": {"summary": "Run a connector synchronously", "security": [{"bearerAuth": []}], "parameters": [{"name": "connector_id", "in": "path", "required": True, "schema": {"type": "string"}}], "responses": {"200": {"description": "Run result"}, "403": {"description": "Forbidden"}}}},
             "/health": {"get": {"summary": "Repository health", "responses": {"200": {"description": "Healthy"}}}},
             "/v1/capabilities": {"get": {"summary": "Capability discovery", "responses": {"200": {"description": "Capabilities"}}}},
             "/v1/records": {
@@ -237,7 +241,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             if path in ("/openapi.json", "/v1/openapi.json"):
                 self._json(200, openapi_document(self.server.public_base_url)); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -255,6 +259,26 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 service = WorkspaceService(self.server.repository)
                 records = service.records(workspace_id, principal_id=client.principal_id, limit=100)
                 self._json(200, {"workspace_id": workspace_id, "records": records, "total": len(records)}); return
+            if path == "/v1/connectors":
+                client = self._auth("connectors:read")
+                if not client:
+                    self._error(401, "unauthorized", "A connectors:read bearer token is required"); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "connectors:read")
+                self._json(200, {"workspace_id": client.workspace_id, "connectors": ConnectorService(self.server.repository).list(workspace_id=client.workspace_id)}); return
+            if path == "/v1/connectors/runs":
+                client = self._auth("connectors:read")
+                if not client:
+                    self._error(401, "unauthorized", "A connectors:read bearer token is required"); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "connectors:read")
+                query = parse_qs(parsed.query); connector_id = query.get("connector_id", [None])[0]
+                service = ConnectorService(self.server.repository)
+                if connector_id:
+                    connector = service.get(connector_id)
+                    if connector["workspace_id"] != client.workspace_id:
+                        self._error(403, "forbidden", "Connector belongs to a different workspace"); return
+                allowed = {item["connector_id"] for item in service.list(workspace_id=client.workspace_id)}
+                runs = [item for item in service.runs(connector_id=connector_id, limit=100) if item["connector_id"] in allowed]
+                self._json(200, {"workspace_id": client.workspace_id, "runs": runs, "total": len(runs)}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -280,6 +304,39 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         client: ApiClient | None = None
         try:
+            if path == "/v1/connectors":
+                client = self._auth("connectors:read")
+                if not client:
+                    self._error(401, "unauthorized", "A connectors:read bearer token is required"); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "connectors:read")
+                self._json(200, {"workspace_id": client.workspace_id, "connectors": ConnectorService(self.server.repository).list(workspace_id=client.workspace_id)}); return
+            if path == "/v1/connectors/runs":
+                client = self._auth("connectors:read")
+                if not client:
+                    self._error(401, "unauthorized", "A connectors:read bearer token is required"); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "connectors:read")
+                query = parse_qs(parsed.query); connector_id = query.get("connector_id", [None])[0]
+                service = ConnectorService(self.server.repository)
+                if connector_id:
+                    connector = service.get(connector_id)
+                    if connector["workspace_id"] != client.workspace_id:
+                        self._error(403, "forbidden", "Connector belongs to a different workspace"); return
+                allowed = {item["connector_id"] for item in service.list(workspace_id=client.workspace_id)}
+                runs = [item for item in service.runs(connector_id=connector_id, limit=100) if item["connector_id"] in allowed]
+                self._json(200, {"workspace_id": client.workspace_id, "runs": runs, "total": len(runs)}); return
+            if path.startswith("/v1/connectors/") and path.endswith("/run"):
+                client = self._auth("connectors:run")
+                if not client:
+                    self._error(401, "unauthorized", "A connectors:run bearer token is required"); self.server.registry.audit(method="POST",path=path,status_code=401,scope="connectors:run",remote_address=self.client_address[0]); return
+                WorkspaceService(self.server.repository).authorize(client.principal_id, client.workspace_id, "connectors:run")
+                connector_id = unquote(path[len("/v1/connectors/"):-len("/run")].rstrip("/"))
+                service = ConnectorService(self.server.repository); connector = service.get(connector_id)
+                if connector["workspace_id"] != client.workspace_id:
+                    self._error(403, "forbidden", "Connector belongs to a different workspace"); return
+                body = self._body(); supplied = body.get("payload") if isinstance(body, Mapping) else None
+                result = service.run(connector_id, payload=supplied, source_uri=body.get("source_uri") if isinstance(body, Mapping) else None, max_attempts=body.get("max_attempts") if isinstance(body, Mapping) else None)
+                status = 200 if result["run"]["status"] in ("succeeded","partial") else 422
+                self._json(status, result); self.server.registry.audit(method="POST",path=path,status_code=status,client=client,scope="connectors:run",remote_address=self.client_address[0],details={"connector_id":connector_id,"run_id":result["run"]["run_id"]}); return
             if path == "/v1/records":
                 client = self._auth("records:write")
                 if not client:
@@ -301,7 +358,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 result = self.server.registry.receive_handoff(self._body())
                 self._json(202, result); self.server.registry.audit(method="POST",path=path,status_code=202,client=client,scope="handoffs:write",handoff_id=result["handoff_id"],remote_address=self.client_address[0]); return
             self._error(404, "not-found", "Endpoint not found")
-        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, sqlite3.Error) as exc:
+        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, sqlite3.Error) as exc:
             self._error(400, "invalid-request", str(exc))
             try: self.server.registry.audit(method="POST",path=path,status_code=400,client=client,remote_address=self.client_address[0],details={"error": str(exc)})
             except Exception: pass

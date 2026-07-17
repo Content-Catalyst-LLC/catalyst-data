@@ -1,6 +1,6 @@
 # Relational Schema
 
-Catalyst Data v1.9.0 maintains a normalized SQLite repository alongside the complete canonical JSON record.
+Catalyst Data v1.10.0 maintains a normalized SQLite repository alongside the complete canonical JSON record.
 
 ## Core tables
 
