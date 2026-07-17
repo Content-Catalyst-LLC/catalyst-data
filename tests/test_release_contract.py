@@ -43,11 +43,3 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
-
-def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
-    source = (ROOT / "scripts/check_release.py").read_text(encoding="utf-8")
-    cache_guard = source.index("sys.pycache_prefix")
-    package_import = source.index("from catalyst_data import")
-    assert cache_guard < package_import
-    assert 'ROOT.rglob("__pycache__")' in source
-    assert "sys.dont_write_bytecode = True" in source

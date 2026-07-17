@@ -17,21 +17,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-
-# Release archives normalize source timestamps for reproducibility. When an
-# older checkout contains bytecode generated from a same-length version file,
-# CPython can otherwise accept that stale cache after an in-place upgrade.
-# Remove local bytecode and route this process away from repository caches
-# before importing the package. Child checks will then compile clean sources.
-for cache_dir in ROOT.rglob("__pycache__"):
-    shutil.rmtree(cache_dir, ignore_errors=True)
-for bytecode_file in list(ROOT.rglob("*.pyc")) + list(ROOT.rglob("*.pyo")):
-    try:
-        bytecode_file.unlink()
-    except FileNotFoundError:
-        pass
-sys.dont_write_bytecode = True
-sys.pycache_prefix = str(ROOT / ".release-check-pycache")
 sys.path.insert(0, str(ROOT / "python"))
 
 from catalyst_data import (

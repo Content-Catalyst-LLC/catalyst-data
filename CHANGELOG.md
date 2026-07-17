@@ -2,11 +2,6 @@
 
 ## 1.1.0 — Canonical Data Contract and Validation Engine
 
-### Installer reliability repair
-
-- Prevented stale v1.0.x Python bytecode from being reused during an in-place v1.1.0 upgrade.
-- Isolated release validation bytecode lookups from repository caches.
-
 - Added the canonical `catalyst-data-record/1.0` schema and contract metadata.
 - Added strict JSON Schema validation with unknown-field rejection and format checks.
 - Added stable semantic IDs, record type, creation/update timestamps, and producer metadata.
