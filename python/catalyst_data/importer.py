@@ -70,10 +70,15 @@ def csv_row_to_payload(row: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("missing required CSV fields: " + ", ".join(missing))
     evidence_chain = None
     indicator_governance = None
+    observation_lineage = None
     if row.get("indicator_governance_json"):
         indicator_governance = json.loads(str(row["indicator_governance_json"]))
         if not isinstance(indicator_governance, dict):
             raise ValueError("indicator_governance_json must contain an object")
+    if row.get("observation_lineage_json"):
+        observation_lineage = json.loads(str(row["observation_lineage_json"]))
+        if not isinstance(observation_lineage, dict):
+            raise ValueError("observation_lineage_json must contain an object")
     if row.get("evidence_chain_json"):
         evidence_chain = json.loads(str(row["evidence_chain_json"]))
         if not isinstance(evidence_chain, dict):
@@ -137,6 +142,8 @@ def csv_row_to_payload(row: Mapping[str, Any]) -> dict[str, Any]:
         payload["evidence_chain"] = evidence_chain
     if indicator_governance is not None:
         payload["indicator_governance"] = indicator_governance
+    if observation_lineage is not None:
+        payload["observation_lineage"] = observation_lineage
     return payload
 
 

@@ -1,0 +1,562 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-observation-lineage-1.0.json",
+  "title": "Catalyst Data Observation Lineage 1.0",
+  "description": "Research questions, collection instruments, dataset versions, observation batches, observations, and transformations linked to a governed measurement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "questions",
+    "instruments",
+    "datasets",
+    "batches",
+    "observations",
+    "transformations",
+    "completeness_score"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "catalyst-data-observation-lineage/1.0"
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "type",
+          "decision_context",
+          "status",
+          "owner"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "research",
+              "decision",
+              "monitoring",
+              "evaluation"
+            ]
+          },
+          "decision_context": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "active",
+              "answered",
+              "archived"
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "type",
+          "version",
+          "description",
+          "protocol",
+          "provider",
+          "calibration",
+          "fields"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "survey",
+              "sensor",
+              "form",
+              "api",
+              "administrative",
+              "model",
+              "manual",
+              "other"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "calibration": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "data_type",
+                "unit_id",
+                "description"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "data_type": {
+                  "enum": [
+                    "string",
+                    "number",
+                    "integer",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "object",
+                    "array"
+                  ]
+                },
+                "unit_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "nullable": {
+                  "type": "boolean"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "required"
+                  ]
+                },
+                {
+                  "required": [
+                    "nullable"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "version",
+          "description",
+          "license",
+          "access",
+          "checksum",
+          "fields"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access": {
+            "enum": [
+              "public",
+              "internal",
+              "restricted",
+              "confidential"
+            ]
+          },
+          "checksum": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "data_type",
+                "unit_id",
+                "description",
+                "nullable"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "data_type": {
+                  "enum": [
+                    "string",
+                    "number",
+                    "integer",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "object",
+                    "array"
+                  ]
+                },
+                "unit_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "nullable": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "batches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "dataset_id",
+          "instrument_id",
+          "collected_at",
+          "received_at",
+          "collector",
+          "protocol",
+          "record_count",
+          "notes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "dataset_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "instrument_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "collected_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "collector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "batch_id",
+          "role",
+          "observed_at",
+          "value",
+          "value_text",
+          "unit_id",
+          "quality_status",
+          "missing_reason",
+          "censoring",
+          "outlier",
+          "imputation",
+          "dimensions",
+          "raw_payload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "batch_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "role": {
+            "enum": [
+              "baseline",
+              "current",
+              "supporting",
+              "derived"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "value_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "quality_status": {
+            "enum": [
+              "valid",
+              "missing",
+              "censored",
+              "outlier",
+              "imputed",
+              "rejected"
+            ]
+          },
+          "missing_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "censoring": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outlier": {
+            "type": "boolean"
+          },
+          "imputation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dimensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "raw_payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "transformations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "operation",
+          "description",
+          "software",
+          "parameters",
+          "input_observation_ids",
+          "output_measurement_fields",
+          "occurred_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+          },
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "software": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "input_observation_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._:-]{2,255}$"
+            },
+            "uniqueItems": true
+          },
+          "output_measurement_fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "occurred_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "completeness_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "component": "migration-tool"
   },
   "entity": {
@@ -167,5 +167,156 @@
       }
     ],
     "completeness_score": 50
+  },
+  "observation_lineage": {
+    "schema_version": "catalyst-data-observation-lineage/1.0",
+    "questions": [
+      {
+        "id": "question:entity-program-de8711a4e14a:809eac4ae8d54a14",
+        "text": "What is the value of Estimated CO2e avoided for Legacy Energy Program during 2026-Q1?",
+        "type": "monitoring",
+        "decision_context": null,
+        "status": "active",
+        "owner": "Catalyst Data"
+      }
+    ],
+    "instruments": [
+      {
+        "id": "instrument:source-legacy-program-spreadsheet-020f2074ee5e:6bc1ee93893d2b22",
+        "name": "Legacy program spreadsheet collection instrument",
+        "type": "administrative",
+        "version": "1.0",
+        "description": "Collection instrument associated with Legacy program spreadsheet.",
+        "protocol": "Imported from a Catalyst Data v1.0.x browser export.",
+        "provider": null,
+        "calibration": null,
+        "fields": [
+          {
+            "name": "value",
+            "data_type": "number",
+            "unit_id": "unit:f2c8f1572ae658503555",
+            "description": "Estimated CO2e avoided",
+            "required": true
+          },
+          {
+            "name": "observed_at",
+            "data_type": "datetime",
+            "unit_id": null,
+            "description": "Observation timestamp",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "datasets": [
+      {
+        "id": "dataset:source-legacy-program-spreadsheet-020f2074ee5e:1b977a9d254024ba",
+        "name": "Legacy program spreadsheet",
+        "version": "1.0",
+        "description": "Dataset supporting Estimated CO2e avoided.",
+        "license": null,
+        "access": "public",
+        "checksum": null,
+        "fields": [
+          {
+            "name": "value",
+            "data_type": "number",
+            "unit_id": "unit:f2c8f1572ae658503555",
+            "description": "Estimated CO2e avoided",
+            "nullable": false
+          },
+          {
+            "name": "entity_id",
+            "data_type": "string",
+            "unit_id": null,
+            "description": "Canonical entity identifier",
+            "nullable": false
+          },
+          {
+            "name": "period_id",
+            "data_type": "string",
+            "unit_id": null,
+            "description": "Canonical reporting period identifier",
+            "nullable": false
+          }
+        ]
+      }
+    ],
+    "batches": [
+      {
+        "id": "batch:measurement-entity-program-de8711a4e14a-a354d5b19a98:1a48d4425eb52f80",
+        "dataset_id": "dataset:source-legacy-program-spreadsheet-020f2074ee5e:1b977a9d254024ba",
+        "instrument_id": "instrument:source-legacy-program-spreadsheet-020f2074ee5e:6bc1ee93893d2b22",
+        "collected_at": "2026-07-16T12:00:00Z",
+        "received_at": "2026-07-16T12:00:00Z",
+        "collector": "Catalyst Data",
+        "protocol": "Imported from a Catalyst Data v1.0.x browser export.",
+        "record_count": 2,
+        "notes": null
+      }
+    ],
+    "observations": [
+      {
+        "id": "observation:measurement-entity-program-de8711a4e14a-a354d5b19a98:669ac7a5f486ca05",
+        "batch_id": "batch:measurement-entity-program-de8711a4e14a-a354d5b19a98:1a48d4425eb52f80",
+        "role": "baseline",
+        "observed_at": "2026-07-16T12:00:00Z",
+        "value": 100.0,
+        "value_text": null,
+        "unit_id": "unit:f2c8f1572ae658503555",
+        "quality_status": "valid",
+        "missing_reason": null,
+        "censoring": null,
+        "outlier": false,
+        "imputation": null,
+        "dimensions": {
+          "entity_id": "entity:program:de8711a4e14a",
+          "period_id": "period:2026-q1:332f346bb8b7"
+        },
+        "raw_payload": {}
+      },
+      {
+        "id": "observation:measurement-entity-program-de8711a4e14a-a354d5b19a98:7e34d1261c44f742",
+        "batch_id": "batch:measurement-entity-program-de8711a4e14a-a354d5b19a98:1a48d4425eb52f80",
+        "role": "current",
+        "observed_at": "2026-07-16T12:00:00Z",
+        "value": 125.0,
+        "value_text": null,
+        "unit_id": "unit:f2c8f1572ae658503555",
+        "quality_status": "valid",
+        "missing_reason": null,
+        "censoring": null,
+        "outlier": false,
+        "imputation": null,
+        "dimensions": {
+          "entity_id": "entity:program:de8711a4e14a",
+          "period_id": "period:2026-q1:332f346bb8b7"
+        },
+        "raw_payload": {}
+      }
+    ],
+    "transformations": [
+      {
+        "id": "transformation:measurement-entity-program-de8711a4e14a-a354d5b19a98:5b39edd194029fdd",
+        "operation": "baseline-current comparison",
+        "description": "Imported from a Catalyst Data v1.0.x browser export.",
+        "software": "Catalyst Data",
+        "parameters": {
+          "methodology_id": "method:d45fc53d7275a0683ec6",
+          "methodology_version": "1.0"
+        },
+        "input_observation_ids": [
+          "observation:measurement-entity-program-de8711a4e14a-a354d5b19a98:669ac7a5f486ca05",
+          "observation:measurement-entity-program-de8711a4e14a-a354d5b19a98:7e34d1261c44f742"
+        ],
+        "output_measurement_fields": [
+          "measurement.baseline",
+          "measurement.current",
+          "measurement.percent_change"
+        ],
+        "occurred_at": "2026-07-16T12:00:00Z"
+      }
+    ],
+    "completeness_score": 100
   }
 }

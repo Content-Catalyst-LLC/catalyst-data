@@ -11,35 +11,35 @@ from catalyst_data.repository import CatalystRepository
 
 
 def test_migrations_are_contiguous_and_reversible(tmp_path):
-    assert [item.version for item in discover_migrations()] == [1, 2, 3, 4]
+    assert [item.version for item in discover_migrations()] == [1, 2, 3, 4, 5]
     database = tmp_path / "repository.sqlite3"
     with connect(database) as connection:
         manager = MigrationManager(connection)
         assert manager.current_version == 0
-        assert manager.migrate() == [1, 2, 3, 4]
-        assert manager.current_version == 4
+        assert manager.migrate() == [1, 2, 3, 4, 5]
+        assert manager.current_version == 5
         assert connection.execute("SELECT repository_id FROM repository_metadata").fetchone()[0].startswith("repository:local:")
-        assert manager.rollback(1) == [4]
-        assert manager.current_version == 3
-        assert connection.execute("SELECT name FROM sqlite_master WHERE name='indicator_versions'").fetchone() is None
-        assert connection.execute("SELECT name FROM sqlite_master WHERE name='source_versions'").fetchone() is not None
-        assert manager.migrate() == [4]
+        assert manager.rollback(1) == [5]
         assert manager.current_version == 4
+        assert connection.execute("SELECT name FROM sqlite_master WHERE name='observation_batches'").fetchone() is None
+        assert connection.execute("SELECT name FROM sqlite_master WHERE name='indicator_versions'").fetchone() is not None
+        assert manager.migrate() == [5]
+        assert manager.current_version == 5
 
 
 def test_repository_health_reports_current_schema(tmp_path):
     repository = CatalystRepository(tmp_path / "data.db")
     missing = repository.health()
     assert not missing.exists
-    assert missing.latest_migration == 4
+    assert missing.latest_migration == 5
     repository.initialize()
     health = repository.health()
     assert health.healthy
-    assert health.migration_version == 4
+    assert health.migration_version == 5
     assert health.repository_id
 
 
-def test_migrations_three_and_four_rebuild_evidence_and_governance(tmp_path):
+def test_migrations_three_through_five_rebuild_evidence_governance_and_lineage(tmp_path):
     import json
     from catalyst_data.engine import build_record
 
@@ -48,15 +48,16 @@ def test_migrations_three_and_four_rebuild_evidence_and_governance(tmp_path):
     record = build_record(json.loads((ROOT / "examples/sample_project.json").read_text(encoding="utf-8")))
     repository.upsert_record(record)
 
-    assert repository.rollback(2) == [4, 3]
+    assert repository.rollback(3) == [5, 4, 3]
     with connect(repository.path) as connection:
         assert connection.execute("SELECT COUNT(*) FROM data_records").fetchone()[0] == 1
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='measurement_sources'").fetchone() is None
-        assert connection.execute("SELECT name FROM sqlite_master WHERE name='indicator_versions'").fetchone() is None
+        assert connection.execute("SELECT name FROM sqlite_master WHERE name='observation_batches'").fetchone() is None
 
-    assert repository.migrate() == [3, 4]
+    assert repository.migrate() == [3, 4, 5]
     evidence = repository.evidence(record["record_id"])
     assert evidence is not None
     assert evidence["summary"]["source_count"] == 2
     assert evidence["summary"]["revision_count"] == 1
     assert repository.stats()["indicator_versions"] == 1
+    assert repository.stats()["observations"] == 2

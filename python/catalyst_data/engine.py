@@ -29,6 +29,7 @@ from ._version import __version__
 from .validation import RecordValidationError, validate_record
 from .provenance import normalize_evidence_chain, validate_evidence_chain_semantics
 from .governance import normalize_indicator_governance, validate_indicator_governance
+from .lineage import normalize_observation_lineage, validate_observation_lineage
 
 
 def _number(value: Any, field: str) -> float:
@@ -317,6 +318,7 @@ def convert_legacy_record(
         confidence=record["confidence"],
         occurred_at=updated_at,
     )
+    record["observation_lineage"] = normalize_observation_lineage(record, payload.get("observation_lineage"))
     validate_record_semantics(record)
     validate_record(record)
     return record
@@ -339,6 +341,8 @@ def validate_record_semantics(record: Mapping[str, Any]) -> None:
     try:
         validate_evidence_chain_semantics(record)
         validate_indicator_governance(record["indicator_governance"], record["indicator"])
+        if "observation_lineage" in record:
+            validate_observation_lineage(record["observation_lineage"], record)
     except ValueError as exc:
         raise RecordValidationError(str(exc)) from exc
 
@@ -359,6 +363,8 @@ def build_record(
             record["evidence_chain"] = normalize_evidence_chain(
                 record["source"], None, method=record["method"], confidence=record["confidence"], occurred_at=record["updated_at"]
             )
+        if "observation_lineage" not in record:
+            record["observation_lineage"] = normalize_observation_lineage(record, None)
         validate_record(record)
         validate_record_semantics(record)
         return record
@@ -419,6 +425,16 @@ def brief_markdown(record: Mapping[str, Any]) -> str:
 - **Aggregation:** {record['indicator_governance']['aggregation']}
 - **Unit definition:** {record['indicator_governance']['unit']['name']} ({record['indicator_governance']['unit']['dimension']})
 - **Methodology:** {record['indicator_governance']['methodology']['title']} v{record['indicator_governance']['methodology']['version']} ({record['indicator_governance']['methodology']['status']})
+
+## Observation Lineage
+
+- **Research questions:** {len(record.get('observation_lineage', {}).get('questions', []))}
+- **Instruments:** {len(record.get('observation_lineage', {}).get('instruments', []))}
+- **Datasets:** {len(record.get('observation_lineage', {}).get('datasets', []))}
+- **Observation batches:** {len(record.get('observation_lineage', {}).get('batches', []))}
+- **Observations:** {len(record.get('observation_lineage', {}).get('observations', []))}
+- **Transformations:** {len(record.get('observation_lineage', {}).get('transformations', []))}
+- **Lineage completeness:** {record.get('observation_lineage', {}).get('completeness_score', 'Not assessed')}%
 
 ## Method
 

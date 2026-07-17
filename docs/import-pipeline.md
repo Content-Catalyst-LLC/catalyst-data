@@ -1,6 +1,6 @@
 # Import Pipeline
 
-The v1.4.0 import pipeline accepts JSON and CSV files.
+The v1.5.0 import pipeline accepts JSON and CSV files.
 
 ## JSON forms
 
@@ -26,3 +26,7 @@ catalyst-data import data.sqlite3 records.csv --non-atomic --continue-on-error
 - Atomic imports roll back all records when any row fails.
 - Non-atomic imports commit valid rows and preserve row-level error reports.
 - Re-importing an unchanged file skips records with matching stable IDs and payload checksums.
+
+## Observation lineage
+
+JSON records may include `observation_lineage`. CSV rows may include a complete `observation_lineage_json` object. When absent, the canonical builder creates a conservative default lineage from the record entity, indicator, source, period, method, baseline, and current value.

@@ -26,6 +26,13 @@ from ._record_contract import (
     INDICATOR_AGGREGATIONS,
     METHODOLOGY_STATUSES,
     FRAMEWORK_MAPPING_RELATIONSHIPS,
+    OBSERVATION_LINEAGE_CONTRACT,
+    QUESTION_TYPES,
+    QUESTION_STATUSES,
+    INSTRUMENT_TYPES,
+    DATASET_ACCESS_LEVELS,
+    OBSERVATION_ROLES,
+    OBSERVATION_QUALITY_STATUSES,
 )
 from ._contract import DIRECTIONS, REVIEW_STATUSES, SIGNAL_STATUSES
 
@@ -65,7 +72,7 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         "producer", "entity", "indicator", "period", "measurement", "source", "confidence",
         "review", "method", "extensions"
     }
-    unknown = set(record) - (required | {"evidence_chain", "indicator_governance"})
+    unknown = set(record) - (required | {"evidence_chain", "indicator_governance", "observation_lineage"})
     missing = required - set(record)
     if missing:
         raise RecordValidationError(f"record is missing required fields: {', '.join(sorted(missing))}")
@@ -165,6 +172,33 @@ def _strict_fallback(record: Mapping[str, Any]) -> None:
         for mapping in governance["framework_mappings"]:
             if mapping.get("relationship") not in FRAMEWORK_MAPPING_RELATIONSHIPS:
                 raise RecordValidationError("indicator_governance framework mapping is invalid")
+
+    lineage = record.get("observation_lineage")
+    if lineage is not None:
+        if not isinstance(lineage, Mapping) or lineage.get("schema_version") != OBSERVATION_LINEAGE_CONTRACT:
+            raise RecordValidationError("observation_lineage schema version is invalid")
+        required_lineage = {"schema_version", "questions", "instruments", "datasets", "batches", "observations", "transformations", "completeness_score"}
+        if set(lineage) != required_lineage:
+            raise RecordValidationError("observation_lineage has invalid fields")
+        if not all(isinstance(lineage.get(name), list) and lineage[name] for name in ("questions", "instruments", "datasets", "batches", "observations")):
+            raise RecordValidationError("observation_lineage requires questions, instruments, datasets, batches, and observations")
+        for question in lineage["questions"]:
+            if question.get("type") not in QUESTION_TYPES or question.get("status") not in QUESTION_STATUSES:
+                raise RecordValidationError("observation_lineage question type or status is invalid")
+        for instrument in lineage["instruments"]:
+            if instrument.get("type") not in INSTRUMENT_TYPES:
+                raise RecordValidationError("observation_lineage instrument type is invalid")
+        for dataset in lineage["datasets"]:
+            if dataset.get("access") not in DATASET_ACCESS_LEVELS:
+                raise RecordValidationError("observation_lineage dataset access is invalid")
+        for observation in lineage["observations"]:
+            if observation.get("role") not in OBSERVATION_ROLES or observation.get("quality_status") not in OBSERVATION_QUALITY_STATUSES:
+                raise RecordValidationError("observation_lineage observation role or quality status is invalid")
+        from .lineage import validate_observation_lineage
+        try:
+            validate_observation_lineage(lineage, record)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RecordValidationError(str(exc)) from exc
 
     extensions = record["extensions"]
     if not isinstance(extensions, Mapping):

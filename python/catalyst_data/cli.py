@@ -124,6 +124,32 @@ def parser() -> argparse.ArgumentParser:
     governance_events.add_argument("indicator_id")
     governance_events.add_argument("--limit", type=int, default=200)
 
+
+    questions = subparsers.add_parser("questions", help="show research and decision questions")
+    questions.add_argument("database", type=Path)
+    questions.add_argument("--question-id")
+    questions.add_argument("--limit", type=int, default=100)
+
+    instruments = subparsers.add_parser("instruments", help="show collection instruments and current versions")
+    instruments.add_argument("database", type=Path)
+    instruments.add_argument("--instrument-id")
+    instruments.add_argument("--limit", type=int, default=100)
+
+    datasets = subparsers.add_parser("datasets", help="show datasets and current versions")
+    datasets.add_argument("database", type=Path)
+    datasets.add_argument("--dataset-id")
+    datasets.add_argument("--limit", type=int, default=100)
+
+    observations = subparsers.add_parser("observations", help="show governed observations")
+    observations.add_argument("database", type=Path)
+    observations.add_argument("--record-id")
+    observations.add_argument("--quality-status", choices=("valid","missing","censored","outlier","imputed","rejected"))
+    observations.add_argument("--limit", type=int, default=200)
+
+    lineage = subparsers.add_parser("lineage", help="show question-to-observation lineage for a record")
+    lineage.add_argument("database", type=Path)
+    lineage.add_argument("record_id")
+
     return result
 
 
@@ -155,7 +181,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -272,6 +298,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "governance-events":
             repository.initialize()
             print(json.dumps(repository.governance_events(args.indicator_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "questions":
+            repository.initialize()
+            print(json.dumps(repository.questions(args.question_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "instruments":
+            repository.initialize()
+            print(json.dumps(repository.instruments(args.instrument_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "datasets":
+            repository.initialize()
+            print(json.dumps(repository.datasets(args.dataset_id, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "observations":
+            repository.initialize()
+            print(json.dumps(repository.observations(args.record_id, quality_status=args.quality_status, limit=args.limit), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "lineage":
+            repository.initialize()
+            payload = repository.lineage(args.record_id)
+            if payload is None:
+                print(f"ERROR: record not found: {args.record_id}")
+                return 1
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0
         return 2
     except ImportPipelineError as exc:

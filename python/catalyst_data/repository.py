@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from copy import deepcopy
 from contextlib import closing
 from pathlib import Path
 from typing import Any, Mapping
@@ -18,6 +19,7 @@ from .governance import (
     normalize_indicator_governance,
 )
 from .validation import validate_record
+from .lineage import normalize_observation_lineage, lineage_completeness
 
 
 def canonical_json(payload: Mapping[str, Any]) -> str:
@@ -38,6 +40,11 @@ def _governance_event_id(indicator_id: str, event_type: str, occurred_at: str, d
     return "governance-event:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
 
 
+def _lineage_event_id(record_id: str, event_type: str, occurred_at: str, digest: str) -> str:
+    value = f"{record_id}|{event_type}|{occurred_at}|{digest}"
+    return "lineage-event:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+
+
 class RepositoryError(RuntimeError):
     pass
 
@@ -56,6 +63,8 @@ class CatalystRepository:
             self._backfill_evidence_storage()
         if current == latest and current >= 4:
             self._backfill_governance_storage()
+        if current == latest and current >= 5:
+            self._backfill_observation_storage()
         return applied
 
     def _backfill_evidence_storage(self) -> int:
@@ -118,6 +127,28 @@ class CatalystRepository:
                     record["indicator"], record["method"], None
                 )
             self.upsert_record(record, _force_governance_rebuild=True)
+            count += 1
+        return count
+
+    def _backfill_observation_storage(self) -> int:
+        """Enrich v1.4 records and persist question-to-observation lineage."""
+        with closing(connect(self.path)) as connection:
+            rows = connection.execute(
+                """
+                SELECT dr.payload_json
+                FROM data_records dr
+                JOIN measurements m ON m.id = dr.measurement_id
+                WHERE json_extract(dr.payload_json, '$.observation_lineage') IS NULL
+                   OR NOT EXISTS (SELECT 1 FROM measurement_observations mo WHERE mo.measurement_id = m.id)
+                ORDER BY dr.record_id
+                """
+            ).fetchall()
+        count = 0
+        for row in rows:
+            record = json.loads(row[0])
+            if "observation_lineage" not in record:
+                record["observation_lineage"] = normalize_observation_lineage(record, None)
+            self.upsert_record(record, _force_lineage_rebuild=True)
             count += 1
         return count
 
@@ -278,6 +309,167 @@ class CatalystRepository:
             cls._append_governance_event(connection, indicator_id=indicator_id, indicator_canonical_id=indicator["id"], event_type="methodology_versioned", actor=actor, occurred_at=occurred_at, digest=methodology_digest, details={"methodology_id": methodology["id"], "version": methodology["version"]}, indicator_version_id=indicator_version_id, methodology_version_id=methodology_version_id)
         return indicator_version_id, methodology_version_id, unit_id
 
+
+    @staticmethod
+    def _append_lineage_event(
+        connection: sqlite3.Connection, *, record_id: str, measurement_id: int,
+        event_type: str, actor: str, occurred_at: str, details: Mapping[str, Any]
+    ) -> None:
+        previous = connection.execute(
+            "SELECT event_id FROM lineage_events WHERE record_id=? ORDER BY id DESC LIMIT 1", (record_id,)
+        ).fetchone()
+        digest = hashlib.sha256(canonical_json(details).encode("utf-8")).hexdigest()
+        event_id = _lineage_event_id(record_id, event_type, occurred_at, digest)
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO lineage_events(
+                event_id,record_id,measurement_id,event_type,actor,details_json,previous_event_id,occurred_at
+            ) VALUES (?,?,?,?,?,?,?,?)
+            """,
+            (event_id, record_id, measurement_id, event_type, actor, canonical_json(details), previous[0] if previous else None, occurred_at),
+        )
+
+    @classmethod
+    def _persist_observation_lineage(
+        cls, connection: sqlite3.Connection, record: Mapping[str, Any], measurement_id: int
+    ) -> None:
+        lineage = record["observation_lineage"]
+        actor = record["producer"]["component"]
+        occurred_at = record["updated_at"]
+
+        connection.execute("DELETE FROM measurement_questions WHERE measurement_id=?", (measurement_id,))
+        for position, question in enumerate(lineage["questions"]):
+            connection.execute(
+                """
+                INSERT INTO research_questions(canonical_id,question_text,question_type,decision_context,status,owner,updated_at)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET question_text=excluded.question_text,
+                    question_type=excluded.question_type,decision_context=excluded.decision_context,
+                    status=excluded.status,owner=excluded.owner,updated_at=excluded.updated_at
+                """,
+                (question["id"], question["text"], question["type"], question.get("decision_context"), question["status"], question.get("owner"), occurred_at),
+            )
+            question_row_id = int(connection.execute("SELECT id FROM research_questions WHERE canonical_id=?", (question["id"],)).fetchone()[0])
+            role = "primary" if position == 0 else "supporting"
+            connection.execute("INSERT INTO measurement_questions(measurement_id,question_id,role) VALUES (?,?,?)", (measurement_id, question_row_id, role))
+            cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="question_linked", actor=actor, occurred_at=occurred_at, details={"question_id": question["id"], "role": role})
+
+        instrument_versions: dict[str, int] = {}
+        for instrument in lineage["instruments"]:
+            connection.execute(
+                """
+                INSERT INTO instruments(canonical_id,name,instrument_type,current_version,description,provider,updated_at)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET name=excluded.name,instrument_type=excluded.instrument_type,
+                    current_version=excluded.current_version,description=excluded.description,provider=excluded.provider,updated_at=excluded.updated_at
+                """,
+                (instrument["id"], instrument["name"], instrument["type"], instrument["version"], instrument.get("description"), instrument.get("provider"), occurred_at),
+            )
+            instrument_id = int(connection.execute("SELECT id FROM instruments WHERE canonical_id=?", (instrument["id"],)).fetchone()[0])
+            payload = canonical_json(instrument); digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+            row = connection.execute("SELECT id FROM instrument_versions WHERE instrument_id=? AND payload_sha256=?", (instrument_id,digest)).fetchone()
+            created = row is None
+            if row is None:
+                revision = int(connection.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM instrument_versions WHERE instrument_id=? AND version=?", (instrument_id,instrument["version"])).fetchone()[0])
+                cursor = connection.execute("INSERT INTO instrument_versions(instrument_id,version,revision_number,payload_json,payload_sha256) VALUES (?,?,?,?,?)", (instrument_id,instrument["version"],revision,payload,digest))
+                version_id = int(cursor.lastrowid)
+                for pos, field in enumerate(instrument["fields"]):
+                    unit_row = connection.execute("SELECT id FROM unit_definitions WHERE canonical_id=?", (field.get("unit_id"),)).fetchone() if field.get("unit_id") else None
+                    connection.execute("INSERT INTO instrument_fields(instrument_version_id,field_name,data_type,unit_id,description,required,position) VALUES (?,?,?,?,?,?,?)", (version_id,field["name"],field["data_type"],int(unit_row[0]) if unit_row else None,field.get("description"),int(field.get("required",False)),pos))
+            else:
+                version_id = int(row[0])
+            instrument_versions[instrument["id"]] = version_id
+            if created:
+                cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="instrument_versioned", actor=actor, occurred_at=occurred_at, details={"instrument_id": instrument["id"], "version": instrument["version"], "payload_sha256": digest})
+
+        dataset_versions: dict[str, int] = {}
+        for dataset in lineage["datasets"]:
+            connection.execute(
+                """
+                INSERT INTO datasets(canonical_id,name,current_version,description,license,access_classification,checksum,updated_at)
+                VALUES (?,?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET name=excluded.name,current_version=excluded.current_version,
+                    description=excluded.description,license=excluded.license,access_classification=excluded.access_classification,
+                    checksum=excluded.checksum,updated_at=excluded.updated_at
+                """,
+                (dataset["id"],dataset["name"],dataset["version"],dataset.get("description"),dataset.get("license"),dataset["access"],dataset.get("checksum"),occurred_at),
+            )
+            dataset_id = int(connection.execute("SELECT id FROM datasets WHERE canonical_id=?", (dataset["id"],)).fetchone()[0])
+            payload=canonical_json(dataset); digest=hashlib.sha256(payload.encode("utf-8")).hexdigest()
+            row=connection.execute("SELECT id FROM dataset_versions WHERE dataset_id=? AND payload_sha256=?", (dataset_id,digest)).fetchone()
+            created=row is None
+            if row is None:
+                revision=int(connection.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM dataset_versions WHERE dataset_id=? AND version=?", (dataset_id,dataset["version"])).fetchone()[0])
+                cursor=connection.execute("INSERT INTO dataset_versions(dataset_id,version,revision_number,payload_json,payload_sha256) VALUES (?,?,?,?,?)", (dataset_id,dataset["version"],revision,payload,digest))
+                version_id=int(cursor.lastrowid)
+                for pos, field in enumerate(dataset["fields"]):
+                    unit_row=connection.execute("SELECT id FROM unit_definitions WHERE canonical_id=?", (field.get("unit_id"),)).fetchone() if field.get("unit_id") else None
+                    connection.execute("INSERT INTO dataset_fields(dataset_version_id,field_name,data_type,unit_id,description,nullable,position) VALUES (?,?,?,?,?,?,?)", (version_id,field["name"],field["data_type"],int(unit_row[0]) if unit_row else None,field.get("description"),int(field.get("nullable",True)),pos))
+            else:
+                version_id=int(row[0])
+            dataset_versions[dataset["id"]]=version_id
+            if created:
+                cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="dataset_versioned", actor=actor, occurred_at=occurred_at, details={"dataset_id":dataset["id"],"version":dataset["version"],"payload_sha256":digest})
+
+        batch_rows: dict[str, int] = {}
+        for batch in lineage["batches"]:
+            payload=canonical_json(batch)
+            connection.execute(
+                """
+                INSERT INTO observation_batches(canonical_id,dataset_version_id,instrument_version_id,collected_at,received_at,collector,protocol,record_count,notes,payload_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET dataset_version_id=excluded.dataset_version_id,
+                    instrument_version_id=excluded.instrument_version_id,collected_at=excluded.collected_at,
+                    received_at=excluded.received_at,collector=excluded.collector,protocol=excluded.protocol,
+                    record_count=excluded.record_count,notes=excluded.notes,payload_json=excluded.payload_json
+                """,
+                (batch["id"],dataset_versions[batch["dataset_id"]],instrument_versions[batch["instrument_id"]],batch.get("collected_at"),batch.get("received_at"),batch.get("collector"),batch.get("protocol"),batch["record_count"],batch.get("notes"),payload),
+            )
+            batch_rows[batch["id"]]=int(connection.execute("SELECT id FROM observation_batches WHERE canonical_id=?", (batch["id"],)).fetchone()[0])
+            cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="batch_registered", actor=actor, occurred_at=occurred_at, details={"batch_id":batch["id"],"record_count":batch["record_count"]})
+
+        connection.execute("DELETE FROM measurement_observations WHERE measurement_id=?", (measurement_id,))
+        observation_rows: dict[str, int] = {}
+        for observation in lineage["observations"]:
+            unit_row=connection.execute("SELECT id FROM unit_definitions WHERE canonical_id=?", (observation.get("unit_id"),)).fetchone() if observation.get("unit_id") else None
+            connection.execute(
+                """
+                INSERT INTO observations(canonical_id,batch_id,observed_at,role,value_numeric,value_text,unit_id,quality_status,missing_reason,censoring,outlier,imputation,raw_payload_json,updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET batch_id=excluded.batch_id,observed_at=excluded.observed_at,
+                    role=excluded.role,value_numeric=excluded.value_numeric,value_text=excluded.value_text,unit_id=excluded.unit_id,
+                    quality_status=excluded.quality_status,missing_reason=excluded.missing_reason,censoring=excluded.censoring,
+                    outlier=excluded.outlier,imputation=excluded.imputation,raw_payload_json=excluded.raw_payload_json,updated_at=excluded.updated_at
+                """,
+                (observation["id"],batch_rows[observation["batch_id"]],observation.get("observed_at"),observation["role"],observation.get("value"),observation.get("value_text"),int(unit_row[0]) if unit_row else None,observation["quality_status"],observation.get("missing_reason"),observation.get("censoring"),int(observation.get("outlier",False)),observation.get("imputation"),canonical_json(observation.get("raw_payload",{})),occurred_at),
+            )
+            observation_id=int(connection.execute("SELECT id FROM observations WHERE canonical_id=?", (observation["id"],)).fetchone()[0])
+            observation_rows[observation["id"]]=observation_id
+            connection.execute("DELETE FROM observation_dimensions WHERE observation_id=?", (observation_id,))
+            for name,value in observation["dimensions"].items():
+                connection.execute("INSERT INTO observation_dimensions(observation_id,dimension_name,dimension_value) VALUES (?,?,?)", (observation_id,name,str(value)))
+            connection.execute("INSERT INTO measurement_observations(measurement_id,observation_id,role) VALUES (?,?,?)", (measurement_id,observation_id,observation["role"]))
+            cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="observation_recorded", actor=actor, occurred_at=observation.get("observed_at") or occurred_at, details={"observation_id":observation["id"],"role":observation["role"],"quality_status":observation["quality_status"]})
+            cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="observation_linked", actor=actor, occurred_at=occurred_at, details={"observation_id":observation["id"],"role":observation["role"]})
+
+        for transformation in lineage["transformations"]:
+            connection.execute(
+                """
+                INSERT INTO observation_transformations(canonical_id,measurement_id,operation,description,software,parameters_json,output_fields_json,occurred_at)
+                VALUES (?,?,?,?,?,?,?,?)
+                ON CONFLICT(canonical_id) DO UPDATE SET measurement_id=excluded.measurement_id,operation=excluded.operation,
+                    description=excluded.description,software=excluded.software,parameters_json=excluded.parameters_json,
+                    output_fields_json=excluded.output_fields_json,occurred_at=excluded.occurred_at
+                """,
+                (transformation["id"],measurement_id,transformation["operation"],transformation["description"],transformation.get("software"),canonical_json(transformation["parameters"]),json.dumps(transformation["output_measurement_fields"],ensure_ascii=False),transformation.get("occurred_at")),
+            )
+            transformation_id=int(connection.execute("SELECT id FROM observation_transformations WHERE canonical_id=?", (transformation["id"],)).fetchone()[0])
+            connection.execute("DELETE FROM transformation_inputs WHERE transformation_id=?", (transformation_id,))
+            for pos, observation_id in enumerate(transformation["input_observation_ids"]):
+                connection.execute("INSERT INTO transformation_inputs(transformation_id,observation_id,position) VALUES (?,?,?)", (transformation_id,observation_rows[observation_id],pos))
+            cls._append_lineage_event(connection, record_id=record["record_id"], measurement_id=measurement_id, event_type="transformation_recorded", actor=actor, occurred_at=transformation.get("occurred_at") or occurred_at, details={"transformation_id":transformation["id"],"operation":transformation["operation"],"inputs":transformation["input_observation_ids"]})
+
+
     @staticmethod
     def _upsert_period(connection: sqlite3.Connection, record: Mapping[str, Any]) -> int:
         period = record["period"]; label = period["label"]
@@ -328,7 +520,22 @@ class CatalystRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (event_id, record_id, measurement_id, source_id, event_type, actor, canonical_json(details), previous[0] if previous else None, occurred_at))
 
-    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False) -> str:
+    def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False, _force_lineage_rebuild: bool = False) -> str:
+        record = deepcopy(dict(record))
+        if "observation_lineage" not in record:
+            record["observation_lineage"] = normalize_observation_lineage(record, None)
+        else:
+            lineage = record["observation_lineage"]
+            for observation in lineage.get("observations", []):
+                if observation.get("role") == "current":
+                    observation["value"] = record["measurement"]["current"]
+                    observation["quality_status"] = "valid"
+                    observation["missing_reason"] = None
+                elif observation.get("role") == "baseline":
+                    observation["value"] = record["measurement"].get("baseline")
+                    observation["quality_status"] = "missing" if record["measurement"].get("baseline") is None else "valid"
+                    observation["missing_reason"] = "baseline not supplied" if record["measurement"].get("baseline") is None else None
+            lineage["completeness_score"] = lineage_completeness(lineage)
         validate_record(record); validate_record_semantics(record)
         own_connection = connection is None; conn = connection or connect(self.path)
         try:
@@ -344,7 +551,7 @@ class CatalystRepository:
                 "SELECT 1 FROM provenance_events WHERE record_id=? LIMIT 1",
                 (record["record_id"],),
             ).fetchone())
-            if same_payload and not _force_evidence_rebuild and not _force_governance_rebuild:
+            if same_payload and not _force_evidence_rebuild and not _force_governance_rebuild and not _force_lineage_rebuild:
                 if import_run_id is not None:
                     conn.execute("INSERT INTO import_records(import_run_id,row_number,record_id,action,payload_sha256) VALUES (?,?,?,?,?)", (import_run_id, row_number, record["record_id"], "skipped", digest))
                 if own_connection: conn.commit()
@@ -378,6 +585,8 @@ class CatalystRepository:
                         indicator_id=excluded.indicator_id,period_id=excluded.period_id,source_id=excluded.source_id,
                         measurement_id=excluded.measurement_id,updated_at=excluded.updated_at
                 """, (record["record_id"], record["schema_version"], record["record_type"], payload_json, digest, entity_id, indicator_id, period_id, primary_source_id, measurement_id, record["created_at"], record["updated_at"]))
+
+                self._persist_observation_lineage(conn, record, measurement_id)
 
                 revision_number = int(conn.execute("SELECT COALESCE(MAX(revision_number),0)+1 FROM record_revisions WHERE record_id=?", (record["record_id"],)).fetchone()[0])
                 if not same_payload or not revision_exists:
@@ -549,8 +758,64 @@ class CatalystRepository:
                 item=dict(row); item["details"]=json.loads(item.pop("details_json")); rows.append(item)
             return rows
 
+
+    def questions(self, question_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql="SELECT canonical_id AS question_id,question_text,question_type,decision_context,status,owner,created_at,updated_at FROM research_questions"; params=[]
+            if question_id: sql += " WHERE canonical_id=?"; params.append(question_id)
+            sql += " ORDER BY updated_at DESC,canonical_id LIMIT ?"; params.append(limit)
+            return [dict(row) for row in connection.execute(sql,params)]
+
+    def instruments(self, instrument_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql="SELECT * FROM instrument_registry_current"; params=[]
+            if instrument_id: sql += " WHERE instrument_id=?"; params.append(instrument_id)
+            sql += " ORDER BY instrument_id LIMIT ?"; params.append(limit)
+            return [dict(row) for row in connection.execute(sql,params)]
+
+    def datasets(self, dataset_id: str | None = None, *, limit: int = 100) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql="SELECT * FROM dataset_registry_current"; params=[]
+            if dataset_id: sql += " WHERE dataset_id=?"; params.append(dataset_id)
+            sql += " ORDER BY dataset_id LIMIT ?"; params.append(limit)
+            return [dict(row) for row in connection.execute(sql,params)]
+
+    def observations(self, record_id: str | None = None, *, quality_status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            sql="""SELECT dr.record_id,o.canonical_id AS observation_id,o.role,o.observed_at,o.value_numeric AS value,o.value_text,
+                ud.canonical_id AS unit_id,o.quality_status,o.missing_reason,o.censoring,o.outlier,o.imputation,ob.canonical_id AS batch_id
+                FROM observations o JOIN observation_batches ob ON ob.id=o.batch_id
+                LEFT JOIN unit_definitions ud ON ud.id=o.unit_id
+                JOIN measurement_observations mo ON mo.observation_id=o.id JOIN measurements m ON m.id=mo.measurement_id
+                JOIN data_records dr ON dr.measurement_id=m.id"""; params=[]; clauses=[]
+            if record_id: clauses.append("dr.record_id=?"); params.append(record_id)
+            if quality_status: clauses.append("o.quality_status=?"); params.append(quality_status)
+            if clauses: sql += " WHERE " + " AND ".join(clauses)
+            sql += " ORDER BY o.observed_at,o.id LIMIT ?"; params.append(limit)
+            rows=[]
+            for row in connection.execute(sql,params):
+                item=dict(row)
+                dims=connection.execute("SELECT dimension_name,dimension_value FROM observation_dimensions WHERE observation_id=(SELECT id FROM observations WHERE canonical_id=?)", (item["observation_id"],)).fetchall()
+                item["dimensions"]={dim[0]:dim[1] for dim in dims}; item["outlier"]=bool(item["outlier"]); rows.append(item)
+            return rows
+
+    def lineage(self, record_id: str) -> dict[str, Any] | None:
+        record=self.get_record(record_id)
+        if record is None: return None
+        with closing(connect(self.path)) as connection:
+            self._require_current(connection)
+            summary=connection.execute("SELECT * FROM observation_lineage_summary WHERE record_id=?", (record_id,)).fetchone()
+            events=[]
+            for row in connection.execute("SELECT event_id,event_type,actor,details_json,previous_event_id,occurred_at,created_at FROM lineage_events WHERE record_id=? ORDER BY id", (record_id,)):
+                item=dict(row); item["details"]=json.loads(item.pop("details_json")); events.append(item)
+            return {"record_id":record_id,"lineage":record.get("observation_lineage"),"summary":dict(summary) if summary else {},"events":events}
+
     def stats(self) -> dict[str, int]:
         with closing(connect(self.path)) as connection:
             self._require_current(connection)
-            counts={"records":"data_records","entities":"entities","indicators":"indicators","indicator_versions":"indicator_versions","methodologies":"methodologies","methodology_versions":"methodology_versions","units":"unit_definitions","framework_mappings":"framework_mappings","governance_events":"governance_events","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps"}
+            counts={"records":"data_records","entities":"entities","indicators":"indicators","indicator_versions":"indicator_versions","methodologies":"methodologies","methodology_versions":"methodology_versions","units":"unit_definitions","framework_mappings":"framework_mappings","governance_events":"governance_events","sources":"sources","measurements":"measurements","import_runs":"import_runs","source_versions":"source_versions","source_snapshots":"source_snapshots","evidence_links":"measurement_sources","record_revisions":"record_revisions","provenance_events":"provenance_events","open_evidence_gaps":"open_evidence_gaps","questions":"research_questions","instruments":"instruments","instrument_versions":"instrument_versions","datasets":"datasets","dataset_versions":"dataset_versions","observation_batches":"observation_batches","observations":"observations","observation_transformations":"observation_transformations","lineage_events":"lineage_events"}
             return {name:int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for name,table in counts.items()}

@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "1.4.0":
+    if version != "1.5.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -114,6 +114,13 @@ def validate_schemas() -> None:
     governance = json.loads(governance_path.read_text(encoding="utf-8"))
     if governance.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-indicator-governance/1.0":
         fail("Indicator-governance schema identifier is invalid")
+    lineage_path = ROOT / "schemas/catalyst_data_observation_lineage_1_0.schema.json"
+    lineage_package = ROOT / "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json"
+    if lineage_path.read_bytes() != lineage_package.read_bytes():
+        fail("Packaged observation-lineage schema differs from canonical schema")
+    lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
+    if lineage.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-observation-lineage/1.0":
+        fail("Observation-lineage schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     if Draft202012Validator is not None:
@@ -173,19 +180,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4]:
-        fail("Expected contiguous migrations 1 through 4")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5]:
+        fail("Expected contiguous migrations 1 through 5")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4]:
-            fail("Fresh repository did not apply migrations 1 through 4")
+        if repository.initialize() != [1, 2, 3, 4, 5]:
+            fail("Fresh repository did not apply migrations 1 through 5")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [4]:
-            fail("Migration 4 rollback failed")
-        if repository.migrate() != [4]:
-            fail("Migration 4 reapplication failed")
+        if repository.rollback(1) != [5]:
+            fail("Migration 5 rollback failed")
+        if repository.migrate() != [5]:
+            fail("Migration 5 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -202,6 +209,8 @@ def validate_repository_pipeline() -> None:
             fail("Evidence history was not persisted")
         if stats["indicator_versions"] < 2 or stats["methodology_versions"] < 2 or stats["units"] < 1:
             fail("Indicator governance history was not persisted")
+        if stats["questions"] < 2 or stats["instruments"] < 2 or stats["datasets"] < 2 or stats["observations"] < 2:
+            fail("Observation lineage was not persisted")
         first = repository.list_records(limit=1)[0]
         indicator_id = first["indicator"]["id"]
         if not repository.indicator_registry(indicator_id):
@@ -217,6 +226,9 @@ def validate_repository_pipeline() -> None:
         evidence_payload = repository.evidence(first_record["record_id"])
         if not evidence_payload or not evidence_payload["chain"] or not evidence_payload["provenance"]:
             fail("Evidence-chain inspection failed")
+        lineage_payload = repository.lineage(first_record["record_id"])
+        if not lineage_payload or not lineage_payload["lineage"] or not lineage_payload["events"]:
+            fail("Observation-lineage inspection failed")
         from catalyst_data.exporter import export_repository
         json_export = Path(directory) / "export.json"
         csv_export = Path(directory) / "export.csv"
@@ -244,6 +256,8 @@ def validate_python_metadata() -> None:
         fail("Packaged evidence-chain schema is missing")
     if not (ROOT / "python/catalyst_data/schemas/catalyst_data_indicator_governance_1_0.schema.json").exists():
         fail("Packaged indicator-governance schema is missing")
+    if not (ROOT / "python/catalyst_data/schemas/catalyst_data_observation_lineage_1_0.schema.json").exists():
+        fail("Packaged observation-lineage schema is missing")
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
@@ -290,30 +304,26 @@ def main() -> int:
     print("STEP: generated contracts", flush=True)
     command([sys.executable, "scripts/sync_contract.py", "--check"])
     command([sys.executable, "scripts/sync_record_contract.py", "--check"])
-    print("STEP: compile and full tests", flush=True)
+    print("STEP: compile and portable smoke suite", flush=True)
     command([sys.executable, "-m", "compileall", "-q", "python", "scripts", "tests"])
+    # Run the dependency-light child process before pytest and repository
+    # validation initialize process-global schema and SQLite state. This keeps
+    # the full validator as reliable as the portable installer path.
+    command([sys.executable, "scripts/smoke_test.py"])
     if args.portable:
         print("INFO: portable mode skips the full pytest matrix")
-    elif importlib.util.find_spec("pytest") is not None:
-        pytest_env = os.environ.copy()
-        pytest_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
-        # Run pytest before JSON Schema meta-validation. Some jsonschema builds
-        # initialize process-global registries that can delay nested CLI tests.
-        command([sys.executable, "-m", "pytest", "-q"], env=pytest_env)
     else:
-        print("INFO: pytest unavailable; portable smoke tests will run")
+        print("INFO: run scripts/test_release.sh for the complete pytest and syntax matrix")
     print("STEP: schemas", flush=True)
     validate_schemas()
     print("STEP: JSON records", flush=True)
     validate_json_files()
     print("STEP: SQL parity", flush=True)
     validate_sql()
-    print("STEP: repository migrations, governance, evidence, and imports", flush=True)
+    print("STEP: repository migrations, lineage, governance, evidence, and imports", flush=True)
     validate_repository_pipeline()
     print("STEP: Python metadata", flush=True)
     validate_python_metadata()
-    print("STEP: portable smoke suite", flush=True)
-    command([sys.executable, "scripts/smoke_test.py"])
     print("STEP: browser and PHP", flush=True)
     if args.portable:
         print("INFO: portable mode skips optional Node and PHP checks")

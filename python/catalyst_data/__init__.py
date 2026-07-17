@@ -18,6 +18,7 @@ from .engine import (
 from .exporter import export_repository
 from .importer import ImportPipelineError, ImportService, ImportSummary
 from .governance import compare_governance, convert_value, normalize_indicator_governance, validate_indicator_governance
+from .lineage import normalize_observation_lineage, validate_observation_lineage
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
 from .service import CatalystDataService
@@ -28,6 +29,7 @@ __all__ = [
     "ImportPipelineError", "ImportService", "ImportSummary", "MigrationError", "MigrationManager",
     "RecordValidationError", "RepositoryError", "brief_markdown", "build_record", "classify_record",
     "compare_governance", "convert_value", "normalize_indicator_governance", "validate_indicator_governance",
+    "normalize_observation_lineage", "validate_observation_lineage",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",

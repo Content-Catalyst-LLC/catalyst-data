@@ -1,6 +1,6 @@
 # Export Specification
 
-Catalyst Data v1.4.0 supports repository exports in JSON and CSV.
+Catalyst Data v1.5.0 supports repository exports in JSON and CSV.
 
 ## JSON repository export
 
@@ -23,3 +23,7 @@ catalyst-data export catalyst-data.sqlite3 export.csv --format csv
 ```
 
 The complete canonical JSON record remains authoritative when a flattened CSV cannot preserve nested extension metadata.
+
+## Lineage fields
+
+CSV exports include question, instrument, dataset, batch, observation, and transformation counts, a lineage completeness score, and the complete `observation_lineage_json` object. JSON exports preserve the canonical lineage unchanged.

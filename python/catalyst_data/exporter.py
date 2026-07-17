@@ -20,6 +20,8 @@ CSV_FIELDS = [
     "indicator_frequency", "indicator_aggregation", "unit_id", "unit_symbol", "unit_name", "unit_dimension",
     "unit_canonical_id", "unit_conversion_factor", "unit_conversion_offset", "methodology_id",
     "methodology_version", "methodology_status", "indicator_governance_json",
+    "question_count", "instrument_count", "dataset_count", "batch_count", "observation_count",
+    "transformation_count", "lineage_completeness_score", "observation_lineage_json",
     "created_at", "updated_at",
 ]
 
@@ -32,6 +34,7 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
     governance = record.get("indicator_governance", {})
     governed_unit = governance.get("unit", {})
     governed_method = governance.get("methodology", {})
+    lineage = record.get("observation_lineage", {})
     return {
         "record_id": record["record_id"], "schema_version": record["schema_version"],
         "entity_id": entity["id"], "entity_name": entity["name"], "entity_type": entity["type"],
@@ -65,6 +68,11 @@ def flatten_record(record: Mapping[str, Any]) -> dict[str, Any]:
         "methodology_id": governed_method.get("id"),
         "methodology_version": governed_method.get("version"), "methodology_status": governed_method.get("status"),
         "indicator_governance_json": json.dumps(governance, ensure_ascii=False, sort_keys=True),
+        "question_count": len(lineage.get("questions", [])), "instrument_count": len(lineage.get("instruments", [])),
+        "dataset_count": len(lineage.get("datasets", [])), "batch_count": len(lineage.get("batches", [])),
+        "observation_count": len(lineage.get("observations", [])), "transformation_count": len(lineage.get("transformations", [])),
+        "lineage_completeness_score": lineage.get("completeness_score"),
+        "observation_lineage_json": json.dumps(lineage, ensure_ascii=False, sort_keys=True),
         "created_at": record["created_at"], "updated_at": record["updated_at"],
     }
 

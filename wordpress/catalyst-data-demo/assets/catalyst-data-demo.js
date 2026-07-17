@@ -171,6 +171,78 @@
     };
   }
 
+  function observationLineage(record){
+    var questionId = stableId('question', record.entity.id, record.indicator.id);
+    var instrumentId = stableId('instrument', record.source.id, record.source.type);
+    var datasetId = stableId('dataset', record.source.id, record.indicator.id);
+    var batchId = stableId('batch', record.record_id, record.updated_at);
+    var unitId = record.indicator_governance.unit.id;
+    var observations = [];
+    if (record.measurement.baseline !== null) {
+      observations.push({
+        id: stableId('observation', record.record_id, 'baseline'), batch_id: batchId, role: 'baseline',
+        observed_at: record.period.start_date ? record.period.start_date + 'T00:00:00Z' : record.updated_at,
+        value: record.measurement.baseline, value_text: null, unit_id: unitId, quality_status: 'valid',
+        missing_reason: null, censoring: null, outlier: false, imputation: null,
+        dimensions: {entity_id: record.entity.id, period_id: record.period.id}, raw_payload: {}
+      });
+    }
+    observations.push({
+      id: stableId('observation', record.record_id, 'current'), batch_id: batchId, role: 'current',
+      observed_at: record.period.end_date ? record.period.end_date + 'T00:00:00Z' : record.updated_at,
+      value: record.measurement.current, value_text: null, unit_id: unitId, quality_status: 'valid',
+      missing_reason: null, censoring: null, outlier: false, imputation: null,
+      dimensions: {entity_id: record.entity.id, period_id: record.period.id}, raw_payload: {}
+    });
+    var transformationId = stableId('transformation', record.record_id, record.indicator_governance.methodology.id, record.indicator_governance.methodology.version);
+    return {
+      schema_version: recordContract.observation_lineage_contract,
+      questions: [{
+        id: questionId,
+        text: 'What is the value of ' + record.indicator.name + ' for ' + record.entity.name + ' during ' + record.period.label + '?',
+        type: 'monitoring', decision_context: null, status: 'active', owner: record.producer.name
+      }],
+      instruments: [{
+        id: instrumentId, name: record.source.name + ' collection instrument',
+        type: record.source.type === 'survey' ? 'survey' : (record.source.type === 'sensor' ? 'sensor' : (record.source.type === 'api' ? 'api' : 'administrative')),
+        version: '1.0', description: record.source.access_notes || null,
+        protocol: record.method.notes || null, provider: record.source.publisher || null, calibration: null,
+        fields: [
+          {name:'value', data_type:'number', unit_id:unitId, description:record.indicator.name, required:true},
+          {name:'observed_at', data_type:'datetime', unit_id:null, description:'Observation timestamp', required:true}
+        ]
+      }],
+      datasets: [{
+        id: datasetId, name: record.source.name, version: record.source.checksum || record.source.retrieved_at || '1.0',
+        description: record.source.citation || null, license: record.source.license || null,
+        access: record.method.quality_flags.indexOf('restricted') !== -1 ? 'restricted' : 'public',
+        checksum: record.source.checksum || null,
+        fields: [
+          {name:'value', data_type:'number', unit_id:unitId, description:record.indicator.name, nullable:false},
+          {name:'entity_id', data_type:'string', unit_id:null, description:'Canonical entity identifier', nullable:false},
+          {name:'period_id', data_type:'string', unit_id:null, description:'Canonical period identifier', nullable:false}
+        ]
+      }],
+      batches: [{
+        id: batchId, dataset_id: datasetId, instrument_id: instrumentId,
+        collected_at: record.period.end_date ? record.period.end_date + 'T00:00:00Z' : record.updated_at,
+        received_at: record.source.retrieved_at || record.updated_at, collector: record.source.publisher || record.producer.name,
+        protocol: record.method.notes || null, record_count: observations.length, notes: null
+      }],
+      observations: observations,
+      transformations: [{
+        id: transformationId, operation: observations.length === 1 ? 'identity' : 'baseline-current comparison',
+        description: record.method.notes || 'Map governed observations to the canonical measurement.',
+        software: record.producer.name,
+        parameters: {methodology_id:record.indicator_governance.methodology.id, methodology_version:record.indicator_governance.methodology.version},
+        input_observation_ids: observations.map(function(item){ return item.id; }),
+        output_measurement_fields: ['measurement.baseline','measurement.current','measurement.percent_change'],
+        occurred_at: record.updated_at
+      }],
+      completeness_score: 100
+    };
+  }
+
   function buildRecord(values, now){
     var entityName = String(values.entity || '').trim() || 'Unnamed entity';
     var entityType = values.entityType || 'other';
@@ -210,7 +282,7 @@
       framework: nullableText(values.framework), version: String(values.indicatorVersion || '1.0').trim() || '1.0'
     };
 
-    return {
+    var record = {
       '$schema': recordContract.schema_uri,
       schema_version: recordContract.contract,
       record_id: stableId('measurement', entityId, indicatorId, periodId, sourceId),
@@ -254,6 +326,8 @@
         'org.sustainablecatalyst.demo': {sample: Boolean(values.sample)}
       }
     };
+    record.observation_lineage = observationLineage(record);
+    return record;
   }
 
   function formatPercent(value){

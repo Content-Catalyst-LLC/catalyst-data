@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0 — Questions, Instruments, Datasets, and Observations
+
+- Added the backward-compatible `catalyst-data-observation-lineage/1.0` contract.
+- Added migration 005 for research questions, immutable instrument and dataset versions, observation batches, governed observations, dimensions, transformations, and append-only lineage events.
+- Added automatic v1.4.0 lineage backfill.
+- Added observation quality, missing-value, censoring, outlier, and imputation metadata.
+- Added `questions`, `instruments`, `datasets`, `observations`, and `lineage` CLI commands.
+- Added lineage-aware JSON and CSV import/export fields.
+- Added browser, schema, migration, persistence, rollback, CLI, and package validation for the full question-to-measurement path.
+
 ## 1.4.0 — Indicator Registry, Units, and Methodology Governance
 
 - Added the backward-compatible `catalyst-data-indicator-governance/1.0` contract.

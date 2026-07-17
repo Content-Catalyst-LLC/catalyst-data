@@ -167,6 +167,98 @@ class EvidenceChain(TypedDict):
     completeness_score: int
 
 
+class ResearchQuestion(TypedDict):
+    id: str
+    text: str
+    type: str
+    decision_context: Optional[str]
+    status: str
+    owner: Optional[str]
+
+
+class CollectionField(TypedDict, total=False):
+    name: str
+    data_type: str
+    unit_id: Optional[str]
+    description: Optional[str]
+    required: bool
+    nullable: bool
+
+
+class InstrumentDefinition(TypedDict):
+    id: str
+    name: str
+    type: str
+    version: str
+    description: Optional[str]
+    protocol: Optional[str]
+    provider: Optional[str]
+    calibration: Optional[str]
+    fields: List[CollectionField]
+
+
+class DatasetDefinition(TypedDict):
+    id: str
+    name: str
+    version: str
+    description: Optional[str]
+    license: Optional[str]
+    access: str
+    checksum: Optional[str]
+    fields: List[CollectionField]
+
+
+class ObservationBatch(TypedDict):
+    id: str
+    dataset_id: str
+    instrument_id: str
+    collected_at: Optional[str]
+    received_at: Optional[str]
+    collector: Optional[str]
+    protocol: Optional[str]
+    record_count: int
+    notes: Optional[str]
+
+
+class ObservationRecord(TypedDict):
+    id: str
+    batch_id: str
+    role: str
+    observed_at: Optional[str]
+    value: Optional[float]
+    value_text: Optional[str]
+    unit_id: Optional[str]
+    quality_status: str
+    missing_reason: Optional[str]
+    censoring: Optional[str]
+    outlier: bool
+    imputation: Optional[str]
+    dimensions: Dict[str, str]
+    raw_payload: Dict[str, Any]
+
+
+class ObservationTransformation(TypedDict):
+    id: str
+    operation: str
+    description: str
+    software: Optional[str]
+    parameters: Dict[str, Any]
+    input_observation_ids: List[str]
+    output_measurement_fields: List[str]
+    occurred_at: Optional[str]
+
+
+class ObservationLineage(TypedDict):
+    schema_version: str
+    questions: List[ResearchQuestion]
+    instruments: List[InstrumentDefinition]
+    datasets: List[DatasetDefinition]
+    batches: List[ObservationBatch]
+    observations: List[ObservationRecord]
+    transformations: List[ObservationTransformation]
+    completeness_score: int
+
+
 class ConfidenceRecord(TypedDict):
     score: float
     scale: str
@@ -200,6 +292,7 @@ CatalystDataRecord = TypedDict(
         "entity": EntityRecord,
         "indicator": IndicatorRecord,
         "indicator_governance": IndicatorGovernance,
+        "observation_lineage": ObservationLineage,
         "period": PeriodRecord,
         "measurement": MeasurementRecord,
         "source": SourceRecord,

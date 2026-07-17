@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Catalyst Data Demo
  * Description: Browser-based canonical Catalyst Data record demo. Adds the [catalyst_data_demo] shortcode.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CATALYST_DATA_DEMO_VERSION', '1.4.0');
+define('CATALYST_DATA_DEMO_VERSION', '1.5.0');
 
 function catalyst_data_demo_register_assets() {
     $base_url = plugin_dir_url(__FILE__);

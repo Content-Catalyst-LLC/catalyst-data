@@ -162,5 +162,57 @@
     "unit_registered",
     "framework_mapped",
     "compatibility_rule_added"
+  ],
+  "observation_lineage_contract": "catalyst-data-observation-lineage/1.0",
+  "question_types": [
+    "research",
+    "decision",
+    "monitoring",
+    "evaluation"
+  ],
+  "question_statuses": [
+    "draft",
+    "active",
+    "answered",
+    "archived"
+  ],
+  "instrument_types": [
+    "survey",
+    "sensor",
+    "form",
+    "api",
+    "administrative",
+    "model",
+    "manual",
+    "other"
+  ],
+  "dataset_access_levels": [
+    "public",
+    "internal",
+    "restricted",
+    "confidential"
+  ],
+  "observation_roles": [
+    "baseline",
+    "current",
+    "supporting",
+    "derived"
+  ],
+  "observation_quality_statuses": [
+    "valid",
+    "missing",
+    "censored",
+    "outlier",
+    "imputed",
+    "rejected"
+  ],
+  "lineage_event_types": [
+    "question_linked",
+    "instrument_versioned",
+    "dataset_versioned",
+    "batch_registered",
+    "observation_recorded",
+    "observation_linked",
+    "transformation_recorded"
   ]
 }

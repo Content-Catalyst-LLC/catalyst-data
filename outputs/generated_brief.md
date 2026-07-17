@@ -6,7 +6,7 @@
 - **Record ID:** `measurement:entity-project-5ada7e550380:f71a831661c3`
 - **Created:** 2026-07-16T12:00:00Z
 - **Updated:** 2026-07-16T12:00:00Z
-- **Producer:** Catalyst Data v1.4.0 (python-engine)
+- **Producer:** Catalyst Data v1.5.0 (python-engine)
 
 ## Measurement
 
@@ -39,6 +39,16 @@
 - **Aggregation:** point-estimate
 - **Unit definition:** score (score)
 - **Methodology:** Data completeness score methodology v1.0 (draft)
+
+## Observation Lineage
+
+- **Research questions:** 1
+- **Instruments:** 1
+- **Datasets:** 1
+- **Observation batches:** 1
+- **Observations:** 2
+- **Transformations:** 1
+- **Lineage completeness:** 100%
 
 ## Method
 

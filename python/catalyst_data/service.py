@@ -46,3 +46,18 @@ class CatalystDataService:
 
     def convert(self, value: float, from_unit_id: str, to_unit_id: str):
         return self.repository.convert(value, from_unit_id, to_unit_id)
+
+    def questions(self, question_id: str | None = None, *, limit: int = 100):
+        return self.repository.questions(question_id, limit=limit)
+
+    def instruments(self, instrument_id: str | None = None, *, limit: int = 100):
+        return self.repository.instruments(instrument_id, limit=limit)
+
+    def datasets(self, dataset_id: str | None = None, *, limit: int = 100):
+        return self.repository.datasets(dataset_id, limit=limit)
+
+    def observations(self, record_id: str | None = None, *, quality_status: str | None = None, limit: int = 200):
+        return self.repository.observations(record_id, quality_status=quality_status, limit=limit)
+
+    def lineage(self, record_id: str):
+        return self.repository.lineage(record_id)

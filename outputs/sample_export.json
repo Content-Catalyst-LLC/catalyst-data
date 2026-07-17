@@ -7,7 +7,7 @@
   "updated_at": "2026-07-16T12:00:00Z",
   "producer": {
     "name": "Catalyst Data",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "component": "python-engine"
   },
   "entity": {
@@ -208,6 +208,157 @@
       }
     ],
     "gaps": [],
+    "completeness_score": 100
+  },
+  "observation_lineage": {
+    "schema_version": "catalyst-data-observation-lineage/1.0",
+    "questions": [
+      {
+        "id": "question:entity-project-5ada7e550380:1aece94affab6c51",
+        "text": "What is the value of Data completeness score for Urban Tree Canopy Program during 2026-Q2?",
+        "type": "monitoring",
+        "decision_context": null,
+        "status": "active",
+        "owner": "Catalyst Data"
+      }
+    ],
+    "instruments": [
+      {
+        "id": "instrument:source-internal-program-tracker-field-verification-notes-6885f25:040c9a19710e41e2",
+        "name": "Internal program tracker + field verification notes collection instrument",
+        "type": "administrative",
+        "version": "1.0",
+        "description": "Public example derived from a fictional program record.",
+        "protocol": "Current value combines verified site records with program-reported updates.",
+        "provider": "Content Catalyst LLC",
+        "calibration": null,
+        "fields": [
+          {
+            "name": "value",
+            "data_type": "number",
+            "unit_id": "unit:1d83d41ff3d8d17d3251",
+            "description": "Data completeness score",
+            "required": true
+          },
+          {
+            "name": "observed_at",
+            "data_type": "datetime",
+            "unit_id": null,
+            "description": "Observation timestamp",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "datasets": [
+      {
+        "id": "dataset:source-internal-program-tracker-field-verification-notes-6885f25:8e2e5b2263b6830b",
+        "name": "Internal program tracker + field verification notes",
+        "version": "sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a",
+        "description": "Content Catalyst LLC. Urban Tree Canopy Program tracker and field verification notes, 2026-Q2.",
+        "license": "Internal review record",
+        "access": "public",
+        "checksum": "sha256:7c7d2ab0857f139ee840678101daa9baaaae77f0e5aa7adf9f6ca5ac2e8f1f4a",
+        "fields": [
+          {
+            "name": "value",
+            "data_type": "number",
+            "unit_id": "unit:1d83d41ff3d8d17d3251",
+            "description": "Data completeness score",
+            "nullable": false
+          },
+          {
+            "name": "entity_id",
+            "data_type": "string",
+            "unit_id": null,
+            "description": "Canonical entity identifier",
+            "nullable": false
+          },
+          {
+            "name": "period_id",
+            "data_type": "string",
+            "unit_id": null,
+            "description": "Canonical reporting period identifier",
+            "nullable": false
+          }
+        ]
+      }
+    ],
+    "batches": [
+      {
+        "id": "batch:measurement-entity-project-5ada7e550380-f71a831661c3:fc5d3f73c8aa85d9",
+        "dataset_id": "dataset:source-internal-program-tracker-field-verification-notes-6885f25:8e2e5b2263b6830b",
+        "instrument_id": "instrument:source-internal-program-tracker-field-verification-notes-6885f25:040c9a19710e41e2",
+        "collected_at": "2026-06-30T00:00:00Z",
+        "received_at": "2026-07-16T11:30:00Z",
+        "collector": "Content Catalyst LLC",
+        "protocol": "Current value combines verified site records with program-reported updates.",
+        "record_count": 2,
+        "notes": null
+      }
+    ],
+    "observations": [
+      {
+        "id": "observation:measurement-entity-project-5ada7e550380-f71a831661c3:352ad2a9c52a80cc",
+        "batch_id": "batch:measurement-entity-project-5ada7e550380-f71a831661c3:fc5d3f73c8aa85d9",
+        "role": "baseline",
+        "observed_at": "2026-04-01T00:00:00Z",
+        "value": 62.0,
+        "value_text": null,
+        "unit_id": "unit:1d83d41ff3d8d17d3251",
+        "quality_status": "valid",
+        "missing_reason": null,
+        "censoring": null,
+        "outlier": false,
+        "imputation": null,
+        "dimensions": {
+          "entity_id": "entity:project:5ada7e550380",
+          "period_id": "period:2026-q2:2cc46f154dac"
+        },
+        "raw_payload": {}
+      },
+      {
+        "id": "observation:measurement-entity-project-5ada7e550380-f71a831661c3:37cd965da9e13587",
+        "batch_id": "batch:measurement-entity-project-5ada7e550380-f71a831661c3:fc5d3f73c8aa85d9",
+        "role": "current",
+        "observed_at": "2026-06-30T00:00:00Z",
+        "value": 78.0,
+        "value_text": null,
+        "unit_id": "unit:1d83d41ff3d8d17d3251",
+        "quality_status": "valid",
+        "missing_reason": null,
+        "censoring": null,
+        "outlier": false,
+        "imputation": null,
+        "dimensions": {
+          "entity_id": "entity:project:5ada7e550380",
+          "period_id": "period:2026-q2:2cc46f154dac"
+        },
+        "raw_payload": {}
+      }
+    ],
+    "transformations": [
+      {
+        "id": "transformation:measurement-entity-project-5ada7e550380-f71a831661c3:de9b2d920249f0ef",
+        "operation": "baseline-current comparison",
+        "description": "Current value combines verified site records with program-reported updates.",
+        "software": "Catalyst Data",
+        "parameters": {
+          "methodology_id": "method:e12b7258352b5f6dee77",
+          "methodology_version": "1.0"
+        },
+        "input_observation_ids": [
+          "observation:measurement-entity-project-5ada7e550380-f71a831661c3:352ad2a9c52a80cc",
+          "observation:measurement-entity-project-5ada7e550380-f71a831661c3:37cd965da9e13587"
+        ],
+        "output_measurement_fields": [
+          "measurement.baseline",
+          "measurement.current",
+          "measurement.percent_change"
+        ],
+        "occurred_at": "2026-07-16T12:00:00Z"
+      }
+    ],
     "completeness_score": 100
   }
 }

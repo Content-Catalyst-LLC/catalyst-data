@@ -147,3 +147,12 @@ def test_indicator_version_must_be_declared_comparable():
     record["indicator_governance"]["compatibility"]["comparable_versions"] = ["9.9"]
     with pytest.raises(RecordValidationError, match="indicator version"):
         validate_record_semantics(record)
+
+
+def test_portable_fallback_accepts_observation_lineage(monkeypatch):
+    import catalyst_data.validation as validation
+
+    record = canonical_record()
+    monkeypatch.setattr(validation, "Draft202012Validator", None)
+    monkeypatch.setattr(validation, "FormatChecker", None)
+    validation.validate_record(record)
