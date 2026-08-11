@@ -1,4 +1,4 @@
--- Catalyst Data v2.2.0 PostgreSQL schema
+-- Catalyst Data v2.3.0 PostgreSQL schema
 
 -- Generated from canonical ordered migrations. Do not edit by hand.
 
@@ -2435,6 +2435,134 @@ SET current_version='2.2.0',
 WHERE component_id='component:catalyst-data';
 
 
+-- migration 016_internet_archive_wayback_intelligence
+CREATE TABLE internet_archive_items (
+    id BIGSERIAL PRIMARY KEY,
+    item_identifier TEXT NOT NULL UNIQUE,
+    title TEXT,
+    mediatype TEXT,
+    creator_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(creator_json)),
+    item_date TEXT,
+    description TEXT,
+    collection_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(collection_json)),
+    subject_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(subject_json)),
+    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata_json)),
+    metadata_sha256 TEXT NOT NULL CHECK(length(metadata_sha256)=64),
+    source_uri TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX idx_internet_archive_items_title ON internet_archive_items(title);
+CREATE INDEX idx_internet_archive_items_mediatype ON internet_archive_items(mediatype,item_date);
+
+CREATE TABLE internet_archive_item_versions (
+    id BIGSERIAL PRIMARY KEY,
+    version_id TEXT NOT NULL UNIQUE,
+    item_id BIGINT NOT NULL,
+    metadata_sha256 TEXT NOT NULL CHECK(length(metadata_sha256)=64),
+    files_sha256 TEXT NOT NULL CHECK(length(files_sha256)=64),
+    metadata_json TEXT NOT NULL CHECK(json_valid(metadata_json)),
+    files_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(files_json)),
+    fetched_at TEXT NOT NULL,
+    UNIQUE(item_id,metadata_sha256,files_sha256),
+    FOREIGN KEY(item_id) REFERENCES internet_archive_items(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_internet_archive_item_versions_item ON internet_archive_item_versions(item_id,id DESC);
+
+CREATE TABLE internet_archive_files (
+    id BIGSERIAL PRIMARY KEY,
+    item_id BIGINT NOT NULL,
+    file_name TEXT NOT NULL,
+    format TEXT,
+    source_kind TEXT,
+    size_bytes INTEGER,
+    md5 TEXT,
+    sha1 TEXT,
+    crc32 TEXT,
+    mtime TEXT,
+    private_flag INTEGER NOT NULL DEFAULT 0 CHECK(private_flag IN (0,1)),
+    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata_json)),
+    source_uri TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(item_id,file_name),
+    FOREIGN KEY(item_id) REFERENCES internet_archive_items(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_internet_archive_files_format ON internet_archive_files(format);
+
+CREATE TABLE internet_archive_searches (
+    id BIGSERIAL PRIMARY KEY,
+    search_id TEXT NOT NULL UNIQUE,
+    query_text TEXT NOT NULL,
+    fields_json TEXT NOT NULL CHECK(json_valid(fields_json)),
+    sorts_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(sorts_json)),
+    page_number INTEGER NOT NULL CHECK(page_number >= 1),
+    row_limit INTEGER NOT NULL CHECK(row_limit BETWEEN 1 AND 1000),
+    num_found INTEGER NOT NULL DEFAULT 0 CHECK(num_found >= 0),
+    response_sha256 TEXT NOT NULL CHECK(length(response_sha256)=64),
+    source_uri TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
+CREATE INDEX idx_internet_archive_searches_query ON internet_archive_searches(query_text,id DESC);
+
+CREATE TABLE internet_archive_search_results (
+    id BIGSERIAL PRIMARY KEY,
+    search_id BIGINT NOT NULL,
+    position INTEGER NOT NULL CHECK(position >= 1),
+    item_identifier TEXT NOT NULL,
+    document_json TEXT NOT NULL CHECK(json_valid(document_json)),
+    UNIQUE(search_id,position),
+    FOREIGN KEY(search_id) REFERENCES internet_archive_searches(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_internet_archive_search_results_identifier ON internet_archive_search_results(item_identifier);
+
+CREATE TABLE wayback_queries (
+    id BIGSERIAL PRIMARY KEY,
+    query_id TEXT NOT NULL UNIQUE,
+    target_url TEXT NOT NULL,
+    query_type TEXT NOT NULL CHECK(query_type IN ('availability','cdx')),
+    params_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(params_json)),
+    response_sha256 TEXT NOT NULL CHECK(length(response_sha256)=64),
+    result_count INTEGER NOT NULL DEFAULT 0 CHECK(result_count >= 0),
+    source_uri TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
+CREATE INDEX idx_wayback_queries_target ON wayback_queries(target_url,id DESC);
+
+CREATE TABLE wayback_captures (
+    id BIGSERIAL PRIMARY KEY,
+    capture_id TEXT NOT NULL UNIQUE,
+    target_url TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    original_url TEXT NOT NULL,
+    mimetype TEXT,
+    status_code TEXT,
+    digest TEXT,
+    length_bytes INTEGER,
+    replay_url TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    UNIQUE(target_url,timestamp,original_url)
+);
+CREATE INDEX idx_wayback_captures_target_time ON wayback_captures(target_url,timestamp DESC);
+CREATE INDEX idx_wayback_captures_digest ON wayback_captures(digest);
+
+CREATE VIEW internet_archive_catalog_status AS
+SELECT
+    (SELECT COUNT(*) FROM internet_archive_items) AS item_count,
+    (SELECT COUNT(*) FROM internet_archive_files) AS file_count,
+    (SELECT COUNT(*) FROM internet_archive_searches) AS search_count,
+    (SELECT COUNT(*) FROM wayback_captures) AS wayback_capture_count,
+    (SELECT MAX(fetched_at) FROM internet_archive_searches) AS latest_search_at,
+    (SELECT MAX(fetched_at) FROM wayback_queries) AS latest_wayback_at;
+
+UPDATE platform_components
+SET current_version='2.3.0',
+    capabilities_json='["records","evidence","measurements","provenance","indicator-governance","observation-lineage","review-workflow","queries","exports","public-api","typed-handoffs","workspaces","connectors","external-source-adapters","conditional-http","adapter-pagination","internet-archive-catalog","internet-archive-metadata","internet-archive-file-inventory","wayback-availability","wayback-cdx-history","analysis-artifacts","offline-operations","backup-restore","postgresql-production-persistence","sqlite-portable-persistence","wordpress-data-integration","platform-manifest"]',
+    updated_at=((CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::text)
+WHERE component_id='component:catalyst-data';
+
+
 -- PostgreSQL equivalents for canonical SQLite governance triggers
 CREATE OR REPLACE FUNCTION catalyst_reject_mutation() RETURNS trigger AS $$
 BEGIN
@@ -2544,6 +2672,14 @@ DROP TRIGGER IF EXISTS catalyst_immutable_platform_events ON platform_events;
 CREATE TRIGGER catalyst_immutable_platform_events BEFORE UPDATE OR DELETE ON platform_events FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
 DROP TRIGGER IF EXISTS catalyst_immutable_connector_adapter_pages ON connector_adapter_pages;
 CREATE TRIGGER catalyst_immutable_connector_adapter_pages BEFORE UPDATE OR DELETE ON connector_adapter_pages FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
+DROP TRIGGER IF EXISTS catalyst_immutable_internet_archive_item_versions ON internet_archive_item_versions;
+CREATE TRIGGER catalyst_immutable_internet_archive_item_versions BEFORE UPDATE OR DELETE ON internet_archive_item_versions FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
+DROP TRIGGER IF EXISTS catalyst_immutable_internet_archive_searches ON internet_archive_searches;
+CREATE TRIGGER catalyst_immutable_internet_archive_searches BEFORE UPDATE OR DELETE ON internet_archive_searches FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
+DROP TRIGGER IF EXISTS catalyst_immutable_internet_archive_search_results ON internet_archive_search_results;
+CREATE TRIGGER catalyst_immutable_internet_archive_search_results BEFORE UPDATE OR DELETE ON internet_archive_search_results FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
+DROP TRIGGER IF EXISTS catalyst_immutable_wayback_queries ON wayback_queries;
+CREATE TRIGGER catalyst_immutable_wayback_queries BEFORE UPDATE OR DELETE ON wayback_queries FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
 DROP TRIGGER IF EXISTS catalyst_no_delete_handoff_receipts ON handoff_receipts;
 CREATE TRIGGER catalyst_no_delete_handoff_receipts BEFORE DELETE ON handoff_receipts FOR EACH ROW EXECUTE FUNCTION catalyst_reject_mutation();
 

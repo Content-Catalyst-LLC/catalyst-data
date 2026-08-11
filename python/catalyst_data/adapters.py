@@ -248,6 +248,13 @@ def default_adapter_registry() -> AdapterRegistry:
     registry = AdapterRegistry()
     registry.register(GenericHttpAdapter("json"))
     registry.register(GenericHttpAdapter("csv"))
+    # Provider adapters import lazily to avoid a circular dependency: the provider
+    # module extends SourceAdapter while this module owns the registry.
+    from .internet_archive import (InternetArchiveSearchAdapter, InternetArchiveMetadataAdapter, WaybackAvailabilityAdapter, WaybackCDXAdapter)
+    registry.register(InternetArchiveSearchAdapter())
+    registry.register(InternetArchiveMetadataAdapter())
+    registry.register(WaybackAvailabilityAdapter())
+    registry.register(WaybackCDXAdapter())
     return registry
 
 

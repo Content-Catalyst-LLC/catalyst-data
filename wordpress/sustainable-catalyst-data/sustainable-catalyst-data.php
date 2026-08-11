@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for the Catalyst Data public API, with health diagnostics, cached public records, and provenance-aware embeds.
- * Version: 2.2.0
+ * Description: Governed WordPress integration for Catalyst Data public records and archival intelligence, with health diagnostics, cached Archive.org/Wayback discovery, and provenance-aware embeds.
+ * Version: 2.3.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.2.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.3.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -162,8 +162,18 @@ function sustainable_catalyst_data_settings_page() {
                 <tr><th>Public records</th><td><?php echo esc_html(isset($health['record_count']) ? $health['record_count'] : 'unknown'); ?></td></tr>
             </tbody></table>
         <?php endif; ?>
+        <h2>Archive intelligence</h2>
+        <?php $archive = sustainable_catalyst_data_fetch('/v1/archive/status', array(), 30); ?>
+        <?php if (!is_wp_error($archive)) : ?>
+            <table class="widefat striped" style="max-width:760px"><tbody>
+                <tr><th>Internet Archive items</th><td><?php echo esc_html(isset($archive['item_count']) ? $archive['item_count'] : '0'); ?></td></tr>
+                <tr><th>Cataloged files</th><td><?php echo esc_html(isset($archive['file_count']) ? $archive['file_count'] : '0'); ?></td></tr>
+                <tr><th>Archived searches</th><td><?php echo esc_html(isset($archive['search_count']) ? $archive['search_count'] : '0'); ?></td></tr>
+                <tr><th>Wayback captures</th><td><?php echo esc_html(isset($archive['wayback_capture_count']) ? $archive['wayback_capture_count'] : '0'); ?></td></tr>
+            </tbody></table>
+        <?php endif; ?>
         <h2>Shortcodes</h2>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders a compact connection status.</p>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history for a URL.</p>
     </div>
     <?php
 }
@@ -195,10 +205,41 @@ function sustainable_catalyst_data_rest_record($request) {
     return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
 }
 
+function sustainable_catalyst_data_rest_archive_items($request) {
+    $query = sanitize_text_field((string) ($request->get_param('query') ?: ''));
+    $mediatype = sanitize_key((string) ($request->get_param('mediatype') ?: ''));
+    $limit = max(1, min(100, absint($request->get_param('limit') ?: 25)));
+    $offset = max(0, absint($request->get_param('offset') ?: 0));
+    $params = array('limit' => $limit, 'offset' => $offset);
+    if ($query !== '') { $params['query'] = $query; }
+    if ($mediatype !== '') { $params['mediatype'] = $mediatype; }
+    $payload = sustainable_catalyst_data_fetch('/v1/archive/items', $params);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
+function sustainable_catalyst_data_rest_archive_item($request) {
+    $identifier = sanitize_text_field((string) $request['identifier']);
+    $payload = sustainable_catalyst_data_fetch('/v1/archive/items/' . rawurlencode($identifier));
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
+function sustainable_catalyst_data_rest_wayback($request) {
+    $url = esc_url_raw((string) ($request->get_param('url') ?: ''));
+    if ($url === '') {
+        return sustainable_catalyst_data_rest_error(new WP_Error('catalyst_data_invalid_url', 'A valid URL is required.', array('status' => 400)));
+    }
+    $limit = max(1, min(250, absint($request->get_param('limit') ?: 25)));
+    $payload = sustainable_catalyst_data_fetch('/v1/wayback/captures', array('url' => $url, 'limit' => $limit));
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
 function sustainable_catalyst_data_register_rest_routes() {
     register_rest_route('sustainable-catalyst-data/v1', '/health', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_health', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/records', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_records', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/records/(?P<record_id>[A-Za-z0-9._:%-]+)', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_record', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/archive/items', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_archive_items', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/archive/items/(?P<identifier>[A-Za-z0-9._:%-]+)', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_archive_item', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/wayback/captures', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_wayback', 'permission_callback' => '__return_true'));
 }
 add_action('rest_api_init', 'sustainable_catalyst_data_register_rest_routes');
 
@@ -246,3 +287,62 @@ function sustainable_catalyst_data_status_shortcode() {
     return '<div class="scd-status"><strong>Catalyst Data:</strong> ' . esc_html($status) . ' · v' . esc_html($version) . '</div>';
 }
 add_shortcode('catalyst_data_status', 'sustainable_catalyst_data_status_shortcode');
+
+
+function sustainable_catalyst_data_archive_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('query' => '', 'mediatype' => '', 'limit' => '12', 'title' => 'Internet Archive'), $atts, 'catalyst_data_archive_search');
+    $limit = max(1, min(50, absint($atts['limit'])));
+    $params = array('limit' => $limit, 'offset' => 0);
+    if (trim((string) $atts['query']) !== '') { $params['query'] = sanitize_text_field($atts['query']); }
+    if (trim((string) $atts['mediatype']) !== '') { $params['mediatype'] = sanitize_key($atts['mediatype']); }
+    $payload = sustainable_catalyst_data_fetch('/v1/archive/items', $params);
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data Archive:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    $items = isset($payload['items']) && is_array($payload['items']) ? $payload['items'] : array();
+    ob_start(); ?>
+    <section class="scd scd--archive">
+        <header class="scd__header"><p class="scd__eyebrow">Archival Evidence</p><h2><?php echo esc_html($atts['title']); ?></h2><p>Cataloged Internet Archive records retained by Catalyst Data with source identity and retrieval provenance.</p></header>
+        <div class="scd__grid scd__grid--archive" role="list">
+        <?php foreach ($items as $item) : $title = !empty($item['title']) ? $item['title'] : ($item['item_identifier'] ?? 'Archive item'); ?>
+            <article class="scd__card" role="listitem">
+                <p class="scd__card-eyebrow"><?php echo esc_html(!empty($item['mediatype']) ? $item['mediatype'] : 'Archive item'); ?></p>
+                <h3><?php echo esc_html($title); ?></h3>
+                <?php if (!empty($item['creator'])) : ?><p class="scd__indicator"><?php echo esc_html(is_array($item['creator']) ? implode(', ', array_map('sanitize_text_field', $item['creator'])) : $item['creator']); ?></p><?php endif; ?>
+                <?php if (!empty($item['item_date'])) : ?><p class="scd__archive-date"><?php echo esc_html($item['item_date']); ?></p><?php endif; ?>
+                <?php if (!empty($item['description'])) : ?><p class="scd__archive-description"><?php echo esc_html(wp_trim_words(wp_strip_all_tags((string) $item['description']), 30)); ?></p><?php endif; ?>
+                <?php if (!empty($item['source_uri'])) : ?><a class="scd__source" href="<?php echo esc_url($item['source_uri']); ?>" target="_blank" rel="noopener noreferrer">View source ↗</a><?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$items) : ?><p class="scd__notice">No matching Internet Archive items are cached in Catalyst Data yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_archive_search', 'sustainable_catalyst_data_archive_shortcode');
+
+function sustainable_catalyst_data_wayback_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('url' => '', 'limit' => '20', 'title' => 'Wayback History'), $atts, 'catalyst_data_wayback');
+    $url = esc_url_raw(trim((string) $atts['url']));
+    if ($url === '') { return '<div class="scd-status scd-status--attention"><strong>Wayback:</strong> shortcode requires a URL.</div>'; }
+    $limit = max(1, min(100, absint($atts['limit'])));
+    $payload = sustainable_catalyst_data_fetch('/v1/wayback/captures', array('url' => $url, 'limit' => $limit));
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Wayback:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    $captures = isset($payload['captures']) && is_array($payload['captures']) ? $payload['captures'] : array();
+    ob_start(); ?>
+    <section class="scd scd--wayback">
+        <header class="scd__header"><p class="scd__eyebrow">Temporal Evidence</p><h2><?php echo esc_html($atts['title']); ?></h2><p class="scd__wayback-target"><?php echo esc_html($url); ?></p></header>
+        <ol class="scd__timeline">
+        <?php foreach ($captures as $capture) : ?>
+            <li class="scd__timeline-item">
+                <time><?php echo esc_html(isset($capture['timestamp']) ? $capture['timestamp'] : 'Unknown timestamp'); ?></time>
+                <span><?php echo esc_html(isset($capture['status_code']) && $capture['status_code'] ? 'HTTP ' . $capture['status_code'] : 'Archived capture'); ?></span>
+                <?php if (!empty($capture['replay_url'])) : ?><a href="<?php echo esc_url($capture['replay_url']); ?>" target="_blank" rel="noopener noreferrer">Open capture ↗</a><?php endif; ?>
+            </li>
+        <?php endforeach; ?>
+        </ol>
+        <?php if (!$captures) : ?><p class="scd__notice">No cached Wayback captures are available for this URL yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_wayback', 'sustainable_catalyst_data_wayback_shortcode');

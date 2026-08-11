@@ -114,7 +114,7 @@ class MigrationManager:
         if current == 0:
             if destination != self.latest_version:
                 raise MigrationError(
-                    "PostgreSQL v2.2 initializes from the complete production baseline; target must be the latest migration"
+                    "PostgreSQL initializes from the complete production baseline; target must be the latest migration"
                 )
             schema = files("catalyst_data").joinpath("postgresql", "schema.sql").read_text(encoding="utf-8")
             ledger = "\n".join(
@@ -130,7 +130,7 @@ class MigrationManager:
         applied: list[int] = []
         for migration in self.migrations:
             if current < migration.version <= destination:
-                # v2.2 is the first PostgreSQL release. New dialect-neutral migrations
+                # v2.1 introduced the PostgreSQL baseline. New dialect-neutral migrations
                 # can be applied incrementally after the production baseline.
                 try:
                     script = translate_sql_for_postgresql(migration.up_sql) + "\n" + (
@@ -181,7 +181,7 @@ class MigrationManager:
         current = self.current_version
         destination = max(0, current - steps)
         if isinstance(self.connection, PostgresConnection):
-            # There was no supported PostgreSQL schema before v2.2. We permit
+            # There was no supported PostgreSQL schema before v2.1. We permit
             # rolling back migrations added after the baseline version only.
             if destination < 13:
                 raise MigrationError(

@@ -1,4 +1,4 @@
--- Catalyst Data v2.2.0 current schema snapshot
+-- Catalyst Data v2.3.0 current schema snapshot
 -- Repository initialization uses ordered migrations in python/catalyst_data/migrations.
 PRAGMA foreign_keys = ON;
 BEGIN TRANSACTION;
@@ -1659,6 +1659,173 @@ CREATE TABLE storage_migration_events (
     finished_at TEXT
 );
 
+CREATE TABLE connector_adapter_bindings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    binding_id TEXT NOT NULL UNIQUE,
+    connector_id INTEGER NOT NULL UNIQUE,
+    adapter_id TEXT NOT NULL,
+    adapter_version TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','paused','disabled')),
+    config_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(config_json)),
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(connector_id) REFERENCES connector_definitions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE connector_adapter_state (
+    connector_id INTEGER PRIMARY KEY,
+    state_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(state_json)),
+    etag TEXT,
+    last_modified TEXT,
+    last_request_uri TEXT,
+    last_success_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(connector_id) REFERENCES connector_definitions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE connector_adapter_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    adapter_run_id TEXT NOT NULL UNIQUE,
+    connector_id INTEGER NOT NULL,
+    adapter_id TEXT NOT NULL,
+    adapter_version TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('running','succeeded','failed','cancelled')),
+    page_count INTEGER NOT NULL DEFAULT 0 CHECK(page_count >= 0),
+    row_count INTEGER NOT NULL DEFAULT 0 CHECK(row_count >= 0),
+    connector_run_id INTEGER,
+    last_request_uri TEXT,
+    checkpoint_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(checkpoint_json)),
+    error_class TEXT,
+    error_message TEXT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    FOREIGN KEY(connector_id) REFERENCES connector_definitions(id) ON DELETE CASCADE,
+    FOREIGN KEY(connector_run_id) REFERENCES connector_runs(id) ON DELETE SET NULL
+);
+
+CREATE TABLE connector_adapter_pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    page_id TEXT NOT NULL UNIQUE,
+    adapter_run_id INTEGER NOT NULL,
+    page_number INTEGER NOT NULL CHECK(page_number >= 1),
+    request_uri TEXT NOT NULL,
+    response_status INTEGER NOT NULL,
+    response_headers_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(response_headers_json)),
+    content_type TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL CHECK(length(payload_sha256)=64),
+    payload_bytes INTEGER NOT NULL CHECK(payload_bytes >= 0),
+    row_count INTEGER NOT NULL CHECK(row_count >= 0),
+    etag TEXT,
+    last_modified TEXT,
+    next_cursor_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(next_cursor_json)),
+    fetched_at TEXT NOT NULL,
+    UNIQUE(adapter_run_id,page_number),
+    FOREIGN KEY(adapter_run_id) REFERENCES connector_adapter_runs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE internet_archive_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_identifier TEXT NOT NULL UNIQUE,
+    title TEXT,
+    mediatype TEXT,
+    creator_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(creator_json)),
+    item_date TEXT,
+    description TEXT,
+    collection_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(collection_json)),
+    subject_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(subject_json)),
+    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata_json)),
+    metadata_sha256 TEXT NOT NULL CHECK(length(metadata_sha256)=64),
+    source_uri TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE internet_archive_item_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version_id TEXT NOT NULL UNIQUE,
+    item_id INTEGER NOT NULL,
+    metadata_sha256 TEXT NOT NULL CHECK(length(metadata_sha256)=64),
+    files_sha256 TEXT NOT NULL CHECK(length(files_sha256)=64),
+    metadata_json TEXT NOT NULL CHECK(json_valid(metadata_json)),
+    files_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(files_json)),
+    fetched_at TEXT NOT NULL,
+    UNIQUE(item_id,metadata_sha256,files_sha256),
+    FOREIGN KEY(item_id) REFERENCES internet_archive_items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE internet_archive_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    format TEXT,
+    source_kind TEXT,
+    size_bytes INTEGER,
+    md5 TEXT,
+    sha1 TEXT,
+    crc32 TEXT,
+    mtime TEXT,
+    private_flag INTEGER NOT NULL DEFAULT 0 CHECK(private_flag IN (0,1)),
+    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata_json)),
+    source_uri TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(item_id,file_name),
+    FOREIGN KEY(item_id) REFERENCES internet_archive_items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE internet_archive_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_id TEXT NOT NULL UNIQUE,
+    query_text TEXT NOT NULL,
+    fields_json TEXT NOT NULL CHECK(json_valid(fields_json)),
+    sorts_json TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(sorts_json)),
+    page_number INTEGER NOT NULL CHECK(page_number >= 1),
+    row_limit INTEGER NOT NULL CHECK(row_limit BETWEEN 1 AND 1000),
+    num_found INTEGER NOT NULL DEFAULT 0 CHECK(num_found >= 0),
+    response_sha256 TEXT NOT NULL CHECK(length(response_sha256)=64),
+    source_uri TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
+
+CREATE TABLE internet_archive_search_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_id INTEGER NOT NULL,
+    position INTEGER NOT NULL CHECK(position >= 1),
+    item_identifier TEXT NOT NULL,
+    document_json TEXT NOT NULL CHECK(json_valid(document_json)),
+    UNIQUE(search_id,position),
+    FOREIGN KEY(search_id) REFERENCES internet_archive_searches(id) ON DELETE CASCADE
+);
+
+CREATE TABLE wayback_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_id TEXT NOT NULL UNIQUE,
+    target_url TEXT NOT NULL,
+    query_type TEXT NOT NULL CHECK(query_type IN ('availability','cdx')),
+    params_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(params_json)),
+    response_sha256 TEXT NOT NULL CHECK(length(response_sha256)=64),
+    result_count INTEGER NOT NULL DEFAULT 0 CHECK(result_count >= 0),
+    source_uri TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
+
+CREATE TABLE wayback_captures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    capture_id TEXT NOT NULL UNIQUE,
+    target_url TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    original_url TEXT NOT NULL,
+    mimetype TEXT,
+    status_code TEXT,
+    digest TEXT,
+    length_bytes INTEGER,
+    replay_url TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    UNIQUE(target_url,timestamp,original_url)
+);
+
 CREATE INDEX idx_measurements_entity ON measurements(entity_id);
 
 CREATE INDEX idx_measurements_indicator ON measurements(indicator_id);
@@ -1831,6 +1998,30 @@ CREATE INDEX platform_integrity_status_idx ON platform_integrity_checks(status, 
 CREATE INDEX platform_events_component_idx ON platform_events(component_id, id DESC);
 
 CREATE INDEX idx_storage_migration_events_status ON storage_migration_events(status, id);
+
+CREATE INDEX idx_connector_adapter_bindings_adapter ON connector_adapter_bindings(adapter_id,status);
+
+CREATE INDEX idx_connector_adapter_runs_connector ON connector_adapter_runs(connector_id,id DESC);
+
+CREATE INDEX idx_connector_adapter_runs_status ON connector_adapter_runs(status,id DESC);
+
+CREATE INDEX idx_internet_archive_items_title ON internet_archive_items(title);
+
+CREATE INDEX idx_internet_archive_items_mediatype ON internet_archive_items(mediatype,item_date);
+
+CREATE INDEX idx_internet_archive_item_versions_item ON internet_archive_item_versions(item_id,id DESC);
+
+CREATE INDEX idx_internet_archive_files_format ON internet_archive_files(format);
+
+CREATE INDEX idx_internet_archive_searches_query ON internet_archive_searches(query_text,id DESC);
+
+CREATE INDEX idx_internet_archive_search_results_identifier ON internet_archive_search_results(item_identifier);
+
+CREATE INDEX idx_wayback_queries_target ON wayback_queries(target_url,id DESC);
+
+CREATE INDEX idx_wayback_captures_target_time ON wayback_captures(target_url,timestamp DESC);
+
+CREATE INDEX idx_wayback_captures_digest ON wayback_captures(digest);
 
 CREATE TRIGGER source_versions_immutable_update BEFORE UPDATE ON source_versions BEGIN SELECT RAISE(ABORT, 'source_versions are immutable'); END;
 
@@ -2135,6 +2326,42 @@ BEFORE UPDATE ON platform_events BEGIN SELECT RAISE(ABORT, 'platform events are 
 CREATE TRIGGER platform_events_immutable_delete
 BEFORE DELETE ON platform_events BEGIN SELECT RAISE(ABORT, 'platform events are immutable'); END;
 
+CREATE TRIGGER connector_adapter_pages_immutable_update
+BEFORE UPDATE ON connector_adapter_pages
+BEGIN
+    SELECT RAISE(ABORT, 'connector adapter pages are immutable');
+END;
+
+CREATE TRIGGER connector_adapter_pages_immutable_delete
+BEFORE DELETE ON connector_adapter_pages
+BEGIN
+    SELECT RAISE(ABORT, 'connector adapter pages are immutable');
+END;
+
+CREATE TRIGGER internet_archive_item_versions_immutable_update
+BEFORE UPDATE ON internet_archive_item_versions BEGIN SELECT RAISE(ABORT, 'internet archive item versions are immutable'); END;
+
+CREATE TRIGGER internet_archive_item_versions_immutable_delete
+BEFORE DELETE ON internet_archive_item_versions BEGIN SELECT RAISE(ABORT, 'internet archive item versions are immutable'); END;
+
+CREATE TRIGGER internet_archive_searches_immutable_update
+BEFORE UPDATE ON internet_archive_searches BEGIN SELECT RAISE(ABORT, 'internet archive searches are immutable'); END;
+
+CREATE TRIGGER internet_archive_searches_immutable_delete
+BEFORE DELETE ON internet_archive_searches BEGIN SELECT RAISE(ABORT, 'internet archive searches are immutable'); END;
+
+CREATE TRIGGER internet_archive_search_results_immutable_update
+BEFORE UPDATE ON internet_archive_search_results BEGIN SELECT RAISE(ABORT, 'internet archive search results are immutable'); END;
+
+CREATE TRIGGER internet_archive_search_results_immutable_delete
+BEFORE DELETE ON internet_archive_search_results BEGIN SELECT RAISE(ABORT, 'internet archive search results are immutable'); END;
+
+CREATE TRIGGER wayback_queries_immutable_update
+BEFORE UPDATE ON wayback_queries BEGIN SELECT RAISE(ABORT, 'wayback queries are immutable'); END;
+
+CREATE TRIGGER wayback_queries_immutable_delete
+BEFORE DELETE ON wayback_queries BEGIN SELECT RAISE(ABORT, 'wayback queries are immutable'); END;
+
 CREATE VIEW evidence_chain_summary AS
 SELECT
     m.id AS measurement_id,
@@ -2405,6 +2632,37 @@ SELECT
     (SELECT COUNT(*) FROM platform_release_snapshots) AS release_snapshots,
     (SELECT COUNT(*) FROM platform_integrity_checks WHERE status='fail') AS failed_checks,
     (SELECT COUNT(*) FROM platform_integrity_checks WHERE status='warning') AS warning_checks;
+
+CREATE VIEW connector_adapter_operational_status AS
+SELECT
+    cab.binding_id,
+    cd.connector_id,
+    cd.name AS connector_name,
+    cab.adapter_id,
+    cab.adapter_version,
+    cab.status,
+    cas.last_request_uri,
+    cas.last_success_at,
+    car.adapter_run_id AS latest_adapter_run_id,
+    car.status AS latest_adapter_run_status,
+    car.page_count AS latest_page_count,
+    car.row_count AS latest_row_count,
+    car.finished_at AS latest_finished_at
+FROM connector_adapter_bindings cab
+JOIN connector_definitions cd ON cd.id=cab.connector_id
+LEFT JOIN connector_adapter_state cas ON cas.connector_id=cab.connector_id
+LEFT JOIN connector_adapter_runs car ON car.id=(
+    SELECT r.id FROM connector_adapter_runs r WHERE r.connector_id=cab.connector_id ORDER BY r.id DESC LIMIT 1
+);
+
+CREATE VIEW internet_archive_catalog_status AS
+SELECT
+    (SELECT COUNT(*) FROM internet_archive_items) AS item_count,
+    (SELECT COUNT(*) FROM internet_archive_files) AS file_count,
+    (SELECT COUNT(*) FROM internet_archive_searches) AS search_count,
+    (SELECT COUNT(*) FROM wayback_captures) AS wayback_capture_count,
+    (SELECT MAX(fetched_at) FROM internet_archive_searches) AS latest_search_at,
+    (SELECT MAX(fetched_at) FROM wayback_queries) AS latest_wayback_at;
 COMMIT;
 
 -- BEGIN GENERATED REVIEW CONTRACT

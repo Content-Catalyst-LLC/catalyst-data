@@ -1,3 +1,14 @@
+# Changelog
+
+## 2.3.0 — Internet Archive & Wayback Intelligence
+
+- Added provider-specific Internet Archive Advanced Search and Metadata adapters.
+- Added Wayback availability and CDX history adapters.
+- Added catalog-first Archive.org item, version, file, search, and Wayback capture persistence.
+- Added CLI and public cached-discovery API surfaces.
+- Added WordPress archive-discovery and Wayback-history hooks.
+- Preserved v2.2 adapter, PostgreSQL/SQLite, provenance, and WordPress boundaries.
+
 ## 2.2.0 — External Source Adapter Framework & WordPress Integration Foundation
 
 - Added a governed source-adapter SDK layered over the existing connector engine.
@@ -8,8 +19,6 @@
 - Added adapter CLI commands and authenticated public API operations.
 - Added the production-oriented **Sustainable Catalyst Data** WordPress plugin with server-side safe proxying, caching, health/version diagnostics, and backward-compatible embed shortcode support.
 - Kept database credentials and private Catalyst API bearer tokens outside WordPress.
-
-# Changelog
 
 ## 2.1.0 — PostgreSQL Production Persistence & Storage Abstraction
 

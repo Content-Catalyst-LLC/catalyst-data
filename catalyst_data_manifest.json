@@ -1,6 +1,6 @@
 {
   "name": "Catalyst Data",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
@@ -311,5 +311,12 @@
   "source_adapter_contract": "catalyst-data-source-adapter/1.0",
   "source_adapter_schema": "schemas/catalyst_data_source_adapter_1_0.schema.json",
   "wordpress_plugin": "dist/sustainable-catalyst-data.zip",
-  "wordpress_api_boundary": "public read-only WordPress REST proxy; no PostgreSQL credentials or private Catalyst bearer tokens stored in WordPress"
+  "wordpress_api_boundary": "public read-only WordPress REST proxy; no PostgreSQL credentials or private Catalyst bearer tokens stored in WordPress",
+  "capabilities": [
+    "internet-archive-catalog",
+    "internet-archive-metadata",
+    "internet-archive-file-inventory",
+    "wayback-availability",
+    "wayback-cdx-history"
+  ]
 }

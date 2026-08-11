@@ -4,7 +4,7 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.2.0 — External Source Adapter Framework & WordPress Integration Foundation**
+**v2.3.0 — Internet Archive & Wayback Intelligence**
 
 The release adds PostgreSQL as the production persistence backend without abandoning SQLite. Existing repository, importer, connector, review, analysis, workspace, API, and platform contracts continue to operate through one database boundary; SQLite remains supported for development, testing, offline use, recovery, and portable evidence packages.
 
@@ -264,8 +264,13 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.2.0 adds governed external-source adapters and a production-oriented WordPress integration on top of PostgreSQL/SQLite persistence and the connected capability registry without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.3.0 adds Internet Archive catalog intelligence and Wayback temporal evidence on top of the governed adapter framework, PostgreSQL/SQLite persistence, and production WordPress integration without claiming legal or regulatory compliance.
 
 ## License
 
 MIT — see `LICENSE`.
+
+
+## Internet Archive and Wayback
+
+See `docs/internet-archive-wayback-intelligence.md`. Catalyst Data catalogs Archive.org items and files and stores Wayback capture history without mass-copying source files.

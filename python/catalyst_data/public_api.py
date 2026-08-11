@@ -23,6 +23,7 @@ from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService
 from .adapters import AdapterError, AdapterRunner
 from .platform import PlatformError, PlatformService
+from .internet_archive import InternetArchiveError, InternetArchiveService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -93,6 +94,10 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/adapters/bindings": {"get": {"summary": "List source-adapter bindings for the authenticated workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Bindings"}}}},
             "/v1/adapters/runs": {"get": {"summary": "List source-adapter runs for the authenticated workspace", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Adapter runs"}}}},
             "/v1/adapters/{connector_id}/run": {"post": {"summary": "Fetch through the bound source adapter and ingest through the connector engine", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Adapter and connector run result"}}}},
+            "/v1/archive/status": {"get": {"summary": "Cached Internet Archive and Wayback catalog status", "responses": {"200": {"description": "Archive catalog status"}}}},
+            "/v1/archive/items": {"get": {"summary": "Search cached Internet Archive catalog items", "responses": {"200": {"description": "Cached Archive.org items"}}}},
+            "/v1/archive/items/{identifier}": {"get": {"summary": "Get one cached Archive.org item and file inventory", "responses": {"200": {"description": "Cached Archive.org item"}, "404": {"description": "Not cached"}}}},
+            "/v1/wayback/captures": {"get": {"summary": "List cached Wayback captures for a URL", "responses": {"200": {"description": "Cached Wayback captures"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -268,7 +273,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(401, "unauthorized", "A platform:read bearer token is required"); return
                 self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -329,6 +334,24 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 allowed = {item["connector_id"] for item in ConnectorService(self.server.repository).list(workspace_id=client.workspace_id)}
                 runs = [item for item in AdapterRunner(self.server.repository).runs(connector_id=connector_id, limit=100) if item["connector_id"] in allowed]
                 self._json(200, {"workspace_id": client.workspace_id, "runs": runs, "total": len(runs)}); return
+            if path == "/v1/archive/status":
+                self._json(200, InternetArchiveService(self.server.repository).status()); return
+            if path == "/v1/archive/items":
+                query = parse_qs(parsed.query); text = query.get("query", [None])[0]; mediatype = query.get("mediatype", [None])[0]; limit = min(100,max(1,int(query.get("limit",[25])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=InternetArchiveService(self.server.repository).items(query=text,mediatype=mediatype,limit=limit,offset=offset)
+                self._json(200,{"items":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path.startswith("/v1/archive/items/"):
+                identifier=unquote(path[len("/v1/archive/items/"):])
+                try: item=InternetArchiveService(self.server.repository).item(identifier,include_files=True)
+                except InternetArchiveError:
+                    self._error(404,"archive-item-not-cached","Archive.org item is not cached"); return
+                self._json(200,item); return
+            if path == "/v1/wayback/captures":
+                query=parse_qs(parsed.query); target=query.get("url",[None])[0]
+                if not target:
+                    self._error(400,"invalid-request","url is required"); return
+                limit=min(1000,max(1,int(query.get("limit",[100])[0]))); captures=InternetArchiveService(self.server.repository).wayback_captures(target,limit=limit)
+                self._json(200,{"url":target,"captures":captures,"total":len(captures)}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -347,7 +370,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error, PlatformError, AdapterError) as exc:
+        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:
@@ -431,7 +454,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 result = self.server.registry.receive_handoff(self._body())
                 self._json(202, result); self.server.registry.audit(method="POST",path=path,status_code=202,client=client,scope="handoffs:write",handoff_id=result["handoff_id"],remote_address=self.client_address[0]); return
             self._error(404, "not-found", "Endpoint not found")
-        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, sqlite3.Error) as exc:
+        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, InternetArchiveError, sqlite3.Error) as exc:
             self._error(400, "invalid-request", str(exc))
             try: self.server.registry.audit(method="POST",path=path,status_code=400,client=client,remote_address=self.client_address[0],details={"error": str(exc)})
             except Exception: pass

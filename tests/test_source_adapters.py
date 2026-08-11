@@ -68,7 +68,7 @@ def metric(record_id: str, current: float) -> dict:
 
 def test_builtin_adapter_registry_exposes_governed_manifests():
     manifests = default_adapter_registry().list()
-    assert [item["adapter_id"] for item in manifests] == ["generic-http-csv", "generic-http-json"]
+    assert [item["adapter_id"] for item in manifests] == ["generic-http-csv", "generic-http-json", "internet-archive-metadata", "internet-archive-search", "wayback-availability", "wayback-cdx"]
     assert all(item["schema_version"] == "catalyst-data-source-adapter/1.0" for item in manifests)
     assert "conditional-get" in manifests[1]["capabilities"]
     assert set(manifests[1]["pagination"]) == {"none", "page", "offset", "cursor"}

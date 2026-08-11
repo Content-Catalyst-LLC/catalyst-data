@@ -21,6 +21,7 @@ from .analysis_artifacts import AnalysisArtifactError, AnalysisArtifactService
 from .operations import OperationalError, OperationalService
 from .platform import PlatformError, PlatformService
 from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgresql
+from .internet_archive import InternetArchiveError, InternetArchiveService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -391,6 +392,30 @@ def parser() -> argparse.ArgumentParser:
     adapter_run_show = subparsers.add_parser("adapter-run-show", help="show one source adapter run and page metadata")
     adapter_run_show.add_argument("database", type=str); adapter_run_show.add_argument("adapter_run_id")
 
+    archive_search = subparsers.add_parser("archive-search", help="search Archive.org and persist catalog results")
+    archive_search.add_argument("database", type=str); archive_search.add_argument("query"); archive_search.add_argument("--rows", type=int, default=25); archive_search.add_argument("--page", type=int, default=1); archive_search.add_argument("--sort", action="append", dest="sorts")
+
+    archive_item_fetch = subparsers.add_parser("archive-item-fetch", help="fetch and version an Archive.org item metadata/file inventory")
+    archive_item_fetch.add_argument("database", type=str); archive_item_fetch.add_argument("identifier")
+
+    archive_items = subparsers.add_parser("archive-items", help="list cached Archive.org catalog items")
+    archive_items.add_argument("database", type=str); archive_items.add_argument("--query"); archive_items.add_argument("--mediatype"); archive_items.add_argument("--limit", type=int, default=25); archive_items.add_argument("--offset", type=int, default=0)
+
+    archive_item = subparsers.add_parser("archive-item", help="show one cached Archive.org item")
+    archive_item.add_argument("database", type=str); archive_item.add_argument("identifier"); archive_item.add_argument("--no-files", action="store_true")
+
+    archive_status = subparsers.add_parser("archive-status", help="show Internet Archive and Wayback catalog counts")
+    archive_status.add_argument("database", type=str)
+
+    wayback_available = subparsers.add_parser("wayback-available", help="check Wayback availability and persist the closest snapshot")
+    wayback_available.add_argument("database", type=str); wayback_available.add_argument("url"); wayback_available.add_argument("--timestamp")
+
+    wayback_fetch = subparsers.add_parser("wayback-fetch", help="fetch and persist Wayback CDX capture history")
+    wayback_fetch.add_argument("database", type=str); wayback_fetch.add_argument("url"); wayback_fetch.add_argument("--limit", type=int, default=100)
+
+    wayback_captures = subparsers.add_parser("wayback-captures", help="list cached Wayback captures")
+    wayback_captures.add_argument("database", type=str); wayback_captures.add_argument("url"); wayback_captures.add_argument("--limit", type=int, default=100)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -564,7 +589,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -848,6 +873,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(AdapterRunner(repository).runs(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         if args.command == "adapter-run-show":
             print(json.dumps(AdapterRunner(repository).run_details(args.adapter_run_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "archive-search":
+            print(json.dumps(InternetArchiveService(repository).search(args.query,rows=args.rows,page=args.page,sorts=args.sorts or ()),indent=2,ensure_ascii=False)); return 0
+        if args.command == "archive-item-fetch":
+            print(json.dumps(InternetArchiveService(repository).fetch_item(args.identifier),indent=2,ensure_ascii=False)); return 0
+        if args.command == "archive-items":
+            print(json.dumps(InternetArchiveService(repository).items(query=args.query,mediatype=args.mediatype,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "archive-item":
+            print(json.dumps(InternetArchiveService(repository).item(args.identifier,include_files=not args.no_files),indent=2,ensure_ascii=False)); return 0
+        if args.command == "archive-status":
+            print(json.dumps(InternetArchiveService(repository).status(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "wayback-available":
+            print(json.dumps(InternetArchiveService(repository).wayback_available(args.url,timestamp=args.timestamp),indent=2,ensure_ascii=False)); return 0
+        if args.command == "wayback-fetch":
+            print(json.dumps(InternetArchiveService(repository).fetch_wayback_captures(args.url,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "wayback-captures":
+            print(json.dumps(InternetArchiveService(repository).wayback_captures(args.url,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
