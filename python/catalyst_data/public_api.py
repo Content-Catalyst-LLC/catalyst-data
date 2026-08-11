@@ -241,7 +241,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
         try:
             if path == "/health":
                 health = self.server.repository.health()
-                self._json(200, {"status": "ok" if health.healthy else "attention", "version": __version__, "migration_version": health.migration_version, "latest_migration": health.latest_migration, "record_count": health.record_count})
+                self._json(200, {"status": "ok" if health.healthy else "attention", "version": __version__, "database_backend": health.backend, "migration_version": health.migration_version, "latest_migration": health.latest_migration, "record_count": health.record_count})
                 return
             if path in ("/openapi.json", "/v1/openapi.json", "/v2/openapi.json"):
                 self._json(200, openapi_document(self.server.public_base_url)); return
@@ -263,7 +263,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(401, "unauthorized", "A platform:read bearer token is required"); return
                 self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:

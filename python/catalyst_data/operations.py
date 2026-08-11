@@ -64,6 +64,10 @@ class OperationalService:
 
     def create_backup(self, destination: str | Path, *, actor: str = "principal:system") -> dict[str, Any]:
         self.repository.initialize()
+        if self.repository.backend == "postgresql":
+            raise OperationalError(
+                "file-level backup-create is SQLite-only; use the managed PostgreSQL provider backup/PITR workflow and record the recovery policy in deployment documentation"
+            )
         destination = Path(destination).expanduser().resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination == self.repository.path.resolve():
@@ -160,6 +164,10 @@ class OperationalService:
         actor: str = "principal:system",
         force: bool = False,
     ) -> dict[str, Any]:
+        if self.repository.backend == "postgresql" and target is None:
+            raise OperationalError(
+                "file-level restore is SQLite-only; restore PostgreSQL with the managed provider recovery/PITR workflow"
+            )
         verification = self.verify_backup(backup)
         backup_path = Path(backup).expanduser().resolve()
         target_path = Path(target or self.repository.path).expanduser().resolve()
@@ -426,7 +434,13 @@ class OperationalService:
         if integrity != "ok": status = "fail"
         elif metrics["record_page_ms"]["max"] > 1000 or metrics["stats_ms"]["max"] > 1000: status = "warning"
         benchmark_id = _id("benchmark")
-        environment = {"python": platform.python_version(), "platform": platform.platform(), "sqlite": sqlite3.sqlite_version}
+        environment = {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "database_backend": self.repository.backend,
+            "sqlite": sqlite3.sqlite_version if self.repository.backend == "sqlite" else None,
+            "server_version": self.repository.health().server_version if self.repository.backend == "postgresql" else None,
+        }
         with closing(connect(self.repository.path)) as connection, transaction(connection):
             metadata = connection.execute("SELECT repository_id FROM repository_metadata WHERE id=1").fetchone()
             connection.execute(
@@ -461,10 +475,14 @@ class OperationalService:
                 if any(key in auth for key in ("token", "password", "secret", "api_key")):
                     embedded += 1
             checks.append({"name": "connector-secret-storage", "status": "pass" if embedded == 0 else "fail", "details": {"embedded_secret_definitions": embedded}})
-            mode = str(connection.execute("PRAGMA journal_mode").fetchone()[0]).lower()
-            checks.append({"name": "sqlite-journal-mode", "status": "pass" if mode in {"wal", "delete"} else "warning", "details": {"journal_mode": mode}})
-        if os.name == "posix":
-            permissions = self.repository.path.stat().st_mode & 0o777
+            if self.repository.backend == "sqlite":
+                mode = str(connection.execute("PRAGMA journal_mode").fetchone()[0]).lower()
+                checks.append({"name": "sqlite-journal-mode", "status": "pass" if mode in {"wal", "delete"} else "warning", "details": {"journal_mode": mode}})
+            else:
+                version = connection.execute("SHOW server_version").fetchone()
+                checks.append({"name": "postgresql-connectivity", "status": "pass", "details": {"server_version": version[0] if version else None}})
+        if self.repository.backend == "sqlite" and os.name == "posix":
+            permissions = Path(self.repository.path).stat().st_mode & 0o777
             writable = bool(permissions & 0o022)
             checks.append({"name": "database-file-permissions", "status": "warning" if writable else "pass", "details": {"mode": oct(permissions)}})
         created_at = _now()
@@ -511,8 +529,13 @@ class OperationalService:
         sbom = {
             "format": "catalyst-data-sbom/1.0",
             "component": {"name": "catalyst-data", "version": __version__, "type": "application"},
-            "runtime": {"python": platform.python_version(), "sqlite": sqlite3.sqlite_version},
-            "declared_dependencies": ["jsonschema>=4.21"],
+            "runtime": {
+                "python": platform.python_version(),
+                "database_backend": self.repository.backend,
+                "sqlite": sqlite3.sqlite_version if self.repository.backend == "sqlite" else None,
+                "postgresql": self.repository.health().server_version if self.repository.backend == "postgresql" else None,
+            },
+            "declared_dependencies": ["jsonschema>=4.21", "psycopg[binary]>=3.2"],
             "package_modules": sorted(path.stem for path in (root / "python/catalyst_data").glob("*.py")) if (root / "python/catalyst_data").exists() else [],
         }
         attestation_id = _id("attestation")

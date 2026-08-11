@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "2.0.0"
+    assert version == "2.1.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -147,7 +147,7 @@ def test_wordpress_embed_has_accessible_offline_controls():
     assert ":focus-visible" in css
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v2.0.0.md").exists()
+    assert (ROOT / "release/v2.1.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -166,6 +166,7 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/backup-restore-recovery.md").exists()
     assert (ROOT / "docs/accessibility-offline-performance.md").exists()
     assert (ROOT / "docs/connected-evidence-measurement-platform.md").exists()
+    assert (ROOT / "docs/postgresql-production-persistence.md").exists()
     assert (ROOT / "openapi/catalyst-data-openapi.json").exists()
 
 def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
@@ -180,6 +181,7 @@ def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
 def test_python_package_declares_migration_resources():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"migrations/*.sql"' in pyproject
+    assert '"postgresql/*.sql"' in pyproject
     migrations = sorted((ROOT / "python/catalyst_data/migrations").glob("*.sql"))
     assert [path.name for path in migrations] == [
         "001_core_schema.down.sql",
@@ -208,4 +210,6 @@ def test_python_package_declares_migration_resources():
         "012_accessibility_offline_performance_hardening.up.sql",
         "013_connected_evidence_measurement_platform.down.sql",
         "013_connected_evidence_measurement_platform.up.sql",
+        "014_postgresql_storage_abstraction.down.sql",
+        "014_postgresql_storage_abstraction.up.sql",
     ]

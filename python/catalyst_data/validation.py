@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from importlib import resources
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 from ._record_contract import (
     EXTENSION_KEY_PATTERN,
@@ -70,6 +71,22 @@ def _iso_datetime(value: Any, field: str) -> datetime:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise RecordValidationError(f"{field} must be an ISO 8601 date-time") from exc
+
+
+def _absolute_uri(value: Any, field: str) -> None:
+    """Enforce the canonical URI contract even when jsonschema format extras are absent."""
+    if value is None:
+        return
+    if not isinstance(value, str) or not value or any(char.isspace() for char in value):
+        raise RecordValidationError(f"{field} must be a valid absolute uri")
+    try:
+        parsed = urlsplit(value)
+    except ValueError as exc:
+        raise RecordValidationError(f"{field} must be a valid absolute uri") from exc
+    if not parsed.scheme or not re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", parsed.scheme):
+        raise RecordValidationError(f"{field} must be a valid absolute uri")
+    if parsed.scheme.lower() in {"http", "https", "ftp"} and not parsed.netloc:
+        raise RecordValidationError(f"{field} must be a valid absolute uri")
 
 
 def _strict_fallback(record: Mapping[str, Any]) -> None:
@@ -248,6 +265,16 @@ def validate_record(record: Mapping[str, Any]) -> None:
             raise RecordValidationError(f"{_path(error)}: {error.message}")
     else:
         _strict_fallback(record)
+
+    # JSON Schema format validation is optional unless its RFC format
+    # dependencies are installed. URI validity is part of Catalyst's canonical
+    # contract, so enforce it independently for deterministic behavior.
+    _absolute_uri(record["source"].get("url"), "source.url")
+    evidence_chain = record.get("evidence_chain")
+    if isinstance(evidence_chain, Mapping):
+        for index, link in enumerate(evidence_chain.get("sources", [])):
+            if isinstance(link, Mapping) and isinstance(link.get("source"), Mapping):
+                _absolute_uri(link["source"].get("url"), f"evidence_chain.sources.{index}.source.url")
 
     created = _iso_datetime(record["created_at"], "created_at")
     updated = _iso_datetime(record["updated_at"], "updated_at")

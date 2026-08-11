@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Mapping
 
-from .database import DatabaseHealth, connect, transaction
+from .database import DatabaseHealth, connect, resolve_database_target, transaction
 from .engine import validate_record_semantics
 from .migrations import MigrationManager, discover_migrations
 from .provenance import normalize_evidence_chain, source_digest, source_payload
@@ -51,8 +51,17 @@ class RepositoryError(RuntimeError):
 
 
 class CatalystRepository:
-    def __init__(self, path: str | Path):
-        self.path = Path(path)
+    def __init__(self, path: str | Path | None = None):
+        self.database_target = resolve_database_target(path)
+        self.path = Path(self.database_target.value).expanduser() if self.database_target.is_sqlite else self.database_target.value
+
+    @property
+    def backend(self) -> str:
+        return self.database_target.backend
+
+    @property
+    def database_display(self) -> str:
+        return self.database_target.display
 
     def initialize(self, *, target: int | None = None) -> list[int]:
         with closing(connect(self.path)) as connection:
@@ -68,7 +77,30 @@ class CatalystRepository:
             self._backfill_observation_storage()
         if current == latest and current >= 6:
             self._backfill_review_storage()
+        if current == latest and current >= 14:
+            self._record_storage_backend()
         return applied
+
+    def _record_storage_backend(self) -> None:
+        now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        features = {
+            "backend": self.backend,
+            "transactions": True,
+            "foreign_keys": True,
+            "json_source_payloads": True,
+            "geospatial_extension_capable": self.backend == "postgresql",
+            "postgis_enabled": False,
+            "sqlite_portable": self.backend == "sqlite",
+        }
+        identity = self.database_display
+        with closing(connect(self.path)) as connection, transaction(connection):
+            connection.execute(
+                """INSERT INTO storage_backend_metadata(id,backend,database_identity,feature_flags_json,initialized_at,updated_at)
+                   VALUES (1,?,?,?,?,?)
+                   ON CONFLICT(id) DO UPDATE SET backend=excluded.backend,database_identity=excluded.database_identity,
+                   feature_flags_json=excluded.feature_flags_json,updated_at=excluded.updated_at""",
+                (self.backend, identity, canonical_json(features), now, now),
+            )
 
     def _backfill_evidence_storage(self) -> int:
         """Populate v1.3 evidence tables for records created under v1.2.
@@ -189,10 +221,14 @@ class CatalystRepository:
             return MigrationManager(connection).status()
 
     def health(self) -> DatabaseHealth:
-        exists = self.path.exists()
         latest = discover_migrations()[-1].version
-        if not exists:
-            return DatabaseHealth(str(self.path), False, "missing", False, 0, latest, None, 0, 0)
+        target = self.database_target
+        if target.is_sqlite:
+            exists = Path(self.path).exists()
+            if not exists:
+                return DatabaseHealth(target.display, False, "missing", False, 0, latest, None, 0, 0, backend="sqlite")
+        else:
+            exists = True
         with closing(connect(self.path)) as connection:
             manager = MigrationManager(connection)
             integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
@@ -203,7 +239,14 @@ class CatalystRepository:
                 repository_id = str(row[0]) if row else None
                 record_count = int(connection.execute("SELECT COUNT(*) FROM data_records").fetchone()[0])
                 import_run_count = int(connection.execute("SELECT COUNT(*) FROM import_runs").fetchone()[0])
-            return DatabaseHealth(str(self.path), exists, integrity, foreign_keys, manager.current_version, manager.latest_version, repository_id, record_count, import_run_count)
+            server_version = None
+            if target.is_postgresql:
+                row = connection.execute("SHOW server_version").fetchone()
+                server_version = str(row[0]) if row else None
+            return DatabaseHealth(
+                target.display, exists, integrity, foreign_keys, manager.current_version, manager.latest_version,
+                repository_id, record_count, import_run_count, backend=target.backend, server_version=server_version
+            )
 
     @staticmethod
     def _require_current(connection: sqlite3.Connection) -> MigrationManager:

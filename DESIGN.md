@@ -32,9 +32,11 @@ It exists to answer these practical questions:
 
 ## Persistence architecture
 
-The canonical JSON payload is the contract source of truth. The SQLite repository stores that payload and its SHA-256 digest in `data_records`, then synchronizes searchable fields into normalized entity, indicator, period, source, and measurement tables.
+The canonical JSON payload is the contract source of truth. v2.1.0 places a database boundary beneath the repository so the same governed service contracts operate against either PostgreSQL or SQLite. PostgreSQL is the production backend; SQLite remains the local/offline/test/portable backend. Both persist the payload and SHA-256 digest in `data_records` while synchronizing searchable fields into normalized entity, indicator, period, source, and measurement tables.
 
-Stable canonical IDs govern idempotent upserts. Re-importing an unchanged record is a skip; changing the payload while retaining the record ID is an update.
+`DATABASE_URL` selects PostgreSQL without exposing credentials in health/status surfaces. The packaged PostgreSQL baseline is generated from the ordered canonical migration history and supplies PostgreSQL trigger equivalents for append-only governance, default Workspace assignment, and analysis invalidation. Migration 014 records the active backend and backend-migration history.
+
+Stable canonical IDs govern idempotent upserts. Re-importing an unchanged record is a skip; changing the payload while retaining the record ID is an update. Existing SQLite repositories can be promoted transactionally with `storage-migrate-postgres`; repository identity, explicit IDs, governance rows, and sequence positions are preserved.
 
 ## Migration architecture
 
@@ -79,7 +81,7 @@ The core schema rejects unknown fields. Product-specific metadata belongs under 
 
 ## Scope boundary
 
-v2.0.0 supports local persistence, governed ingestion, public-safe API reads, protected writes, OpenAPI, accessible and offline-resilient embeds, typed product handoffs, institutionally governed multi-workspace access, scheduled connector refresh, reproducible analyses, verified backup and restore, offline synchronization, performance evidence, security audits, and release attestations.
+v2.1.0 supports PostgreSQL production persistence, SQLite local/offline portability, governed ingestion, public-safe API reads, protected writes, OpenAPI, accessible and offline-resilient embeds, typed product handoffs, institutionally governed multi-workspace access, scheduled connector refresh, reproducible analyses, verified backup and restore, offline synchronization, performance evidence, security audits, and release attestations.
 
 ## Institutional workspaces and access governance
 

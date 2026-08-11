@@ -190,7 +190,7 @@ class WorkspaceService:
         params=[]
         if institution_id:
             sql += " WHERE i.institution_id=?"; params.append(institution_id)
-        sql += " GROUP BY w.id ORDER BY i.name,w.name"
+        sql += " GROUP BY w.id,w.workspace_id,w.name,w.slug,w.visibility,w.classification,w.status,i.id,i.institution_id,i.name ORDER BY i.name,w.name"
         with connect(self.repository.path, readonly=True) as connection:
             return [dict(row) for row in connection.execute(sql, params).fetchall()]
 

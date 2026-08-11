@@ -1,7 +1,7 @@
 """Catalyst Data canonical records and persistent repository services."""
 
 from ._version import __version__
-from .database import DatabaseHealth
+from .database import DatabaseConfigurationError, DatabaseHealth, DatabaseTarget, backend_name, database_url_from_env, resolve_database_target
 from .engine import (
     brief_markdown,
     build_record,
@@ -35,11 +35,13 @@ from .analysis_artifacts import (
 from .platform import PLATFORM_SCHEMA_VERSION, PlatformError, PlatformService, platform_schema
 from .migrations import MigrationError, MigrationManager, discover_migrations
 from .repository import CatalystRepository, RepositoryError
+from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgresql
 from .service import CatalystDataService
 from .validation import RecordValidationError, jsonschema_available, schema, validate_record
 
 __all__ = [
-    "__version__", "CatalystDataService", "CatalystRepository", "DatabaseHealth",
+    "__version__", "CatalystDataService", "CatalystRepository", "DatabaseHealth", "DatabaseTarget", "DatabaseConfigurationError",
+    "backend_name", "database_url_from_env", "resolve_database_target", "StorageMigrationError", "migrate_sqlite_to_postgresql",
     "ImportPipelineError", "ImportService", "ImportSummary", "MigrationError", "MigrationManager",
     "RecordValidationError", "RepositoryError", "brief_markdown", "build_record", "classify_record",
     "compare_governance", "convert_value", "normalize_indicator_governance", "validate_indicator_governance",

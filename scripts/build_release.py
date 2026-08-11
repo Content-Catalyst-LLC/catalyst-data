@@ -82,6 +82,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="verify outputs after rebuilding")
     args = parser.parse_args()
 
+    run(sys.executable, "scripts/generate_postgresql_schema.py")
     run(sys.executable, "scripts/sync_contract.py")
     run(sys.executable, "scripts/sync_record_contract.py")
     regenerate_examples()

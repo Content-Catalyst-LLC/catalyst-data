@@ -1,4 +1,4 @@
--- Catalyst Data v2.0.0 current schema snapshot
+-- Catalyst Data v2.1.0 current schema snapshot
 -- Repository initialization uses ordered migrations in python/catalyst_data/migrations.
 PRAGMA foreign_keys = ON;
 BEGIN TRANSACTION;
@@ -1635,6 +1635,30 @@ CREATE TABLE platform_events (
     occurred_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE storage_backend_metadata (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    backend TEXT NOT NULL CHECK(backend IN ('sqlite','postgresql')),
+    database_identity TEXT NOT NULL,
+    feature_flags_json TEXT NOT NULL DEFAULT '{}',
+    initialized_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE storage_migration_events (
+    id INTEGER PRIMARY KEY,
+    migration_id TEXT NOT NULL UNIQUE,
+    source_backend TEXT NOT NULL,
+    target_backend TEXT NOT NULL,
+    source_identity TEXT,
+    target_identity TEXT,
+    status TEXT NOT NULL CHECK(status IN ('started','completed','failed')),
+    table_count INTEGER NOT NULL DEFAULT 0,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    started_at TEXT NOT NULL,
+    finished_at TEXT
+);
+
 CREATE INDEX idx_measurements_entity ON measurements(entity_id);
 
 CREATE INDEX idx_measurements_indicator ON measurements(indicator_id);
@@ -1805,6 +1829,8 @@ CREATE INDEX platform_snapshots_release_idx ON platform_release_snapshots(releas
 CREATE INDEX platform_integrity_status_idx ON platform_integrity_checks(status, subsystem, id DESC);
 
 CREATE INDEX platform_events_component_idx ON platform_events(component_id, id DESC);
+
+CREATE INDEX idx_storage_migration_events_status ON storage_migration_events(status, id);
 
 CREATE TRIGGER source_versions_immutable_update BEFORE UPDATE ON source_versions BEGIN SELECT RAISE(ABORT, 'source_versions are immutable'); END;
 

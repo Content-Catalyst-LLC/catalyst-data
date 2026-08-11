@@ -1,12 +1,12 @@
 # Catalyst Data
 
-Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst. It connects canonical records, normalized relational tables, provenance, confidence, review logic, migrations, imports, exports, and local analytical workflows without requiring paid infrastructure.
+Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst. It connects canonical records, normalized relational tables, provenance, confidence, review logic, migrations, imports, exports, and local analytical workflows with SQLite portability and a PostgreSQL production path.
 
 ## Current release
 
-**v2.0.0 — Connected Evidence and Measurement Platform**
+**v2.1.0 — PostgreSQL Production Persistence & Storage Abstraction**
 
-The release freezes exact canonical inputs, parameters, environments, code references, outputs, derived lineage, replication reviews, and invalidation warnings. Deterministic packages preserve the evidence needed to reproduce or independently review an analysis without making Catalyst Data dependent on any single analytical product.
+The release adds PostgreSQL as the production persistence backend without abandoning SQLite. Existing repository, importer, connector, review, analysis, workspace, API, and platform contracts continue to operate through one database boundary; SQLite remains supported for development, testing, offline use, recovery, and portable evidence packages.
 
 ## Core capabilities
 
@@ -50,7 +50,10 @@ The release freezes exact canonical inputs, parameters, environments, code refer
 - Source relationships, evidence locators, supported fields, and transformation lineage.
 - Derived evidence gaps and deterministic completeness scoring.
 - Stable semantic IDs and payload checksums.
-- SQLite persistence with normalized tables and complete canonical JSON records.
+- PostgreSQL production persistence with credential-safe `DATABASE_URL` configuration and generated baseline schema.
+- SQLite persistence retained for local, offline, test, recovery, and portable workflows.
+- Transactional SQLite-to-PostgreSQL promotion with repository-identity and sequence preservation.
+- Backend metadata and auditable storage-migration events.
 - Ordered `.up.sql` and `.down.sql` migrations, including populated evidence-history rollback.
 - Automatic evidence-table backfill when an existing v1.2.0 repository reaches migration 003.
 - Idempotent inserts, updates, and duplicate skips.
@@ -72,7 +75,10 @@ The release freezes exact canonical inputs, parameters, environments, code refer
 
 ## Repository contents
 
-- `python/catalyst_data/migrations/` — ordered, reversible SQL migrations.
+- `python/catalyst_data/migrations/` — ordered canonical SQL migrations.
+- `python/catalyst_data/postgresql/schema.sql` — generated PostgreSQL v2.1 production baseline.
+- `python/catalyst_data/database.py` — SQLite/PostgreSQL database boundary and runtime SQL compatibility.
+- `python/catalyst_data/storage_migration.py` — SQLite-to-PostgreSQL promotion workflow.
 - `python/catalyst_data/repository.py` — normalized and canonical record persistence.
 - `python/catalyst_data/importer.py` — JSON/CSV ingestion and import reporting.
 - `python/catalyst_data/exporter.py` — supported repository exports.
@@ -95,11 +101,21 @@ pip install -r requirements-dev.txt
 pip install -e .
 ```
 
-## Persistent repository quick start
+## Persistence quick start
+
+SQLite remains the zero-configuration local backend:
 
 ```bash
 catalyst-data init catalyst-data.sqlite3
 catalyst-data status catalyst-data.sqlite3
+
+# Production PostgreSQL
+export DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/catalyst_data?sslmode=require'
+catalyst-data init "$DATABASE_URL"
+catalyst-data status "$DATABASE_URL"
+
+# Promote an existing SQLite repository to PostgreSQL
+catalyst-data storage-migrate-postgres catalyst-data.sqlite3 "$DATABASE_URL"
 
 catalyst-data import catalyst-data.sqlite3 examples/imports/records.json --dry-run
 catalyst-data import catalyst-data.sqlite3 examples/imports/records.json
@@ -247,7 +263,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.0.0 provides a connected capability and contract registry without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.1.0 provides PostgreSQL production persistence plus the connected capability and contract registry without claiming legal or regulatory compliance.
 
 ## License
 

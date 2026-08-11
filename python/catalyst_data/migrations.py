@@ -4,8 +4,9 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from importlib.resources import files
-from pathlib import Path
 from typing import Iterable
+
+from .database import PostgresConnection, translate_sql_for_postgresql
 
 
 MIGRATION_PATTERN = re.compile(r"^(\d{3})_([a-z0-9_]+)\.(up|down)\.sql$")
@@ -44,8 +45,19 @@ def discover_migrations() -> list[Migration]:
     return migrations
 
 
-def ensure_ledger(connection: sqlite3.Connection) -> None:
+def ensure_ledger(connection) -> None:
     already_in_transaction = connection.in_transaction
+    if isinstance(connection, PostgresConnection):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT ((CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::text)
+            )
+            """
+        )
+        return
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -60,10 +72,14 @@ def ensure_ledger(connection: sqlite3.Connection) -> None:
 
 
 class MigrationManager:
-    def __init__(self, connection: sqlite3.Connection, migrations: Iterable[Migration] | None = None):
+    def __init__(self, connection, migrations: Iterable[Migration] | None = None):
         self.connection = connection
         self.migrations = list(migrations or discover_migrations())
         ensure_ledger(connection)
+
+    @property
+    def backend(self) -> str:
+        return "postgresql" if isinstance(self.connection, PostgresConnection) else "sqlite"
 
     @property
     def latest_version(self) -> int:
@@ -74,7 +90,7 @@ class MigrationManager:
         row = self.connection.execute("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").fetchone()
         return int(row[0])
 
-    def applied(self) -> list[sqlite3.Row]:
+    def applied(self):
         return list(self.connection.execute("SELECT version, name, applied_at FROM schema_migrations ORDER BY version"))
 
     def status(self) -> list[dict[str, object]]:
@@ -85,14 +101,57 @@ class MigrationManager:
                 "name": migration.name,
                 "applied": migration.version in applied,
                 "applied_at": applied.get(migration.version),
+                "backend": self.backend,
             }
             for migration in self.migrations
         ]
+
+    def _migrate_postgresql(self, destination: int) -> list[int]:
+        current = self.current_version
+        if destination < current:
+            self.rollback(current - destination)
+            return []
+        if current == 0:
+            if destination != self.latest_version:
+                raise MigrationError(
+                    "PostgreSQL v2.1 initializes from the complete production baseline; target must be the latest migration"
+                )
+            schema = files("catalyst_data").joinpath("postgresql", "schema.sql").read_text(encoding="utf-8")
+            ledger = "\n".join(
+                "INSERT INTO schema_migrations(version,name) VALUES "
+                f"({migration.version}, '{migration.name}') ON CONFLICT(version) DO NOTHING;"
+                for migration in self.migrations
+            )
+            try:
+                self.connection.executescript(schema + "\n" + ledger)
+            except Exception as exc:
+                raise MigrationError(f"failed to initialize PostgreSQL production baseline: {exc}") from exc
+            return [migration.version for migration in self.migrations]
+        applied: list[int] = []
+        for migration in self.migrations:
+            if current < migration.version <= destination:
+                # v2.1 is the first PostgreSQL release. New dialect-neutral migrations
+                # can be applied incrementally after the production baseline.
+                try:
+                    script = translate_sql_for_postgresql(migration.up_sql) + "\n" + (
+                        "INSERT INTO schema_migrations(version,name) VALUES "
+                        f"({migration.version}, '{migration.name}');"
+                    )
+                    self.connection.executescript(script)
+                except Exception as exc:
+                    raise MigrationError(
+                        f"failed to apply PostgreSQL migration {migration.version:03d}_{migration.name}: {exc}"
+                    ) from exc
+                applied.append(migration.version)
+                current = migration.version
+        return applied
 
     def migrate(self, target: int | None = None) -> list[int]:
         destination = self.latest_version if target is None else int(target)
         if destination < 0 or destination > self.latest_version:
             raise MigrationError(f"target must be between 0 and {self.latest_version}")
+        if isinstance(self.connection, PostgresConnection):
+            return self._migrate_postgresql(destination)
         current = self.current_version
         if destination < current:
             self.rollback(current - destination)
@@ -121,6 +180,28 @@ class MigrationManager:
             raise MigrationError("rollback steps must be at least 1")
         current = self.current_version
         destination = max(0, current - steps)
+        if isinstance(self.connection, PostgresConnection):
+            # There was no supported PostgreSQL schema before v2.1. We permit
+            # rolling back migrations added after the baseline version only.
+            if destination < 13:
+                raise MigrationError(
+                    "PostgreSQL production baseline rollback below migration 13 is not supported; restore a managed database backup instead"
+                )
+            rolled_back: list[int] = []
+            by_version = {migration.version: migration for migration in self.migrations}
+            for version in range(current, destination, -1):
+                migration = by_version.get(version)
+                if migration is None:
+                    raise MigrationError(f"no migration file for applied version {version}")
+                try:
+                    script = translate_sql_for_postgresql(migration.down_sql) + f"\nDELETE FROM schema_migrations WHERE version={version};"
+                    self.connection.executescript(script)
+                except Exception as exc:
+                    raise MigrationError(
+                        f"failed to roll back PostgreSQL migration {version:03d}_{migration.name}: {exc}"
+                    ) from exc
+                rolled_back.append(version)
+            return rolled_back
         rolled_back: list[int] = []
         by_version = {migration.version: migration for migration in self.migrations}
         for version in range(current, destination, -1):

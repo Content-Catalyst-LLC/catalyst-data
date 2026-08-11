@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0 — PostgreSQL Production Persistence & Storage Abstraction
+
+- Added PostgreSQL as the supported production persistence backend while retaining SQLite for local, offline, test, recovery, and portable workflows.
+- Added a database-target abstraction with credential-safe database identity, runtime SQL translation, transaction parity, health reporting, and lazy psycopg loading.
+- Added migration 014 for storage-backend metadata and auditable backend-migration events.
+- Added a generated PostgreSQL production baseline with PostgreSQL equivalents for immutable governance, default-workspace, and analysis-invalidation triggers.
+- Added a transactional SQLite-to-PostgreSQL migration workflow that preserves canonical records, repository identity, explicit IDs, governance state, and PostgreSQL sequences.
+- Added `DATABASE_URL` deployment support, PostgreSQL package resources, CI coverage for a live PostgreSQL service, and cross-backend contract tests.
+- Kept SQLite file backup/restore behavior unchanged and explicitly delegated PostgreSQL backup/PITR to the managed database provider.
+
 ## 2.0.0 — Connected Evidence and Measurement Platform
 
 - Added the `catalyst-data-platform/2.0` manifest and migration 013.

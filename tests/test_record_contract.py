@@ -61,6 +61,13 @@ def test_invalid_source_url_is_rejected():
         validate_record(record)
 
 
+def test_invalid_evidence_source_url_is_rejected():
+    record = canonical_record()
+    record["evidence_chain"]["sources"][0]["source"]["url"] = "not a URL"
+    with pytest.raises(RecordValidationError, match="url|uri"):
+        validate_record(record)
+
+
 def test_invalid_checksum_is_rejected():
     record = canonical_record()
     record["source"]["checksum"] = "sha256:abc"

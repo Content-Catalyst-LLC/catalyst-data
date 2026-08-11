@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def prepared(tmp_path: Path) -> tuple[CatalystRepository, PlatformService]:
     repository = CatalystRepository(tmp_path / "platform.sqlite3")
-    assert repository.initialize() == list(range(1, 14))
+    assert repository.initialize() == list(range(1, 15))
     service = PlatformService(repository)
     service.sync_builtin_contracts(actor="principal:test")
     return repository, service
@@ -30,8 +30,8 @@ def test_platform_schema_and_manifest_cover_all_v2_subsystems(tmp_path: Path) ->
     assert platform_schema()["properties"]["schema_version"]["const"] == PLATFORM_SCHEMA_VERSION
     manifest = service.manifest()
     assert manifest["schema_version"] == PLATFORM_SCHEMA_VERSION
-    assert manifest["release_version"] == "2.0.0"
-    assert manifest["migration_version"] == 13
+    assert manifest["release_version"] == "2.1.0"
+    assert manifest["migration_version"] == 14
     assert manifest["local_first"] is True
     assert manifest["platform_core_optional"] is True
     assert len(manifest["contracts"]) >= 12
@@ -97,10 +97,12 @@ def test_integrated_platform_readiness_and_populated_rollback(tmp_path: Path) ->
     assert result["schema_version"] == PLATFORM_SCHEMA_VERSION
     assert result["status"] in {"ready", "attention"}
     assert not any(item["status"] == "fail" for item in result["platform"]["checks"])
+    assert repository.rollback(1) == [14]
+    assert repository.health().migration_version == 13
     assert repository.rollback(1) == [13]
     assert repository.health().migration_version == 12
-    assert repository.migrate() == [13]
-    assert repository.health().migration_version == 13
+    assert repository.migrate() == [13, 14]
+    assert repository.health().migration_version == 14
     assert service.components()[0]["component_id"] == "component:catalyst-data"
 
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catalyst Data Public API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
   },
   "servers": [

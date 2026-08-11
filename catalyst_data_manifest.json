@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "2.0.0",
-  "module_type": "connected evidence and measurement platform, platform registry, contract registry, release snapshots, integrity verification, accessibility, offline operations, reproducible analysis, governed connectors, public API, workspaces, review, provenance, lineage, and measurements",
+  "version": "2.1.0",
+  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, SQLite local/offline portability, storage migration, provenance, governed connectors, public API, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -69,7 +69,10 @@
     "platform component registry",
     "capability graph",
     "platform release snapshot",
-    "platform integrity verification"
+    "platform integrity verification",
+    "storage backend abstraction",
+    "PostgreSQL production baseline",
+    "SQLite-to-PostgreSQL migration event"
   ],
   "wordpress_shortcode": "[catalyst_data_demo] and [catalyst_data_embed api_url=\"https://data.example.org\"]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
@@ -79,7 +82,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Connected Evidence and Measurement Platform",
+  "release": "PostgreSQL Production Persistence & Storage Abstraction",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -110,19 +113,21 @@
     "python/catalyst_data/schemas/catalyst_data_operational_hardening_1_0.schema.json",
     "schemas/catalyst_data_operational_hardening_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_platform_2_0.schema.json",
-    "schemas/catalyst_data_platform_2_0.schema.json"
+    "schemas/catalyst_data_platform_2_0.schema.json",
+    "python/catalyst_data/postgresql/schema.sql"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
   "build_command": "python3 scripts/build_release.py",
   "release_validation_command": "python3 scripts/check_release.py",
-  "database": "SQLite",
+  "database": "PostgreSQL production; SQLite local/offline/test",
   "migration_path": "python/catalyst_data/migrations",
   "repository_commands": [
     "init",
     "migrate",
     "rollback",
     "status",
+    "storage-migrate-postgres",
     "import",
     "export",
     "inspect",
@@ -280,5 +285,8 @@
   "operational_hardening_contract": "catalyst-data-operational-hardening/1.0",
   "operational_hardening_schema": "schemas/catalyst_data_operational_hardening_1_0.schema.json",
   "platform_contract": "catalyst-data-platform/2.0",
-  "platform_schema": "schemas/catalyst_data_platform_2_0.schema.json"
+  "platform_schema": "schemas/catalyst_data_platform_2_0.schema.json",
+  "database_url_env": "DATABASE_URL",
+  "postgresql_schema": "python/catalyst_data/postgresql/schema.sql",
+  "storage_migration_command": "catalyst-data storage-migrate-postgres SOURCE.sqlite3 \"$DATABASE_URL\""
 }

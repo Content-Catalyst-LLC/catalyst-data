@@ -4,6 +4,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+PYTHON_BIN="${CATALYST_DATA_PYTHON:-${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}}"
+if [[ -z "${PYTHON_BIN:-}" || ! -x "$PYTHON_BIN" ]]; then
+  if [[ -x "$ROOT/.venv/bin/python" ]]; then
+    PYTHON_BIN="$ROOT/.venv/bin/python"
+  else
+    PYTHON_BIN="$(command -v python3)"
+  fi
+fi
+
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
 export PYTHONPATH="$ROOT/python${PYTHONPATH:+:$PYTHONPATH}"
 
@@ -14,10 +23,10 @@ rm -rf .pytest_cache .release-check-pycache
 # while preventing HTTP server or SQLite shutdown hooks from holding the full
 # release process open after successful tests.
 for test_file in tests/test_*.py; do
-  python3 -m pytest -q -o addopts= "$test_file"
+  "$PYTHON_BIN" -m pytest -q -o addopts= "$test_file"
 done
 
-echo "Catalyst Data source matrix passed (155 tests)."
+echo "Catalyst Data source matrix passed."
 
 if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-contract.js
@@ -35,6 +44,6 @@ else
   echo "SKIP: php is not installed"
 fi
 
-python3 scripts/check_release.py --portable --skip-build-check --skip-compile
+"$PYTHON_BIN" scripts/check_release.py --portable --skip-build-check --skip-compile
 
 echo "Catalyst Data full release suite passed."
