@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.0 — Global Statistics Connector Pack
+
+- Added provider-specific World Bank country, indicator, and indicator-observation adapters.
+- Added UNSD SDG goal, M49 geography, indicator, and paginated observation adapters.
+- Added migration 017 with source-native catalogs, cached observations, immutable fetch history, and freshness/status views.
+- Added idempotent World Bank and UN SDG refresh workflows with source request provenance and raw payload retention.
+- Added CLI and public cached-read API surfaces for global statistics.
+- Added WordPress global-statistics diagnostics, REST proxy routes, and `[catalyst_data_statistics]`.
+- Preserved the catalog-first provider boundary: WordPress reads cached Catalyst Data records and cannot trigger provider acquisition.
+
 ## 2.3.0 — Internet Archive & Wayback Intelligence
 
 - Added provider-specific Internet Archive Advanced Search and Metadata adapters.

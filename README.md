@@ -4,12 +4,16 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.3.0 — Internet Archive & Wayback Intelligence**
+**v2.4.0 — Global Statistics Connector Pack**
 
-The release adds PostgreSQL as the production persistence backend without abandoning SQLite. Existing repository, importer, connector, review, analysis, workspace, API, and platform contracts continue to operate through one database boundary; SQLite remains supported for development, testing, offline use, recovery, and portable evidence packages.
+The release adds provider-specific World Bank and United Nations SDG statistics connectors on top of the governed external-source adapter framework. Source-native country, M49 geography, indicator, period, unit, dimension, and provenance fields are cached in Catalyst Data for use by Site Intelligence, Workspace, Publications, Research Librarian, and other consumers without allowing public WordPress requests to trigger upstream acquisition.
 
 ## Core capabilities
 
+- World Bank v2 country catalog, indicator metadata, date-range observations, pagination, and footnote-aware retrieval.
+- United Nations Statistics Division SDG goals, M49 geography catalog, indicators, published series metadata, and paginated observations.
+- Idempotent cached statistical observations with source request URI, raw provider payload, retrieval timestamp, and immutable fetch history.
+- Public-safe statistics API and WordPress rendering that read the Catalyst cache rather than calling institutional providers from page views.
 - Versioned analysis artifacts with immutable activations and run history.
 - Frozen canonical inputs, checksums, parameters, environments, and code references.
 - Checksum-bound outputs, derived measurement lineage, and platform artifact links.
@@ -264,7 +268,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.3.0 adds Internet Archive catalog intelligence and Wayback temporal evidence on top of the governed adapter framework, PostgreSQL/SQLite persistence, and production WordPress integration without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.4.0 adds governed World Bank and UN SDG statistical catalogs and observations alongside the existing archival, PostgreSQL/SQLite, provenance, and WordPress integration layers without claiming legal or regulatory compliance.
 
 ## License
 

@@ -251,10 +251,21 @@ def default_adapter_registry() -> AdapterRegistry:
     # Provider adapters import lazily to avoid a circular dependency: the provider
     # module extends SourceAdapter while this module owns the registry.
     from .internet_archive import (InternetArchiveSearchAdapter, InternetArchiveMetadataAdapter, WaybackAvailabilityAdapter, WaybackCDXAdapter)
+    from .global_statistics import (
+        WorldBankCountriesAdapter, WorldBankIndicatorsAdapter, WorldBankIndicatorDataAdapter,
+        UNSDGGeoAreasAdapter, UNSDGGoalsAdapter, UNSDGIndicatorsAdapter, UNSDGIndicatorDataAdapter,
+    )
     registry.register(InternetArchiveSearchAdapter())
     registry.register(InternetArchiveMetadataAdapter())
     registry.register(WaybackAvailabilityAdapter())
     registry.register(WaybackCDXAdapter())
+    registry.register(WorldBankCountriesAdapter())
+    registry.register(WorldBankIndicatorsAdapter())
+    registry.register(WorldBankIndicatorDataAdapter())
+    registry.register(UNSDGGeoAreasAdapter())
+    registry.register(UNSDGGoalsAdapter())
+    registry.register(UNSDGIndicatorsAdapter())
+    registry.register(UNSDGIndicatorDataAdapter())
     return registry
 
 

@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "2.3.0"
+    assert version == "2.4.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -154,9 +154,15 @@ def test_wordpress_integration_has_safe_public_proxy_and_accessible_controls():
     assert "catalyst_data_status" in php
     assert "catalyst_data_archive_search" in php
     assert "catalyst_data_wayback" in php
+    assert "catalyst_data_statistics" in php
     assert "/v1/archive/items" in php
     assert "/v1/wayback/captures" in php
+    assert "/v1/statistics/status" in php
+    assert "/v1/statistics/world-bank/observations" in php
+    assert "/v1/statistics/un-sdg/observations" in php
     assert "archive.org/advancedsearch" not in php
+    assert "api.worldbank.org" not in php
+    assert "unstats.un.org/SDGAPI" not in php
     assert "web.archive.org/cdx" not in php
     assert "DATABASE_URL" not in php
     assert "Authorization: Bearer" not in php
@@ -168,7 +174,7 @@ def test_wordpress_integration_has_safe_public_proxy_and_accessible_controls():
 
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v2.3.0.md").exists()
+    assert (ROOT / "release/v2.4.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -185,6 +191,7 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/analysis-artifacts-reproducible-packages.md").exists()
     assert (ROOT / "docs/operational-hardening.md").exists()
     assert (ROOT / "docs/internet-archive-wayback-intelligence.md").exists()
+    assert (ROOT / "docs/global-statistics-connector-pack.md").exists()
     assert (ROOT / "docs/backup-restore-recovery.md").exists()
     assert (ROOT / "docs/accessibility-offline-performance.md").exists()
     assert (ROOT / "docs/connected-evidence-measurement-platform.md").exists()
@@ -240,4 +247,6 @@ def test_python_package_declares_migration_resources():
         "015_external_source_adapter_wordpress_foundation.up.sql",
         "016_internet_archive_wayback_intelligence.down.sql",
         "016_internet_archive_wayback_intelligence.up.sql",
+        "017_global_statistics_connector_pack.down.sql",
+        "017_global_statistics_connector_pack.up.sql",
     ]

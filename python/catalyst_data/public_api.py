@@ -24,6 +24,7 @@ from .connectors import ConnectorError, ConnectorService
 from .adapters import AdapterError, AdapterRunner
 from .platform import PlatformError, PlatformService
 from .internet_archive import InternetArchiveError, InternetArchiveService
+from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -98,6 +99,9 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/archive/items": {"get": {"summary": "Search cached Internet Archive catalog items", "responses": {"200": {"description": "Cached Archive.org items"}}}},
             "/v1/archive/items/{identifier}": {"get": {"summary": "Get one cached Archive.org item and file inventory", "responses": {"200": {"description": "Cached Archive.org item"}, "404": {"description": "Not cached"}}}},
             "/v1/wayback/captures": {"get": {"summary": "List cached Wayback captures for a URL", "responses": {"200": {"description": "Cached Wayback captures"}}}},
+            "/v1/statistics/status": {"get": {"summary": "Cached World Bank and UN SDG statistics status", "responses": {"200": {"description": "Global statistics catalog status"}}}},
+            "/v1/statistics/world-bank/observations": {"get": {"summary": "List cached World Bank observations", "responses": {"200": {"description": "World Bank observations"}}}},
+            "/v1/statistics/un-sdg/observations": {"get": {"summary": "List cached UN SDG observations", "responses": {"200": {"description": "UN SDG observations"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -352,6 +356,16 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(400,"invalid-request","url is required"); return
                 limit=min(1000,max(1,int(query.get("limit",[100])[0]))); captures=InternetArchiveService(self.server.repository).wayback_captures(target,limit=limit)
                 self._json(200,{"url":target,"captures":captures,"total":len(captures)}); return
+            if path == "/v1/statistics/status":
+                self._json(200,GlobalStatisticsService(self.server.repository).status()); return
+            if path == "/v1/statistics/world-bank/observations":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=GlobalStatisticsService(self.server.repository).world_bank_observations(country=query.get("country",[None])[0],indicator=query.get("indicator",[None])[0],start_period=query.get("start_period",[None])[0],end_period=query.get("end_period",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"provider":"world-bank","observations":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/statistics/un-sdg/observations":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=GlobalStatisticsService(self.server.repository).un_sdg_observations(indicator=query.get("indicator",[None])[0],series=query.get("series",[None])[0],area_code=query.get("area_code",[None])[0],start_period=query.get("start_period",[None])[0],end_period=query.get("end_period",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"provider":"un-sdg","observations":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -370,7 +384,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError) as exc:
+        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:

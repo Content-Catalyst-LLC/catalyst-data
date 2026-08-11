@@ -64,11 +64,11 @@ def test_postgresql_runtime_sql_translation_preserves_repository_contract() -> N
 
 def test_sqlite_v21_storage_metadata_and_backward_compatibility(tmp_path: Path) -> None:
     repository = CatalystRepository(tmp_path / "catalyst.sqlite3")
-    assert repository.initialize() == list(range(1, 17))
+    assert repository.initialize() == list(range(1, 18))
     health = repository.health()
     assert health.healthy
     assert health.backend == "sqlite"
-    assert health.migration_version == 16
+    assert health.migration_version == 17
 
     ImportService(repository).run(ROOT / "examples/imports/records.json")
     assert repository.stats()["records"] == 2
@@ -90,7 +90,7 @@ def test_sqlite_v21_storage_metadata_and_backward_compatibility(tmp_path: Path) 
 def test_generated_postgresql_schema_is_packaged_and_free_of_sqlite_only_ddl() -> None:
     schema_path = ROOT / "python/catalyst_data/postgresql/schema.sql"
     text = schema_path.read_text(encoding="utf-8")
-    assert "Catalyst Data v2.3.0 PostgreSQL schema" in text
+    assert "Catalyst Data v2.4.0 PostgreSQL schema" in text
     assert "CREATE OR REPLACE FUNCTION json_valid" in text
     assert "CREATE TRIGGER data_records_assign_default_workspace" in text
     assert "CREATE TABLE storage_backend_metadata" in text
@@ -116,7 +116,7 @@ def test_live_postgresql_baseline_import_and_sqlite_migration(tmp_path: Path) ->
         connection.executescript("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;")
 
     postgres_repository = CatalystRepository(url)
-    assert postgres_repository.initialize() == list(range(1, 17))
+    assert postgres_repository.initialize() == list(range(1, 18))
     health = postgres_repository.health()
     assert health.healthy
     assert health.backend == "postgresql"

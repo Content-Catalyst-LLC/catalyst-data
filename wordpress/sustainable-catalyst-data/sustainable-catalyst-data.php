@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for Catalyst Data public records and archival intelligence, with health diagnostics, cached Archive.org/Wayback discovery, and provenance-aware embeds.
- * Version: 2.3.0
+ * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, and cached global statistics from World Bank and UN SDG sources.
+ * Version: 2.4.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.3.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.4.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -172,8 +172,20 @@ function sustainable_catalyst_data_settings_page() {
                 <tr><th>Wayback captures</th><td><?php echo esc_html(isset($archive['wayback_capture_count']) ? $archive['wayback_capture_count'] : '0'); ?></td></tr>
             </tbody></table>
         <?php endif; ?>
+        <h2>Global statistics</h2>
+        <?php $statistics = sustainable_catalyst_data_fetch('/v1/statistics/status', array(), 30); ?>
+        <?php if (!is_wp_error($statistics)) : ?>
+            <table class="widefat striped" style="max-width:760px"><tbody>
+                <tr><th>World Bank countries</th><td><?php echo esc_html(isset($statistics['world_bank_country_count']) ? $statistics['world_bank_country_count'] : '0'); ?></td></tr>
+                <tr><th>World Bank indicators</th><td><?php echo esc_html(isset($statistics['world_bank_indicator_count']) ? $statistics['world_bank_indicator_count'] : '0'); ?></td></tr>
+                <tr><th>World Bank observations</th><td><?php echo esc_html(isset($statistics['world_bank_observation_count']) ? $statistics['world_bank_observation_count'] : '0'); ?></td></tr>
+                <tr><th>UN SDG geographies</th><td><?php echo esc_html(isset($statistics['un_sdg_geoarea_count']) ? $statistics['un_sdg_geoarea_count'] : '0'); ?></td></tr>
+                <tr><th>UN SDG indicators</th><td><?php echo esc_html(isset($statistics['un_sdg_indicator_count']) ? $statistics['un_sdg_indicator_count'] : '0'); ?></td></tr>
+                <tr><th>UN SDG observations</th><td><?php echo esc_html(isset($statistics['un_sdg_observation_count']) ? $statistics['un_sdg_observation_count'] : '0'); ?></td></tr>
+            </tbody></table>
+        <?php endif; ?>
         <h2>Shortcodes</h2>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history for a URL.</p>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations.</p>
     </div>
     <?php
 }
@@ -233,6 +245,37 @@ function sustainable_catalyst_data_rest_wayback($request) {
     return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
 }
 
+function sustainable_catalyst_data_rest_statistics_status() {
+    $payload = sustainable_catalyst_data_fetch('/v1/statistics/status', array(), 30);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
+function sustainable_catalyst_data_rest_world_bank_observations($request) {
+    $params = array(
+        'limit' => max(1, min(500, absint($request->get_param('limit') ?: 100))),
+        'offset' => max(0, absint($request->get_param('offset') ?: 0)),
+    );
+    foreach (array('country','indicator','start_period','end_period') as $key) {
+        $value = sanitize_text_field((string) ($request->get_param($key) ?: ''));
+        if ($value !== '') { $params[$key] = $value; }
+    }
+    $payload = sustainable_catalyst_data_fetch('/v1/statistics/world-bank/observations', $params);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
+function sustainable_catalyst_data_rest_un_sdg_observations($request) {
+    $params = array(
+        'limit' => max(1, min(500, absint($request->get_param('limit') ?: 100))),
+        'offset' => max(0, absint($request->get_param('offset') ?: 0)),
+    );
+    foreach (array('indicator','series','area_code','start_period','end_period') as $key) {
+        $value = sanitize_text_field((string) ($request->get_param($key) ?: ''));
+        if ($value !== '') { $params[$key] = $value; }
+    }
+    $payload = sustainable_catalyst_data_fetch('/v1/statistics/un-sdg/observations', $params);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
 function sustainable_catalyst_data_register_rest_routes() {
     register_rest_route('sustainable-catalyst-data/v1', '/health', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_health', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/records', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_records', 'permission_callback' => '__return_true'));
@@ -240,6 +283,9 @@ function sustainable_catalyst_data_register_rest_routes() {
     register_rest_route('sustainable-catalyst-data/v1', '/archive/items', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_archive_items', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/archive/items/(?P<identifier>[A-Za-z0-9._:%-]+)', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_archive_item', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/wayback/captures', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_wayback', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/statistics/status', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_statistics_status', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/statistics/world-bank/observations', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_world_bank_observations', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/statistics/un-sdg/observations', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_un_sdg_observations', 'permission_callback' => '__return_true'));
 }
 add_action('rest_api_init', 'sustainable_catalyst_data_register_rest_routes');
 
@@ -346,3 +392,56 @@ function sustainable_catalyst_data_wayback_shortcode($atts = array()) {
     <?php return ob_get_clean();
 }
 add_shortcode('catalyst_data_wayback', 'sustainable_catalyst_data_wayback_shortcode');
+
+function sustainable_catalyst_data_statistics_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'provider' => 'world-bank',
+        'country' => '',
+        'indicator' => '',
+        'series' => '',
+        'area_code' => '',
+        'start_period' => '',
+        'end_period' => '',
+        'limit' => '20',
+        'title' => 'Global Statistics',
+    ), $atts, 'catalyst_data_statistics');
+    $provider = sanitize_key($atts['provider']);
+    if (!in_array($provider, array('world-bank','un-sdg'), true)) {
+        return '<div class="scd-status scd-status--attention"><strong>Catalyst Data:</strong> provider must be world-bank or un-sdg.</div>';
+    }
+    $limit = max(1, min(100, absint($atts['limit'])));
+    $params = array('limit' => $limit, 'offset' => 0);
+    if ($provider === 'world-bank') {
+        foreach (array('country','indicator','start_period','end_period') as $key) { if (trim((string) $atts[$key]) !== '') { $params[$key] = sanitize_text_field($atts[$key]); } }
+        $payload = sustainable_catalyst_data_fetch('/v1/statistics/world-bank/observations', $params);
+    } else {
+        foreach (array('indicator','series','area_code','start_period','end_period') as $key) { if (trim((string) $atts[$key]) !== '') { $params[$key] = sanitize_text_field($atts[$key]); } }
+        $payload = sustainable_catalyst_data_fetch('/v1/statistics/un-sdg/observations', $params);
+    }
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data statistics:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    $items = isset($payload['observations']) && is_array($payload['observations']) ? $payload['observations'] : array();
+    ob_start(); ?>
+    <section class="scd scd--statistics">
+        <header class="scd__header"><p class="scd__eyebrow">Governed Public Statistics</p><h2><?php echo esc_html($atts['title']); ?></h2><p><?php echo esc_html($provider === 'world-bank' ? 'Cached World Bank indicator observations with source and period context.' : 'Cached United Nations SDG indicator observations with M49 geography and disaggregation context.'); ?></p></header>
+        <div class="scd__grid scd__grid--statistics" role="list">
+        <?php foreach ($items as $item) :
+            $label = $provider === 'world-bank' ? ($item['indicator_name'] ?? $item['indicator_code'] ?? 'Indicator') : ($item['series_description'] ?? $item['series_code'] ?? $item['indicator_code'] ?? 'SDG series');
+            $area = $provider === 'world-bank' ? ($item['country_name'] ?? $item['country_code'] ?? '') : ($item['geo_area_name'] ?? $item['geo_area_code'] ?? '');
+            $period = $provider === 'world-bank' ? ($item['period'] ?? '') : ($item['time_period'] ?? '');
+            $value = isset($item['value_numeric']) && $item['value_numeric'] !== null ? $item['value_numeric'] : ($item['value_text'] ?? '—');
+            $unit = $provider === 'world-bank' ? ($item['unit'] ?? '') : ($item['units'] ?? ''); ?>
+            <article class="scd__card" role="listitem">
+                <p class="scd__card-eyebrow"><?php echo esc_html(($area !== '' ? $area . ' · ' : '') . $period); ?></p>
+                <h3><?php echo esc_html($label); ?></h3>
+                <p class="scd__stat-value"><?php echo esc_html((string) $value); ?><?php echo $unit !== '' ? ' <span>' . esc_html($unit) . '</span>' : ''; ?></p>
+                <?php if (!empty($item['source_uri'])) : ?><a class="scd__source" href="<?php echo esc_url($item['source_uri']); ?>" target="_blank" rel="noopener noreferrer">Source request ↗</a><?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$items) : ?><p class="scd__notice">No matching cached statistics are available yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_statistics', 'sustainable_catalyst_data_statistics_shortcode');
+

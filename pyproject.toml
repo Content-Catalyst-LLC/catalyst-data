@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "catalyst-data"
 dynamic = ["version"]
-description = "Connected evidence and measurement platform with PostgreSQL production persistence, governed external source adapters, Internet Archive and Wayback intelligence, WordPress public integration, provenance, review, analysis, APIs, workspaces, and reproducible operations for Sustainable Catalyst"
+description = "Connected evidence and measurement platform with PostgreSQL production persistence, governed external source adapters, Internet Archive and Wayback intelligence, World Bank and UN SDG statistics, WordPress public integration, provenance, review, analysis, APIs, workspaces, and reproducible operations for Sustainable Catalyst"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["jsonschema>=4.21", "rfc3986-validator>=0.1.1", "psycopg[binary]>=3.2"]

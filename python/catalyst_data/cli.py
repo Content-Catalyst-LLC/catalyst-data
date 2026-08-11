@@ -22,6 +22,7 @@ from .operations import OperationalError, OperationalService
 from .platform import PlatformError, PlatformService
 from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgresql
 from .internet_archive import InternetArchiveError, InternetArchiveService
+from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -416,6 +417,30 @@ def parser() -> argparse.ArgumentParser:
     wayback_captures = subparsers.add_parser("wayback-captures", help="list cached Wayback captures")
     wayback_captures.add_argument("database", type=str); wayback_captures.add_argument("url"); wayback_captures.add_argument("--limit", type=int, default=100)
 
+    wb_countries = subparsers.add_parser("world-bank-countries-fetch", help="fetch and cache the World Bank country catalog")
+    wb_countries.add_argument("database", type=str); wb_countries.add_argument("--per-page", type=int, default=400); wb_countries.add_argument("--max-pages", type=int, default=5)
+
+    wb_indicators = subparsers.add_parser("world-bank-indicators-fetch", help="fetch and cache the World Bank indicator catalog")
+    wb_indicators.add_argument("database", type=str); wb_indicators.add_argument("--per-page", type=int, default=1000); wb_indicators.add_argument("--max-pages", type=int, default=50)
+
+    wb_data = subparsers.add_parser("world-bank-data-fetch", help="fetch and cache World Bank indicator observations")
+    wb_data.add_argument("database", type=str); wb_data.add_argument("countries"); wb_data.add_argument("indicator"); wb_data.add_argument("--date"); wb_data.add_argument("--per-page", type=int, default=1000); wb_data.add_argument("--max-pages", type=int, default=25); wb_data.add_argument("--no-footnote", action="store_true")
+
+    wb_obs = subparsers.add_parser("world-bank-observations", help="list cached World Bank observations")
+    wb_obs.add_argument("database", type=str); wb_obs.add_argument("--country"); wb_obs.add_argument("--indicator"); wb_obs.add_argument("--start-period"); wb_obs.add_argument("--end-period"); wb_obs.add_argument("--limit", type=int, default=100); wb_obs.add_argument("--offset", type=int, default=0)
+
+    un_catalog = subparsers.add_parser("un-sdg-catalog-fetch", help="fetch and cache UN SDG goals, M49 geographies, and indicators")
+    un_catalog.add_argument("database", type=str); un_catalog.add_argument("--no-children", action="store_true")
+
+    un_data = subparsers.add_parser("un-sdg-data-fetch", help="fetch and cache UN SDG indicator observations")
+    un_data.add_argument("database", type=str); un_data.add_argument("indicator", action="append"); un_data.add_argument("--area-code", action="append", default=[]); un_data.add_argument("--from-year", type=int); un_data.add_argument("--to-year", type=int); un_data.add_argument("--page-size", type=int, default=100); un_data.add_argument("--max-pages", type=int, default=25)
+
+    un_obs = subparsers.add_parser("un-sdg-observations", help="list cached UN SDG observations")
+    un_obs.add_argument("database", type=str); un_obs.add_argument("--indicator"); un_obs.add_argument("--series"); un_obs.add_argument("--area-code"); un_obs.add_argument("--start-period"); un_obs.add_argument("--end-period"); un_obs.add_argument("--limit", type=int, default=100); un_obs.add_argument("--offset", type=int, default=0)
+
+    stats_status = subparsers.add_parser("statistics-status", help="show World Bank and UN SDG catalog counts and freshness")
+    stats_status.add_argument("database", type=str)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -589,7 +614,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -889,6 +914,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(InternetArchiveService(repository).fetch_wayback_captures(args.url,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         if args.command == "wayback-captures":
             print(json.dumps(InternetArchiveService(repository).wayback_captures(args.url,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "world-bank-countries-fetch":
+            print(json.dumps(GlobalStatisticsService(repository).fetch_world_bank_countries(per_page=args.per_page,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "world-bank-indicators-fetch":
+            print(json.dumps(GlobalStatisticsService(repository).fetch_world_bank_indicators(per_page=args.per_page,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "world-bank-data-fetch":
+            print(json.dumps(GlobalStatisticsService(repository).fetch_world_bank_data(args.countries,args.indicator,date=args.date,per_page=args.per_page,max_pages=args.max_pages,footnote=not args.no_footnote),indent=2,ensure_ascii=False)); return 0
+        if args.command == "world-bank-observations":
+            print(json.dumps(GlobalStatisticsService(repository).world_bank_observations(country=args.country,indicator=args.indicator,start_period=args.start_period,end_period=args.end_period,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "un-sdg-catalog-fetch":
+            print(json.dumps(GlobalStatisticsService(repository).fetch_un_sdg_catalog(include_children=not args.no_children),indent=2,ensure_ascii=False)); return 0
+        if args.command == "un-sdg-data-fetch":
+            print(json.dumps(GlobalStatisticsService(repository).fetch_un_sdg_data(args.indicator,area_codes=args.area_code,time_period_start=args.from_year,time_period_end=args.to_year,page_size=args.page_size,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "un-sdg-observations":
+            print(json.dumps(GlobalStatisticsService(repository).un_sdg_observations(indicator=args.indicator,series=args.series,area_code=args.area_code,start_period=args.start_period,end_period=args.end_period,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "statistics-status":
+            print(json.dumps(GlobalStatisticsService(repository).status(),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
@@ -1023,7 +1064,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError, InternetArchiveError, GlobalStatisticsError, StorageMigrationError) as exc:
         print(f"ERROR: {exc}")
         return 1
 
