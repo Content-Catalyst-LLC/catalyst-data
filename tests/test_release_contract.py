@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "2.5.0"
+    assert version == "2.6.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -174,7 +174,7 @@ def test_wordpress_integration_has_safe_public_proxy_and_accessible_controls():
 
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v2.5.0.md").exists()
+    assert (ROOT / "release/v2.6.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -251,4 +251,6 @@ def test_python_package_declares_migration_resources():
         "017_global_statistics_connector_pack.up.sql",
         "018_us_public_data_connector_pack.down.sql",
         "018_us_public_data_connector_pack.up.sql",
+        "019_earth_climate_ocean_data_network.down.sql",
+        "019_earth_climate_ocean_data_network.up.sql",
     ]

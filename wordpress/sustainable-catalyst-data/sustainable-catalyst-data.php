@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, global statistics, and governed cached U.S. public data from federal sources.
- * Version: 2.5.0
+ * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, global and U.S. statistics, and cached earth, climate, ocean, IOOS, and earthquake data.
+ * Version: 2.6.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.5.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.6.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -197,7 +197,17 @@ function sustainable_catalyst_data_settings_page() {
             </tbody></table>
         <?php endif; ?>
         <h2>Shortcodes</h2>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations.</p>
+        <h2>Earth, climate &amp; ocean network</h2>
+        <?php $earth = sustainable_catalyst_data_fetch('/v1/earth/status', array(), 30); ?>
+        <?php if (!is_wp_error($earth)) : ?>
+            <table class="widefat striped" style="max-width:760px"><tbody>
+                <tr><th>NOAA NCEI observations</th><td><?php echo esc_html(isset($earth['ncei_observation_count']) ? $earth['ncei_observation_count'] : '0'); ?></td></tr>
+                <tr><th>ERDDAP datasets / observations</th><td><?php echo esc_html((isset($earth['erddap_dataset_count']) ? $earth['erddap_dataset_count'] : '0') . ' / ' . (isset($earth['erddap_observation_count']) ? $earth['erddap_observation_count'] : '0')); ?></td></tr>
+                <tr><th>IOOS datasets</th><td><?php echo esc_html(isset($earth['ioos_dataset_count']) ? $earth['ioos_dataset_count'] : '0'); ?></td></tr>
+                <tr><th>USGS earthquakes</th><td><?php echo esc_html(isset($earth['usgs_earthquake_count']) ? $earth['usgs_earthquake_count'] : '0'); ?></td></tr>
+            </tbody></table>
+        <?php endif; ?>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery.</p>
     </div>
     <?php
 }
@@ -499,3 +509,67 @@ function sustainable_catalyst_data_us_public_shortcode($atts = array()) {
 }
 add_shortcode('catalyst_data_us_public', 'sustainable_catalyst_data_us_public_shortcode');
 
+
+
+function sustainable_catalyst_data_earth_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'mode' => 'observations', 'provider' => '', 'dataset_id' => '', 'metric' => '', 'station_id' => '',
+        'min_magnitude' => '', 'limit' => '20', 'title' => 'Earth, Climate & Ocean Data',
+    ), $atts, 'catalyst_data_earth');
+    $mode = sanitize_key($atts['mode']);
+    $limit = max(1, min(100, absint($atts['limit'])));
+    if ($mode === 'earthquakes') {
+        $params = array('limit' => $limit, 'offset' => 0);
+        if (trim((string) $atts['min_magnitude']) !== '') { $params['min_magnitude'] = (float) $atts['min_magnitude']; }
+        $payload = sustainable_catalyst_data_fetch('/v1/earth/earthquakes', $params);
+        $items = !is_wp_error($payload) && isset($payload['events']) && is_array($payload['events']) ? $payload['events'] : array();
+    } else {
+        $params = array('limit' => $limit, 'offset' => 0);
+        foreach (array('provider','dataset_id','metric','station_id') as $key) { if (trim((string) $atts[$key]) !== '') { $params[$key] = sanitize_text_field($atts[$key]); } }
+        $payload = sustainable_catalyst_data_fetch('/v1/earth/observations', $params);
+        $items = !is_wp_error($payload) && isset($payload['observations']) && is_array($payload['observations']) ? $payload['observations'] : array();
+    }
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data earth network:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    ob_start(); ?>
+    <section class="scd scd--statistics scd--earth">
+        <header class="scd__header"><p class="scd__eyebrow">Environmental Evidence</p><h2><?php echo esc_html($atts['title']); ?></h2><p>Cached environmental observations and hazard events with source-native identifiers and provenance.</p></header>
+        <div class="scd__grid scd__grid--statistics" role="list">
+        <?php foreach ($items as $item) :
+            if ($mode === 'earthquakes') {
+                $label = !empty($item['place']) ? $item['place'] : ($item['event_id'] ?? 'Earthquake');
+                $eyebrow = trim(($item['event_time'] ?? '') . (!empty($item['magnitude']) ? ' · M ' . $item['magnitude'] : ''));
+                $value = !empty($item['depth_km']) ? $item['depth_km'] . ' km depth' : 'USGS event';
+            } else {
+                $label = !empty($item['metric_code']) ? $item['metric_code'] : 'Observation';
+                $eyebrow = strtoupper((string) ($item['provider'] ?? 'data')) . (!empty($item['period']) ? ' · ' . $item['period'] : '');
+                $value = isset($item['value_numeric']) && $item['value_numeric'] !== null ? $item['value_numeric'] : ($item['value_text'] ?? '—');
+                if (!empty($item['unit'])) { $value .= ' ' . $item['unit']; }
+            } ?>
+            <article class="scd__card" role="listitem"><p class="scd__card-eyebrow"><?php echo esc_html($eyebrow); ?></p><h3><?php echo esc_html($label); ?></h3><p class="scd__stat-value"><?php echo esc_html((string) $value); ?></p><?php if (!empty($item['source_uri'])) : ?><a class="scd__source" href="<?php echo esc_url($item['source_uri']); ?>" target="_blank" rel="noopener noreferrer">Source request ↗</a><?php endif; ?></article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$items) : ?><p class="scd__notice">No matching cached environmental data are available yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_earth', 'sustainable_catalyst_data_earth_shortcode');
+
+function sustainable_catalyst_data_ocean_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('source' => 'erddap', 'query' => '', 'limit' => '20', 'title' => 'Ocean Data Catalog'), $atts, 'catalyst_data_ocean');
+    $source = sanitize_key($atts['source']);
+    if (!in_array($source, array('erddap','ioos'), true)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data ocean:</strong> source must be erddap or ioos.</div>'; }
+    $params = array('limit' => max(1, min(100, absint($atts['limit']))), 'offset' => 0);
+    if (trim((string) $atts['query']) !== '') { $params['query'] = sanitize_text_field($atts['query']); }
+    $payload = sustainable_catalyst_data_fetch($source === 'erddap' ? '/v1/ocean/erddap-datasets' : '/v1/ocean/ioos-datasets', $params);
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data ocean:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    $items = isset($payload['datasets']) && is_array($payload['datasets']) ? $payload['datasets'] : array();
+    ob_start(); ?>
+    <section class="scd scd--archive scd--ocean"><header class="scd__header"><p class="scd__eyebrow">Ocean & Coastal Data</p><h2><?php echo esc_html($atts['title']); ?></h2><p>Cached dataset discovery from ERDDAP and the U.S. IOOS data network.</p></header><div class="scd__grid scd__grid--archive" role="list">
+    <?php foreach ($items as $item) : $label = !empty($item['title']) ? $item['title'] : ($item['dataset_id'] ?? $item['name'] ?? 'Dataset'); ?>
+        <article class="scd__card" role="listitem"><p class="scd__card-eyebrow"><?php echo esc_html(strtoupper($source) . (!empty($item['institution']) ? ' · ' . $item['institution'] : (!empty($item['organization']) ? ' · ' . $item['organization'] : ''))); ?></p><h3><?php echo esc_html($label); ?></h3><?php if (!empty($item['notes'])) : ?><p><?php echo esc_html(wp_trim_words(wp_strip_all_tags((string) $item['notes']), 28)); ?></p><?php endif; ?><?php if (!empty($item['source_uri'])) : ?><a class="scd__source" href="<?php echo esc_url($item['source_uri']); ?>" target="_blank" rel="noopener noreferrer">Catalog source ↗</a><?php endif; ?></article>
+    <?php endforeach; ?></div><?php if (!$items) : ?><p class="scd__notice">No matching cached ocean datasets are available yet.</p><?php endif; ?></section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_ocean', 'sustainable_catalyst_data_ocean_shortcode');

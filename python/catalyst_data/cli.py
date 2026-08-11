@@ -24,6 +24,7 @@ from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgres
 from .internet_archive import InternetArchiveError, InternetArchiveService
 from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 from .us_public_data import USPublicDataError, USPublicDataService
+from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -501,6 +502,36 @@ def parser() -> argparse.ArgumentParser:
     us_status = subparsers.add_parser("us-public-status", help="show U.S. public-data catalog counts and freshness")
     us_status.add_argument("database", type=str)
 
+    ncei_fetch = subparsers.add_parser("ncei-cdo-fetch", help="fetch and cache NOAA NCEI Climate Data Online v2 records")
+    ncei_fetch.add_argument("database", type=str); ncei_fetch.add_argument("--endpoint", choices=("datasets","datatypes","locations","stations","data"), default="data"); ncei_fetch.add_argument("--param", action="append", default=[]); ncei_fetch.add_argument("--limit", type=int, default=1000); ncei_fetch.add_argument("--offset", type=int, default=1); ncei_fetch.add_argument("--max-pages", type=int, default=10); ncei_fetch.add_argument("--credential-env", default="CATALYST_NCEI_TOKEN")
+
+    erddap_catalog = subparsers.add_parser("erddap-catalog-fetch", help="catalog datasets from a NOAA/IOOS-compatible ERDDAP server")
+    erddap_catalog.add_argument("database", type=str); erddap_catalog.add_argument("--server", default="https://www.ncei.noaa.gov/erddap"); erddap_catalog.add_argument("--items-per-page", type=int, default=1000); erddap_catalog.add_argument("--max-pages", type=int, default=10)
+
+    erddap_data = subparsers.add_parser("erddap-tabledap-fetch", help="fetch and cache bounded ERDDAP TableDAP observations")
+    erddap_data.add_argument("database", type=str); erddap_data.add_argument("dataset_id"); erddap_data.add_argument("--variable", action="append", required=True); erddap_data.add_argument("--server", default="https://www.ncei.noaa.gov/erddap"); erddap_data.add_argument("--constraint", action="append", default=[])
+
+    ioos_fetch = subparsers.add_parser("ioos-catalog-fetch", help="search and cache U.S. IOOS Data Catalog datasets")
+    ioos_fetch.add_argument("database", type=str); ioos_fetch.add_argument("--query", default=""); ioos_fetch.add_argument("--rows", type=int, default=100); ioos_fetch.add_argument("--start", type=int, default=0); ioos_fetch.add_argument("--max-pages", type=int, default=10)
+
+    quake_fetch = subparsers.add_parser("usgs-earthquake-fetch", help="fetch and cache USGS FDSN earthquake events")
+    quake_fetch.add_argument("database", type=str); quake_fetch.add_argument("--starttime"); quake_fetch.add_argument("--endtime"); quake_fetch.add_argument("--min-magnitude", type=float); quake_fetch.add_argument("--bbox", help="minlon,minlat,maxlon,maxlat"); quake_fetch.add_argument("--limit", type=int, default=1000); quake_fetch.add_argument("--offset", type=int, default=1); quake_fetch.add_argument("--max-pages", type=int, default=10)
+
+    earth_obs = subparsers.add_parser("earth-observations", help="list cached NOAA/ERDDAP earth-climate-ocean observations")
+    earth_obs.add_argument("database", type=str); earth_obs.add_argument("--provider", choices=("ncei","erddap")); earth_obs.add_argument("--dataset-id"); earth_obs.add_argument("--metric"); earth_obs.add_argument("--station-id"); earth_obs.add_argument("--start-period"); earth_obs.add_argument("--end-period"); earth_obs.add_argument("--limit", type=int, default=100); earth_obs.add_argument("--offset", type=int, default=0)
+
+    erddap_list = subparsers.add_parser("erddap-datasets", help="list cached ERDDAP datasets")
+    erddap_list.add_argument("database", type=str); erddap_list.add_argument("--server"); erddap_list.add_argument("--query"); erddap_list.add_argument("--limit", type=int, default=100); erddap_list.add_argument("--offset", type=int, default=0)
+
+    ioos_list = subparsers.add_parser("ioos-datasets", help="list cached IOOS catalog datasets")
+    ioos_list.add_argument("database", type=str); ioos_list.add_argument("--query"); ioos_list.add_argument("--limit", type=int, default=100); ioos_list.add_argument("--offset", type=int, default=0)
+
+    quake_list = subparsers.add_parser("earthquakes", help="list cached USGS earthquake events")
+    quake_list.add_argument("database", type=str); quake_list.add_argument("--min-magnitude", type=float); quake_list.add_argument("--start-time"); quake_list.add_argument("--end-time"); quake_list.add_argument("--limit", type=int, default=100); quake_list.add_argument("--offset", type=int, default=0)
+
+    earth_status = subparsers.add_parser("earth-data-status", help="show earth, climate, ocean, IOOS, and earthquake cache status")
+    earth_status.add_argument("database", type=str)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -674,7 +705,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "ncei-cdo-fetch", "erddap-catalog-fetch", "erddap-tabledap-fetch", "ioos-catalog-fetch", "usgs-earthquake-fetch", "earth-observations", "erddap-datasets", "ioos-datasets", "earthquakes", "earth-data-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -1008,6 +1039,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(USPublicDataService(repository).epa_records(table=args.table,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
         if args.command == "us-public-status":
             print(json.dumps(USPublicDataService(repository).status(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "ncei-cdo-fetch":
+            print(json.dumps(EarthClimateOceanService(repository).fetch_ncei_cdo(endpoint=args.endpoint,params=_key_values(args.param),limit=args.limit,offset=args.offset,max_pages=args.max_pages,credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "erddap-catalog-fetch":
+            print(json.dumps(EarthClimateOceanService(repository).fetch_erddap_catalog(server=args.server,items_per_page=args.items_per_page,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "erddap-tabledap-fetch":
+            print(json.dumps(EarthClimateOceanService(repository).fetch_erddap_tabledap(args.dataset_id,args.variable,server=args.server,constraints=args.constraint),indent=2,ensure_ascii=False)); return 0
+        if args.command == "ioos-catalog-fetch":
+            print(json.dumps(EarthClimateOceanService(repository).fetch_ioos_catalog(args.query,rows=args.rows,start=args.start,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "usgs-earthquake-fetch":
+            bbox=[float(part) for part in args.bbox.split(",")] if args.bbox else None
+            print(json.dumps(EarthClimateOceanService(repository).fetch_usgs_earthquakes(starttime=args.starttime,endtime=args.endtime,minmagnitude=args.min_magnitude,bbox=bbox,limit=args.limit,offset=args.offset,max_pages=args.max_pages),indent=2,ensure_ascii=False)); return 0
+        if args.command == "earth-observations":
+            print(json.dumps(EarthClimateOceanService(repository).observations(provider=args.provider,dataset_id=args.dataset_id,metric=args.metric,station_id=args.station_id,start_period=args.start_period,end_period=args.end_period,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "erddap-datasets":
+            print(json.dumps(EarthClimateOceanService(repository).erddap_datasets(server=args.server,query=args.query,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "ioos-datasets":
+            print(json.dumps(EarthClimateOceanService(repository).ioos_datasets(query=args.query,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "earthquakes":
+            print(json.dumps(EarthClimateOceanService(repository).earthquakes(min_magnitude=args.min_magnitude,start_time=args.start_time,end_time=args.end_time,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "earth-data-status":
+            print(json.dumps(EarthClimateOceanService(repository).status(),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))

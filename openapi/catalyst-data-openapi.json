@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catalyst Data Public API",
-    "version": "2.5.0",
+    "version": "2.6.0",
     "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
   },
   "servers": [
@@ -283,6 +283,56 @@
         "responses": {
           "200": {
             "description": "EPA Envirofacts records"
+          }
+        }
+      }
+    },
+    "/v1/earth/status": {
+      "get": {
+        "summary": "Cached earth, climate, ocean, IOOS, and earthquake network status",
+        "responses": {
+          "200": {
+            "description": "Environmental data network status"
+          }
+        }
+      }
+    },
+    "/v1/earth/observations": {
+      "get": {
+        "summary": "List cached NOAA NCEI and ERDDAP observations",
+        "responses": {
+          "200": {
+            "description": "Earth/climate/ocean observations"
+          }
+        }
+      }
+    },
+    "/v1/earth/earthquakes": {
+      "get": {
+        "summary": "List cached USGS earthquake events",
+        "responses": {
+          "200": {
+            "description": "USGS earthquake events"
+          }
+        }
+      }
+    },
+    "/v1/ocean/erddap-datasets": {
+      "get": {
+        "summary": "List cached ERDDAP dataset catalog records",
+        "responses": {
+          "200": {
+            "description": "ERDDAP datasets"
+          }
+        }
+      }
+    },
+    "/v1/ocean/ioos-datasets": {
+      "get": {
+        "summary": "List cached U.S. IOOS Data Catalog records",
+        "responses": {
+          "200": {
+            "description": "IOOS datasets"
           }
         }
       }

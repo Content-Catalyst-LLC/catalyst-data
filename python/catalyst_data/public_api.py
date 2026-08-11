@@ -26,6 +26,7 @@ from .platform import PlatformError, PlatformService
 from .internet_archive import InternetArchiveError, InternetArchiveService
 from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 from .us_public_data import USPublicDataError, USPublicDataService
+from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -106,6 +107,11 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/us-public/status": {"get": {"summary": "Cached U.S. public-data status", "responses": {"200": {"description": "U.S. public-data catalog status"}}}},
             "/v1/us-public/observations": {"get": {"summary": "List cached normalized Census, BLS, BEA, EIA, and USGS observations", "responses": {"200": {"description": "U.S. public-data observations"}}}},
             "/v1/us-public/epa-records": {"get": {"summary": "List cached EPA Envirofacts records", "responses": {"200": {"description": "EPA Envirofacts records"}}}},
+            "/v1/earth/status": {"get": {"summary": "Cached earth, climate, ocean, IOOS, and earthquake network status", "responses": {"200": {"description": "Environmental data network status"}}}},
+            "/v1/earth/observations": {"get": {"summary": "List cached NOAA NCEI and ERDDAP observations", "responses": {"200": {"description": "Earth/climate/ocean observations"}}}},
+            "/v1/earth/earthquakes": {"get": {"summary": "List cached USGS earthquake events", "responses": {"200": {"description": "USGS earthquake events"}}}},
+            "/v1/ocean/erddap-datasets": {"get": {"summary": "List cached ERDDAP dataset catalog records", "responses": {"200": {"description": "ERDDAP datasets"}}}},
+            "/v1/ocean/ioos-datasets": {"get": {"summary": "List cached U.S. IOOS Data Catalog records", "responses": {"200": {"description": "IOOS datasets"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -281,7 +287,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(401, "unauthorized", "A platform:read bearer token is required"); return
                 self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history", "world-bank-statistics", "un-sdg-statistics", "us-census-data", "us-bls-series", "us-bea-data", "us-eia-data", "us-epa-envirofacts", "us-usgs-water-data"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history", "world-bank-statistics", "un-sdg-statistics", "us-census-data", "us-bls-series", "us-bea-data", "us-eia-data", "us-epa-envirofacts", "us-usgs-water-data", "noaa-ncei-climate-data", "erddap-datasets", "erddap-ocean-observations", "ioos-data-catalog", "usgs-earthquake-events", "earth-climate-ocean-network"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -380,6 +386,24 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
                 items=USPublicDataService(self.server.repository).epa_records(table=query.get("table",[None])[0],limit=limit,offset=offset)
                 self._json(200,{"provider":"epa","records":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/earth/status":
+                self._json(200,EarthClimateOceanService(self.server.repository).status()); return
+            if path == "/v1/earth/observations":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=EarthClimateOceanService(self.server.repository).observations(provider=query.get("provider",[None])[0],dataset_id=query.get("dataset_id",[None])[0],metric=query.get("metric",[None])[0],station_id=query.get("station_id",[None])[0],start_period=query.get("start_period",[None])[0],end_period=query.get("end_period",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"observations":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/earth/earthquakes":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0])); minimum=query.get("min_magnitude",[None])[0]
+                items=EarthClimateOceanService(self.server.repository).earthquakes(min_magnitude=float(minimum) if minimum not in (None,"") else None,start_time=query.get("start_time",[None])[0],end_time=query.get("end_time",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"provider":"usgs-earthquake","events":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/ocean/erddap-datasets":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=EarthClimateOceanService(self.server.repository).erddap_datasets(server=query.get("server",[None])[0],query=query.get("query",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"datasets":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/ocean/ioos-datasets":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=EarthClimateOceanService(self.server.repository).ioos_datasets(query=query.get("query",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"datasets":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -398,7 +422,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError) as exc:
+        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:

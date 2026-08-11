@@ -259,6 +259,10 @@ def default_adapter_registry() -> AdapterRegistry:
         CensusDataAdapter, BLSSeriesAdapter, BEADataAdapter, EIADataAdapter,
         EPAEnvirofactsAdapter, USGSWaterDataAdapter,
     )
+    from .earth_climate_ocean import (
+        NCEICDODataAdapter, ERDDAPCatalogAdapter, ERDDAPTabledapAdapter,
+        IOOSCatalogAdapter, USGSEarthquakeAdapter,
+    )
     registry.register(InternetArchiveSearchAdapter())
     registry.register(InternetArchiveMetadataAdapter())
     registry.register(WaybackAvailabilityAdapter())
@@ -276,6 +280,11 @@ def default_adapter_registry() -> AdapterRegistry:
     registry.register(EIADataAdapter())
     registry.register(EPAEnvirofactsAdapter())
     registry.register(USGSWaterDataAdapter())
+    registry.register(NCEICDODataAdapter())
+    registry.register(ERDDAPCatalogAdapter())
+    registry.register(ERDDAPTabledapAdapter())
+    registry.register(IOOSCatalogAdapter())
+    registry.register(USGSEarthquakeAdapter())
     return registry
 
 

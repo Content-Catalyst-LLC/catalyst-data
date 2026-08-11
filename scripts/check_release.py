@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "2.5.0":
+    if version != "2.6.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -413,7 +413,7 @@ def validate_repository_pipeline() -> None:
             fail("Release attestation failed")
         restored_path = Path(directory) / "restored.sqlite3"
         restored = operations.restore_backup(backup_path, restored_path, actor="principal:system")
-        if restored["migration_version"] != 18 or restored["record_count"] < 2:
+        if restored["migration_version"] != 19 or restored["record_count"] < 2:
             fail("Backup restore validation failed")
         readiness = operations.readiness()
         if readiness["verified_backup_count"] < 1 or readiness["release_attestation_count"] < 1:
@@ -437,7 +437,7 @@ def validate_repository_pipeline() -> None:
         platform_service = PlatformService(repository)
         platform_service.sync_builtin_contracts(actor="principal:system")
         platform_manifest = platform_service.manifest()
-        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 18:
+        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 19:
             fail("Connected platform manifest failed")
         platform_snapshot = platform_service.create_snapshot(actor="principal:system")
         if platform_service.verify_snapshot(platform_snapshot["snapshot_id"], actor="principal:system")["status"] != "pass":

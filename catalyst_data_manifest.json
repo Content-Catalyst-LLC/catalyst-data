@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "2.5.0",
-  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, archival intelligence, global and U.S. public statistics, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
+  "version": "2.6.0",
+  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, archival intelligence, global and U.S. public statistics, earth/climate/ocean intelligence, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -97,9 +97,16 @@
     "EPA Envirofacts records",
     "USGS Water Data observations",
     "U.S. public-data fetch provenance",
-    "WordPress U.S. public-data surface"
+    "WordPress U.S. public-data surface",
+    "NOAA NCEI climate observations",
+    "ERDDAP dataset catalog",
+    "ERDDAP ocean/climate observations",
+    "U.S. IOOS dataset catalog",
+    "USGS earthquake events",
+    "earth/climate/ocean fetch provenance",
+    "WordPress earth and ocean surfaces"
   ],
-  "wordpress_shortcode": "[sustainable_catalyst_data], [catalyst_data_embed], [catalyst_data_status], [catalyst_data_archive_search], [catalyst_data_wayback], [catalyst_data_statistics], and [catalyst_data_us_public]",
+  "wordpress_shortcode": "[sustainable_catalyst_data], [catalyst_data_embed], [catalyst_data_status], [catalyst_data_archive_search], [catalyst_data_wayback], [catalyst_data_statistics], [catalyst_data_us_public], [catalyst_data_earth], and [catalyst_data_ocean]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
   "boundaries": [
     "educational",
@@ -107,7 +114,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "U.S. Public Data Connector Pack",
+  "release": "Earth, Climate & Ocean Data Network",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -296,7 +303,17 @@
     "usgs-water-fetch",
     "us-public-observations",
     "epa-records",
-    "us-public-status"
+    "us-public-status",
+    "ncei-cdo-fetch",
+    "erddap-catalog-fetch",
+    "erddap-tabledap-fetch",
+    "ioos-catalog-fetch",
+    "usgs-earthquake-fetch",
+    "earth-observations",
+    "erddap-datasets",
+    "ioos-datasets",
+    "earthquakes",
+    "earth-data-status"
   ],
   "import_formats": [
     "json",
@@ -321,7 +338,7 @@
   "api_version": "v2 with v1 compatibility",
   "access_governance_contract": "catalyst-data-access-governance/1.0",
   "access_governance_schema": "schemas/catalyst_data_access_governance_1_0.schema.json",
-  "current_migration": 15,
+  "current_migration": 19,
   "connector_operations_contract": "catalyst-data-connector-operations/1.0",
   "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json",
   "analysis_artifact_contract": "catalyst-data-analysis-artifact/1.0",
@@ -343,6 +360,12 @@
     "internet-archive-metadata",
     "internet-archive-file-inventory",
     "wayback-availability",
-    "wayback-cdx-history"
+    "wayback-cdx-history",
+    "noaa-ncei-climate-data",
+    "erddap-dataset-catalog",
+    "erddap-ocean-observations",
+    "ioos-data-catalog",
+    "usgs-earthquake-events",
+    "earth-climate-ocean-network"
   ]
 }

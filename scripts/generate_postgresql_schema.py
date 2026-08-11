@@ -34,6 +34,7 @@ IMMUTABLE_TABLES = [
     "release_attestations", "platform_contracts", "platform_component_versions",
     "platform_release_snapshots", "platform_integrity_checks", "platform_events", "connector_adapter_pages",
     "internet_archive_item_versions", "internet_archive_searches", "internet_archive_search_results", "wayback_queries",
+    "global_statistics_fetches", "us_public_fetches", "earth_climate_fetches",
 ]
 
 NO_DELETE_TABLES = ["handoff_receipts"]

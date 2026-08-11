@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.6.0
+
+- Adds the Earth, Climate & Ocean Data Network with governed NOAA NCEI CDO v2, ERDDAP, U.S. IOOS catalog, and USGS earthquake adapters.
+- Adds migration 019 for environmental observations, ERDDAP/IOOS dataset catalogs, earthquake events, immutable fetch provenance, and network health.
+- Adds cached public API surfaces and WordPress shortcodes for environmental observations, earthquake events, and ocean dataset discovery.
+- Preserves backend-only provider acquisition, source-native identifiers, response safety limits, retries, and PostgreSQL/SQLite parity.
+
 ## 2.5.0 - 2026-08-11
 
 ### Added

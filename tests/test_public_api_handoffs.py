@@ -43,7 +43,7 @@ def request_json(url: str, *, method: str = "GET", body=None, token: str | None 
 
 def test_migration_008_and_api_registry_are_persistent(tmp_path):
     repository = populated_repository(tmp_path)
-    assert repository.health().migration_version == 18
+    assert repository.health().migration_version == 19
     registry = ApiRegistry(repository)
     created = registry.create_key("Decision Studio", ["records:write", "handoffs:write"])
     assert created["token"].startswith("cd_")
@@ -103,7 +103,7 @@ def test_http_api_public_reads_protected_writes_openapi_and_handoffs(tmp_path):
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
         status, health = request_json(base + "/health")
-        assert status == 200 and health["migration_version"] == 18
+        assert status == 200 and health["migration_version"] == 19
         status, page = request_json(base + "/v1/records")
         assert status == 200 and page["pagination"]["total"] == 1
         assert page["records"][0]["record_id"] == records[0]["record_id"]

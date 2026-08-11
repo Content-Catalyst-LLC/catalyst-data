@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.5.0 adds read-only World Bank and United Nations SDG statistics surfaces to the production WordPress integration.
+Version 2.6.0 adds read-only earth, climate, ocean, IOOS, and USGS earthquake surfaces to the production WordPress integration while retaining archival and statistics features.
 
 ## Configuration
 
@@ -33,3 +33,6 @@ These routes proxy only configured Catalyst Data public endpoints and never acce
 
 ## U.S. public data
 `[catalyst_data_us_public]` renders cached Census, BLS, BEA, EIA, or USGS observations from the Catalyst Data API. Acquisition remains server-side and credential secrets are never stored in WordPress.
+
+- `[catalyst_data_earth]` — cached NOAA/ERDDAP observations or USGS earthquake events.
+- `[catalyst_data_ocean]` — cached ERDDAP or IOOS dataset discovery.
