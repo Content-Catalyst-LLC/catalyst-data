@@ -25,6 +25,7 @@ from .adapters import AdapterError, AdapterRunner
 from .platform import PlatformError, PlatformService
 from .internet_archive import InternetArchiveError, InternetArchiveService
 from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
+from .us_public_data import USPublicDataError, USPublicDataService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -102,6 +103,9 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/statistics/status": {"get": {"summary": "Cached World Bank and UN SDG statistics status", "responses": {"200": {"description": "Global statistics catalog status"}}}},
             "/v1/statistics/world-bank/observations": {"get": {"summary": "List cached World Bank observations", "responses": {"200": {"description": "World Bank observations"}}}},
             "/v1/statistics/un-sdg/observations": {"get": {"summary": "List cached UN SDG observations", "responses": {"200": {"description": "UN SDG observations"}}}},
+            "/v1/us-public/status": {"get": {"summary": "Cached U.S. public-data status", "responses": {"200": {"description": "U.S. public-data catalog status"}}}},
+            "/v1/us-public/observations": {"get": {"summary": "List cached normalized Census, BLS, BEA, EIA, and USGS observations", "responses": {"200": {"description": "U.S. public-data observations"}}}},
+            "/v1/us-public/epa-records": {"get": {"summary": "List cached EPA Envirofacts records", "responses": {"200": {"description": "EPA Envirofacts records"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -277,7 +281,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(401, "unauthorized", "A platform:read bearer token is required"); return
                 self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history", "world-bank-statistics", "un-sdg-statistics", "us-census-data", "us-bls-series", "us-bea-data", "us-eia-data", "us-epa-envirofacts", "us-usgs-water-data"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -366,6 +370,16 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
                 items=GlobalStatisticsService(self.server.repository).un_sdg_observations(indicator=query.get("indicator",[None])[0],series=query.get("series",[None])[0],area_code=query.get("area_code",[None])[0],start_period=query.get("start_period",[None])[0],end_period=query.get("end_period",[None])[0],limit=limit,offset=offset)
                 self._json(200,{"provider":"un-sdg","observations":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/us-public/status":
+                self._json(200,USPublicDataService(self.server.repository).status()); return
+            if path == "/v1/us-public/observations":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=USPublicDataService(self.server.repository).observations(provider=query.get("provider",[None])[0],metric=query.get("metric",[None])[0],geography=query.get("geography",[None])[0],start_period=query.get("start_period",[None])[0],end_period=query.get("end_period",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"observations":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/us-public/epa-records":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=USPublicDataService(self.server.repository).epa_records(table=query.get("table",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"provider":"epa","records":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:

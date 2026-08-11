@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "2.4.0",
-  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, archival intelligence, global statistics, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
+  "version": "2.5.0",
+  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, archival intelligence, global and U.S. public statistics, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -89,9 +89,17 @@
     "UN SDG indicator catalog",
     "UN SDG observations",
     "global statistics fetch provenance",
-    "WordPress global statistics surface"
+    "WordPress global statistics surface",
+    "U.S. Census observations",
+    "BLS time-series observations",
+    "BEA economic observations",
+    "EIA energy observations",
+    "EPA Envirofacts records",
+    "USGS Water Data observations",
+    "U.S. public-data fetch provenance",
+    "WordPress U.S. public-data surface"
   ],
-  "wordpress_shortcode": "[sustainable_catalyst_data], [catalyst_data_embed], [catalyst_data_status], [catalyst_data_archive_search], [catalyst_data_wayback], and [catalyst_data_statistics]",
+  "wordpress_shortcode": "[sustainable_catalyst_data], [catalyst_data_embed], [catalyst_data_status], [catalyst_data_archive_search], [catalyst_data_wayback], [catalyst_data_statistics], and [catalyst_data_us_public]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
   "boundaries": [
     "educational",
@@ -99,7 +107,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Global Statistics Connector Pack",
+  "release": "U.S. Public Data Connector Pack",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -279,7 +287,16 @@
     "adapter-bindings",
     "adapter-run",
     "adapter-runs",
-    "adapter-run-show"
+    "adapter-run-show",
+    "census-data-fetch",
+    "bls-series-fetch",
+    "bea-data-fetch",
+    "eia-data-fetch",
+    "epa-data-fetch",
+    "usgs-water-fetch",
+    "us-public-observations",
+    "epa-records",
+    "us-public-status"
   ],
   "import_formats": [
     "json",

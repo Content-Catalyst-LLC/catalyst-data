@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.0 - 2026-08-11
+
+### Added
+- U.S. Public Data Connector Pack for Census, BLS, BEA, EIA, EPA Envirofacts, and USGS Water Data.
+- Migration 018, normalized U.S. public observation view, immutable fetch provenance, public cached API surfaces, and WordPress U.S. public-data rendering.
+- Backend-only provider credential injection with redacted persisted request URIs.
+
+
 ## 2.4.0 — Global Statistics Connector Pack
 
 - Added provider-specific World Bank country, indicator, and indicator-observation adapters.

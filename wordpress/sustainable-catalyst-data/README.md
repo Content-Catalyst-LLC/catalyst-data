@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.4.0 adds read-only World Bank and United Nations SDG statistics surfaces to the production WordPress integration.
+Version 2.5.0 adds read-only World Bank and United Nations SDG statistics surfaces to the production WordPress integration.
 
 ## Configuration
 
@@ -29,3 +29,7 @@ The plugin never stores PostgreSQL credentials, provider credentials, or private
 - `/wp-json/sustainable-catalyst-data/v1/statistics/un-sdg/observations`
 
 These routes proxy only configured Catalyst Data public endpoints and never accept upstream provider URLs or credentials from visitors.
+
+
+## U.S. public data
+`[catalyst_data_us_public]` renders cached Census, BLS, BEA, EIA, or USGS observations from the Catalyst Data API. Acquisition remains server-side and credential secrets are never stored in WordPress.

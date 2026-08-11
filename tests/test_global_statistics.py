@@ -70,7 +70,7 @@ def test_world_bank_catalog_and_observations_are_cached(tmp_path):
     obs=svc.world_bank_observations(country='KEN',indicator='SP.POP.TOTL')
     assert obs[0]['value_numeric']==56000000.0 and obs[0]['period']=='2025'
     status=svc.status(); assert status['world_bank_country_count']==1 and status['world_bank_observation_count']==1
-    assert calls[0].headers['User-agent'].startswith('SustainableCatalyst-CatalystData/2.4.0')
+    assert calls[0].headers['User-agent'].startswith('SustainableCatalyst-CatalystData/2.5.0')
 
 
 def test_un_sdg_catalog_and_observations_are_cached(tmp_path):

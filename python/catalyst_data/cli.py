@@ -23,6 +23,7 @@ from .platform import PlatformError, PlatformService
 from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgresql
 from .internet_archive import InternetArchiveError, InternetArchiveService
 from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
+from .us_public_data import USPublicDataError, USPublicDataService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -35,6 +36,38 @@ def _read(path: Path) -> dict[str, Any]:
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def _key_values(items: Sequence[str]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for item in items:
+        if "=" not in item:
+            raise ValueError(f"expected KEY=VALUE, got: {item}")
+        key, value = item.split("=", 1)
+        if not key.strip():
+            raise ValueError("key cannot be empty")
+        result[key.strip()] = value
+    return result
+
+
+def _multi_key_values(items: Sequence[str]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for item in items:
+        if "=" not in item:
+            raise ValueError(f"expected KEY=VALUE, got: {item}")
+        key, value = item.split("=", 1)
+        result.setdefault(key.strip(), []).append(value)
+    return result
+
+
+def _epa_filter_values(items: Sequence[str]) -> list[dict[str, str]]:
+    result: list[dict[str, str]] = []
+    for item in items:
+        parts = item.split(":", 2)
+        if len(parts) != 3:
+            raise ValueError(f"expected COLUMN:OPERATOR:VALUE, got: {item}")
+        result.append({"column": parts[0], "operator": parts[1], "value": parts[2]})
+    return result
 
 
 def parser() -> argparse.ArgumentParser:
@@ -441,6 +474,33 @@ def parser() -> argparse.ArgumentParser:
     stats_status = subparsers.add_parser("statistics-status", help="show World Bank and UN SDG catalog counts and freshness")
     stats_status.add_argument("database", type=str)
 
+    census_fetch = subparsers.add_parser("census-data-fetch", help="fetch and cache U.S. Census Data API observations")
+    census_fetch.add_argument("database", type=str); census_fetch.add_argument("year", type=int); census_fetch.add_argument("dataset"); census_fetch.add_argument("--variable", action="append", required=True); census_fetch.add_argument("--for-predicate", required=True); census_fetch.add_argument("--in-predicate"); census_fetch.add_argument("--credential-env", default="CATALYST_CENSUS_API_KEY")
+
+    bls_fetch = subparsers.add_parser("bls-series-fetch", help="fetch and cache a BLS Public Data API series")
+    bls_fetch.add_argument("database", type=str); bls_fetch.add_argument("series_id"); bls_fetch.add_argument("--latest", action="store_true"); bls_fetch.add_argument("--credential-env", default="CATALYST_BLS_API_KEY")
+
+    bea_fetch = subparsers.add_parser("bea-data-fetch", help="fetch and cache BEA Data Retrieval API observations")
+    bea_fetch.add_argument("database", type=str); bea_fetch.add_argument("dataset"); bea_fetch.add_argument("--param", action="append", default=[]); bea_fetch.add_argument("--credential-env", default="CATALYST_BEA_API_KEY")
+
+    eia_fetch = subparsers.add_parser("eia-data-fetch", help="fetch and cache EIA Open Data API v2 observations")
+    eia_fetch.add_argument("database", type=str); eia_fetch.add_argument("route"); eia_fetch.add_argument("--data", action="append", required=True); eia_fetch.add_argument("--facet", action="append", default=[]); eia_fetch.add_argument("--frequency"); eia_fetch.add_argument("--start"); eia_fetch.add_argument("--end"); eia_fetch.add_argument("--length", type=int, default=1000); eia_fetch.add_argument("--max-pages", type=int, default=25); eia_fetch.add_argument("--credential-env", default="CATALYST_EIA_API_KEY")
+
+    epa_fetch = subparsers.add_parser("epa-data-fetch", help="fetch and cache EPA Envirofacts records")
+    epa_fetch.add_argument("database", type=str); epa_fetch.add_argument("table"); epa_fetch.add_argument("--filter", action="append", default=[]); epa_fetch.add_argument("--first", type=int, default=1); epa_fetch.add_argument("--page-size", type=int, default=500); epa_fetch.add_argument("--max-pages", type=int, default=10); epa_fetch.add_argument("--sort")
+
+    usgs_fetch = subparsers.add_parser("usgs-water-fetch", help="fetch and cache USGS Water Data OGC observations")
+    usgs_fetch.add_argument("database", type=str); usgs_fetch.add_argument("--collection", default="daily"); usgs_fetch.add_argument("--limit", type=int, default=500); usgs_fetch.add_argument("--offset", type=int, default=0); usgs_fetch.add_argument("--max-pages", type=int, default=10); usgs_fetch.add_argument("--datetime", dest="datetime_filter"); usgs_fetch.add_argument("--bbox"); usgs_fetch.add_argument("--monitoring-location-id"); usgs_fetch.add_argument("--parameter-code"); usgs_fetch.add_argument("--statistic-id"); usgs_fetch.add_argument("--credential-env", default="CATALYST_USGS_API_KEY")
+
+    us_obs = subparsers.add_parser("us-public-observations", help="list cached normalized U.S. public-data observations")
+    us_obs.add_argument("database", type=str); us_obs.add_argument("--provider", choices=("census","bls","bea","eia","usgs")); us_obs.add_argument("--metric"); us_obs.add_argument("--geography"); us_obs.add_argument("--start-period"); us_obs.add_argument("--end-period"); us_obs.add_argument("--limit", type=int, default=100); us_obs.add_argument("--offset", type=int, default=0)
+
+    epa_records = subparsers.add_parser("epa-records", help="list cached EPA Envirofacts records")
+    epa_records.add_argument("database", type=str); epa_records.add_argument("--table"); epa_records.add_argument("--limit", type=int, default=100); epa_records.add_argument("--offset", type=int, default=0)
+
+    us_status = subparsers.add_parser("us-public-status", help="show U.S. public-data catalog counts and freshness")
+    us_status.add_argument("database", type=str)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -614,7 +674,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -930,6 +990,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(GlobalStatisticsService(repository).un_sdg_observations(indicator=args.indicator,series=args.series,area_code=args.area_code,start_period=args.start_period,end_period=args.end_period,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
         if args.command == "statistics-status":
             print(json.dumps(GlobalStatisticsService(repository).status(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "census-data-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_census(args.year,args.dataset,args.variable,for_predicate=args.for_predicate,in_predicate=args.in_predicate,credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "bls-series-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_bls_series(args.series_id,latest=args.latest,credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "bea-data-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_bea_data(args.dataset,_key_values(args.param),credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "eia-data-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_eia_data(args.route,args.data,facets=_multi_key_values(args.facet),frequency=args.frequency,start=args.start,end=args.end,length=args.length,max_pages=args.max_pages,credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "epa-data-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_epa_records(args.table,filters=_epa_filter_values(args.filter),first=args.first,page_size=args.page_size,max_pages=args.max_pages,sort=args.sort),indent=2,ensure_ascii=False)); return 0
+        if args.command == "usgs-water-fetch":
+            print(json.dumps(USPublicDataService(repository).fetch_usgs_water(args.collection,limit=args.limit,offset=args.offset,max_pages=args.max_pages,datetime_filter=args.datetime_filter,bbox=args.bbox,monitoring_location_id=args.monitoring_location_id,parameter_code=args.parameter_code,statistic_id=args.statistic_id,credential_env=args.credential_env),indent=2,ensure_ascii=False)); return 0
+        if args.command == "us-public-observations":
+            print(json.dumps(USPublicDataService(repository).observations(provider=args.provider,metric=args.metric,geography=args.geography,start_period=args.start_period,end_period=args.end_period,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "epa-records":
+            print(json.dumps(USPublicDataService(repository).epa_records(table=args.table,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "us-public-status":
+            print(json.dumps(USPublicDataService(repository).status(),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
@@ -1064,7 +1142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError, InternetArchiveError, GlobalStatisticsError, StorageMigrationError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, StorageMigrationError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

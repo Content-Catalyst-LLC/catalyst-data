@@ -4,7 +4,7 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.4.0 — Global Statistics Connector Pack**
+**v2.5.0 — U.S. Public Data Connector Pack**
 
 The release adds provider-specific World Bank and United Nations SDG statistics connectors on top of the governed external-source adapter framework. Source-native country, M49 geography, indicator, period, unit, dimension, and provenance fields are cached in Catalyst Data for use by Site Intelligence, Workspace, Publications, Research Librarian, and other consumers without allowing public WordPress requests to trigger upstream acquisition.
 
@@ -268,7 +268,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.4.0 adds governed World Bank and UN SDG statistical catalogs and observations alongside the existing archival, PostgreSQL/SQLite, provenance, and WordPress integration layers without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.5.0 adds governed World Bank and UN SDG statistical catalogs and observations alongside the existing archival, PostgreSQL/SQLite, provenance, and WordPress integration layers without claiming legal or regulatory compliance.
 
 ## License
 

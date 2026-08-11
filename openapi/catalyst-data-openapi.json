@@ -1,356 +1,43 @@
 {
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "scheme": "bearer",
-        "type": "http"
-      }
-    }
-  },
-  "info": {
-    "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery.",
-    "title": "Catalyst Data Public API",
-    "version": "2.4.0"
-  },
   "openapi": "3.1.0",
+  "info": {
+    "title": "Catalyst Data Public API",
+    "version": "2.5.0",
+    "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8765"
+    }
+  ],
   "paths": {
-    "/health": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Healthy"
-          }
-        },
-        "summary": "Repository health"
-      }
-    },
-    "/v1/adapters": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Adapter manifests"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List installed source adapters"
-      }
-    },
-    "/v1/adapters/bindings": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Bindings"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List source-adapter bindings for the authenticated workspace"
-      }
-    },
-    "/v1/adapters/runs": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Adapter runs"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List source-adapter runs for the authenticated workspace"
-      }
-    },
-    "/v1/adapters/{connector_id}/run": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Adapter and connector run result"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Fetch through the bound source adapter and ingest through the connector engine"
-      }
-    },
-    "/v1/archive/items": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Cached Archive.org items"
-          }
-        },
-        "summary": "Search cached Internet Archive catalog items"
-      }
-    },
-    "/v1/archive/items/{identifier}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Cached Archive.org item"
-          },
-          "404": {
-            "description": "Not cached"
-          }
-        },
-        "summary": "Get one cached Archive.org item and file inventory"
-      }
-    },
-    "/v1/archive/status": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Archive catalog status"
-          }
-        },
-        "summary": "Cached Internet Archive and Wayback catalog status"
-      }
-    },
-    "/v1/capabilities": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Capabilities"
-          }
-        },
-        "summary": "Capability discovery"
-      }
-    },
-    "/v1/connectors": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Connector status"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List connectors bound to the authenticated workspace"
-      }
-    },
-    "/v1/connectors/runs": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "connector_id",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Connector runs"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List connector runs for the authenticated workspace"
-      }
-    },
-    "/v1/connectors/{connector_id}/run": {
-      "post": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "connector_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Run result"
-          },
-          "403": {
-            "description": "Forbidden"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Run a connector synchronously"
-      }
-    },
-    "/v1/handoffs": {
-      "post": {
-        "responses": {
-          "202": {
-            "description": "Accepted"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Receive a typed platform handoff"
-      }
-    },
-    "/v1/openapi.json": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OpenAPI"
-          }
-        },
-        "summary": "OpenAPI document"
-      }
-    },
-    "/v1/records": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "schema": {
-              "maximum": 100,
-              "minimum": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "schema": {
-              "minimum": 0,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Record page"
-          }
-        },
-        "summary": "List externally approved records"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Stored"
-          },
-          "201": {
-            "description": "Created"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Create or update a canonical record"
-      }
-    },
-    "/v1/records/{record_id}": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "record_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Record"
-          },
-          "404": {
-            "description": "Not found"
-          }
-        },
-        "summary": "Get one externally approved record"
-      }
-    },
-    "/v1/statistics/status": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Global statistics catalog status"
-          }
-        },
-        "summary": "Cached World Bank and UN SDG statistics status"
-      }
-    },
-    "/v1/statistics/un-sdg/observations": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "UN SDG observations"
-          }
-        },
-        "summary": "List cached UN SDG observations"
-      }
-    },
-    "/v1/statistics/world-bank/observations": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "World Bank observations"
-          }
-        },
-        "summary": "List cached World Bank observations"
-      }
-    },
-    "/v1/wayback/captures": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Cached Wayback captures"
-          }
-        },
-        "summary": "List cached Wayback captures for a URL"
-      }
-    },
     "/v1/workspaces": {
       "get": {
+        "summary": "List the authenticated client workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Workspace"
           }
-        },
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/records": {
+      "get": {
+        "summary": "List authorized workspace records",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "List the authenticated client workspace"
-      }
-    },
-    "/v1/workspaces/{workspace_id}/records": {
-      "get": {
         "parameters": [
           {
-            "in": "path",
             "name": "workspace_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"
@@ -364,55 +51,260 @@
           "403": {
             "description": "Forbidden"
           }
-        },
+        }
+      }
+    },
+    "/v1/connectors": {
+      "get": {
+        "summary": "List connectors bound to the authenticated workspace",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "List authorized workspace records"
+        "responses": {
+          "200": {
+            "description": "Connector status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/connectors/runs": {
+      "get": {
+        "summary": "List connector runs for the authenticated workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connector_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connector runs"
+          }
+        }
+      }
+    },
+    "/v1/connectors/{connector_id}/run": {
+      "post": {
+        "summary": "Run a connector synchronously",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connector_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run result"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/adapters": {
+      "get": {
+        "summary": "List installed source adapters",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Adapter manifests"
+          }
+        }
+      }
+    },
+    "/v1/adapters/bindings": {
+      "get": {
+        "summary": "List source-adapter bindings for the authenticated workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bindings"
+          }
+        }
+      }
+    },
+    "/v1/adapters/runs": {
+      "get": {
+        "summary": "List source-adapter runs for the authenticated workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Adapter runs"
+          }
+        }
+      }
+    },
+    "/v1/adapters/{connector_id}/run": {
+      "post": {
+        "summary": "Fetch through the bound source adapter and ingest through the connector engine",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Adapter and connector run result"
+          }
+        }
+      }
+    },
+    "/v1/archive/status": {
+      "get": {
+        "summary": "Cached Internet Archive and Wayback catalog status",
+        "responses": {
+          "200": {
+            "description": "Archive catalog status"
+          }
+        }
+      }
+    },
+    "/v1/archive/items": {
+      "get": {
+        "summary": "Search cached Internet Archive catalog items",
+        "responses": {
+          "200": {
+            "description": "Cached Archive.org items"
+          }
+        }
+      }
+    },
+    "/v1/archive/items/{identifier}": {
+      "get": {
+        "summary": "Get one cached Archive.org item and file inventory",
+        "responses": {
+          "200": {
+            "description": "Cached Archive.org item"
+          },
+          "404": {
+            "description": "Not cached"
+          }
+        }
+      }
+    },
+    "/v1/wayback/captures": {
+      "get": {
+        "summary": "List cached Wayback captures for a URL",
+        "responses": {
+          "200": {
+            "description": "Cached Wayback captures"
+          }
+        }
+      }
+    },
+    "/v1/statistics/status": {
+      "get": {
+        "summary": "Cached World Bank and UN SDG statistics status",
+        "responses": {
+          "200": {
+            "description": "Global statistics catalog status"
+          }
+        }
+      }
+    },
+    "/v1/statistics/world-bank/observations": {
+      "get": {
+        "summary": "List cached World Bank observations",
+        "responses": {
+          "200": {
+            "description": "World Bank observations"
+          }
+        }
+      }
+    },
+    "/v1/statistics/un-sdg/observations": {
+      "get": {
+        "summary": "List cached UN SDG observations",
+        "responses": {
+          "200": {
+            "description": "UN SDG observations"
+          }
+        }
+      }
+    },
+    "/v1/us-public/status": {
+      "get": {
+        "summary": "Cached U.S. public-data status",
+        "responses": {
+          "200": {
+            "description": "U.S. public-data catalog status"
+          }
+        }
+      }
+    },
+    "/v1/us-public/observations": {
+      "get": {
+        "summary": "List cached normalized Census, BLS, BEA, EIA, and USGS observations",
+        "responses": {
+          "200": {
+            "description": "U.S. public-data observations"
+          }
+        }
+      }
+    },
+    "/v1/us-public/epa-records": {
+      "get": {
+        "summary": "List cached EPA Envirofacts records",
+        "responses": {
+          "200": {
+            "description": "EPA Envirofacts records"
+          }
+        }
       }
     },
     "/v2/platform": {
       "get": {
+        "summary": "Connected platform manifest",
         "responses": {
           "200": {
             "description": "Platform manifest"
           }
-        },
-        "summary": "Connected platform manifest"
-      }
-    },
-    "/v2/platform/components": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Components"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Connected platform components"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Registered"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Register or version a platform component"
+        }
       }
     },
     "/v2/platform/readiness": {
       "get": {
+        "summary": "Integrated platform readiness",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Readiness"
@@ -420,47 +312,185 @@
           "401": {
             "description": "Unauthorized"
           }
-        },
+        }
+      }
+    },
+    "/v2/platform/components": {
+      "get": {
+        "summary": "Connected platform components",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "Integrated platform readiness"
+        "responses": {
+          "200": {
+            "description": "Components"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register or version a platform component",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registered"
+          }
+        }
       }
     },
     "/v2/platform/snapshots": {
       "get": {
+        "summary": "Immutable platform release snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Snapshots"
           }
-        },
+        }
+      },
+      "post": {
+        "summary": "Create a platform release snapshot",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "Immutable platform release snapshots"
-      },
-      "post": {
         "responses": {
           "201": {
             "description": "Snapshot created"
           }
-        },
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Repository health",
+        "responses": {
+          "200": {
+            "description": "Healthy"
+          }
+        }
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "summary": "Capability discovery",
+        "responses": {
+          "200": {
+            "description": "Capabilities"
+          }
+        }
+      }
+    },
+    "/v1/records": {
+      "get": {
+        "summary": "List externally approved records",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record page"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create or update a canonical record",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "Create a platform release snapshot"
+        "responses": {
+          "200": {
+            "description": "Stored"
+          },
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/records/{record_id}": {
+      "get": {
+        "summary": "Get one externally approved record",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/handoffs": {
+      "post": {
+        "summary": "Receive a typed platform handoff",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "summary": "OpenAPI document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI"
+          }
+        }
       }
     }
   },
-  "servers": [
-    {
-      "url": "http://127.0.0.1:8765"
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
     }
-  ]
+  }
 }

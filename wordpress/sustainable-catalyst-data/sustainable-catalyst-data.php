@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, and cached global statistics from World Bank and UN SDG sources.
- * Version: 2.4.0
+ * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, global statistics, and governed cached U.S. public data from federal sources.
+ * Version: 2.5.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.4.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.5.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -184,8 +184,20 @@ function sustainable_catalyst_data_settings_page() {
                 <tr><th>UN SDG observations</th><td><?php echo esc_html(isset($statistics['un_sdg_observation_count']) ? $statistics['un_sdg_observation_count'] : '0'); ?></td></tr>
             </tbody></table>
         <?php endif; ?>
+        <h2>U.S. public data</h2>
+        <?php $us_public = sustainable_catalyst_data_fetch('/v1/us-public/status', array(), 30); ?>
+        <?php if (!is_wp_error($us_public)) : ?>
+            <table class="widefat striped" style="max-width:760px"><tbody>
+                <tr><th>Census observations</th><td><?php echo esc_html(isset($us_public['census_observation_count']) ? $us_public['census_observation_count'] : '0'); ?></td></tr>
+                <tr><th>BLS series / observations</th><td><?php echo esc_html((isset($us_public['bls_series_count']) ? $us_public['bls_series_count'] : '0') . ' / ' . (isset($us_public['bls_observation_count']) ? $us_public['bls_observation_count'] : '0')); ?></td></tr>
+                <tr><th>BEA observations</th><td><?php echo esc_html(isset($us_public['bea_observation_count']) ? $us_public['bea_observation_count'] : '0'); ?></td></tr>
+                <tr><th>EIA observations</th><td><?php echo esc_html(isset($us_public['eia_observation_count']) ? $us_public['eia_observation_count'] : '0'); ?></td></tr>
+                <tr><th>EPA records</th><td><?php echo esc_html(isset($us_public['epa_record_count']) ? $us_public['epa_record_count'] : '0'); ?></td></tr>
+                <tr><th>USGS water observations</th><td><?php echo esc_html(isset($us_public['usgs_observation_count']) ? $us_public['usgs_observation_count'] : '0'); ?></td></tr>
+            </tbody></table>
+        <?php endif; ?>
         <h2>Shortcodes</h2>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations.</p>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations.</p>
     </div>
     <?php
 }
@@ -444,4 +456,46 @@ function sustainable_catalyst_data_statistics_shortcode($atts = array()) {
     <?php return ob_get_clean();
 }
 add_shortcode('catalyst_data_statistics', 'sustainable_catalyst_data_statistics_shortcode');
+
+
+function sustainable_catalyst_data_us_public_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'provider' => '', 'metric' => '', 'geography' => '', 'start_period' => '', 'end_period' => '',
+        'limit' => '20', 'title' => 'U.S. Public Data',
+    ), $atts, 'catalyst_data_us_public');
+    $provider = sanitize_key($atts['provider']);
+    if ($provider !== '' && !in_array($provider, array('census','bls','bea','eia','usgs'), true)) {
+        return '<div class="scd-status scd-status--attention"><strong>Catalyst Data:</strong> provider must be census, bls, bea, eia, or usgs.</div>';
+    }
+    $params = array('limit' => max(1, min(100, absint($atts['limit']))), 'offset' => 0);
+    foreach (array('provider','metric','geography','start_period','end_period') as $key) {
+        if (trim((string) $atts[$key]) !== '') { $params[$key] = sanitize_text_field($atts[$key]); }
+    }
+    $payload = sustainable_catalyst_data_fetch('/v1/us-public/observations', $params);
+    wp_enqueue_style('sustainable-catalyst-data');
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data U.S. public data:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    $items = isset($payload['observations']) && is_array($payload['observations']) ? $payload['observations'] : array();
+    ob_start(); ?>
+    <section class="scd scd--statistics scd--us-public">
+        <header class="scd__header"><p class="scd__eyebrow">Governed Federal Data</p><h2><?php echo esc_html($atts['title']); ?></h2><p>Cached U.S. public-data observations with source-native identifiers, period context, and provenance.</p></header>
+        <div class="scd__grid scd__grid--statistics" role="list">
+        <?php foreach ($items as $item) :
+            $label = !empty($item['metric_name']) ? $item['metric_name'] : (!empty($item['metric_code']) ? $item['metric_code'] : 'Observation');
+            $area = !empty($item['geography_name']) ? $item['geography_name'] : (!empty($item['geography_id']) ? $item['geography_id'] : '');
+            $period = !empty($item['period']) ? $item['period'] : '';
+            $value = isset($item['value_numeric']) && $item['value_numeric'] !== null ? $item['value_numeric'] : (isset($item['value_text']) ? $item['value_text'] : '—');
+            $unit = !empty($item['unit']) ? $item['unit'] : ''; ?>
+            <article class="scd__card" role="listitem">
+                <p class="scd__card-eyebrow"><?php echo esc_html(strtoupper((string) ($item['provider'] ?? 'data')) . (($area !== '' || $period !== '') ? ' · ' . trim($area . ' ' . $period) : '')); ?></p>
+                <h3><?php echo esc_html($label); ?></h3>
+                <p class="scd__stat-value"><?php echo esc_html((string) $value); ?><?php echo $unit !== '' ? ' <span>' . esc_html($unit) . '</span>' : ''; ?></p>
+                <?php if (!empty($item['source_uri'])) : ?><a class="scd__source" href="<?php echo esc_url($item['source_uri']); ?>" target="_blank" rel="noopener noreferrer">Source request ↗</a><?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$items) : ?><p class="scd__notice">No matching cached U.S. public-data observations are available yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_us_public', 'sustainable_catalyst_data_us_public_shortcode');
 

@@ -255,6 +255,10 @@ def default_adapter_registry() -> AdapterRegistry:
         WorldBankCountriesAdapter, WorldBankIndicatorsAdapter, WorldBankIndicatorDataAdapter,
         UNSDGGeoAreasAdapter, UNSDGGoalsAdapter, UNSDGIndicatorsAdapter, UNSDGIndicatorDataAdapter,
     )
+    from .us_public_data import (
+        CensusDataAdapter, BLSSeriesAdapter, BEADataAdapter, EIADataAdapter,
+        EPAEnvirofactsAdapter, USGSWaterDataAdapter,
+    )
     registry.register(InternetArchiveSearchAdapter())
     registry.register(InternetArchiveMetadataAdapter())
     registry.register(WaybackAvailabilityAdapter())
@@ -266,6 +270,12 @@ def default_adapter_registry() -> AdapterRegistry:
     registry.register(UNSDGGoalsAdapter())
     registry.register(UNSDGIndicatorsAdapter())
     registry.register(UNSDGIndicatorDataAdapter())
+    registry.register(CensusDataAdapter())
+    registry.register(BLSSeriesAdapter())
+    registry.register(BEADataAdapter())
+    registry.register(EIADataAdapter())
+    registry.register(EPAEnvirofactsAdapter())
+    registry.register(USGSWaterDataAdapter())
     return registry
 
 
