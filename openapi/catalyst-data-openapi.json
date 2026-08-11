@@ -1,67 +1,101 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "Catalyst Data Public API",
-    "version": "2.1.0",
-    "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
-  },
-  "servers": [
-    {
-      "url": "http://127.0.0.1:8765"
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
-  ],
+  },
+  "info": {
+    "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery.",
+    "title": "Catalyst Data Public API",
+    "version": "2.2.0"
+  },
+  "openapi": "3.1.0",
   "paths": {
-    "/v1/workspaces": {
+    "/health": {
       "get": {
-        "summary": "List the authenticated client workspace",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Workspace"
+            "description": "Healthy"
           }
-        }
+        },
+        "summary": "Repository health"
       }
     },
-    "/v1/workspaces/{workspace_id}/records": {
+    "/v1/adapters": {
       "get": {
-        "summary": "List authorized workspace records",
+        "responses": {
+          "200": {
+            "description": "Adapter manifests"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "List installed source adapters"
+      }
+    },
+    "/v1/adapters/bindings": {
+      "get": {
         "responses": {
           "200": {
-            "description": "Workspace records"
-          },
-          "403": {
-            "description": "Forbidden"
+            "description": "Bindings"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List source-adapter bindings for the authenticated workspace"
+      }
+    },
+    "/v1/adapters/runs": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Adapter runs"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List source-adapter runs for the authenticated workspace"
+      }
+    },
+    "/v1/adapters/{connector_id}/run": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Adapter and connector run result"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch through the bound source adapter and ingest through the connector engine"
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Capabilities"
+          }
+        },
+        "summary": "Capability discovery"
       }
     },
     "/v1/connectors": {
       "get": {
-        "summary": "List connectors bound to the authenticated workspace",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Connector status"
@@ -69,21 +103,21 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
-      }
-    },
-    "/v1/connectors/runs": {
-      "get": {
-        "summary": "List connector runs for the authenticated workspace",
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "summary": "List connectors bound to the authenticated workspace"
+      }
+    },
+    "/v1/connectors/runs": {
+      "get": {
         "parameters": [
           {
-            "name": "connector_id",
             "in": "query",
+            "name": "connector_id",
             "schema": {
               "type": "string"
             }
@@ -93,21 +127,21 @@
           "200": {
             "description": "Connector runs"
           }
-        }
-      }
-    },
-    "/v1/connectors/{connector_id}/run": {
-      "post": {
-        "summary": "Run a connector synchronously",
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "summary": "List connector runs for the authenticated workspace"
+      }
+    },
+    "/v1/connectors/{connector_id}/run": {
+      "post": {
         "parameters": [
           {
-            "name": "connector_id",
             "in": "path",
+            "name": "connector_id",
             "required": true,
             "schema": {
               "type": "string"
@@ -121,132 +155,58 @@
           "403": {
             "description": "Forbidden"
           }
-        }
-      }
-    },
-    "/v2/platform": {
-      "get": {
-        "summary": "Connected platform manifest",
-        "responses": {
-          "200": {
-            "description": "Platform manifest"
-          }
-        }
-      }
-    },
-    "/v2/platform/readiness": {
-      "get": {
-        "summary": "Integrated platform readiness",
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Readiness"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        }
+        "summary": "Run a connector synchronously"
       }
     },
-    "/v2/platform/components": {
-      "get": {
-        "summary": "Connected platform components",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Components"
-          }
-        }
-      },
+    "/v1/handoffs": {
       "post": {
-        "summary": "Register or version a platform component",
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Registered"
-          }
-        }
+        "summary": "Receive a typed platform handoff"
       }
     },
-    "/v2/platform/snapshots": {
+    "/v1/openapi.json": {
       "get": {
-        "summary": "Immutable platform release snapshots",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Snapshots"
+            "description": "OpenAPI"
           }
-        }
-      },
-      "post": {
-        "summary": "Create a platform release snapshot",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Snapshot created"
-          }
-        }
-      }
-    },
-    "/health": {
-      "get": {
-        "summary": "Repository health",
-        "responses": {
-          "200": {
-            "description": "Healthy"
-          }
-        }
-      }
-    },
-    "/v1/capabilities": {
-      "get": {
-        "summary": "Capability discovery",
-        "responses": {
-          "200": {
-            "description": "Capabilities"
-          }
-        }
+        },
+        "summary": "OpenAPI document"
       }
     },
     "/v1/records": {
       "get": {
-        "summary": "List externally approved records",
         "parameters": [
           {
-            "name": "limit",
             "in": "query",
+            "name": "limit",
             "schema": {
-              "type": "integer",
+              "maximum": 100,
               "minimum": 1,
-              "maximum": 100
+              "type": "integer"
             }
           },
           {
-            "name": "offset",
             "in": "query",
+            "name": "offset",
             "schema": {
-              "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -254,15 +214,10 @@
           "200": {
             "description": "Record page"
           }
-        }
+        },
+        "summary": "List externally approved records"
       },
       "post": {
-        "summary": "Create or update a canonical record",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Stored"
@@ -270,16 +225,21 @@
           "201": {
             "description": "Created"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create or update a canonical record"
       }
     },
     "/v1/records/{record_id}": {
       "get": {
-        "summary": "Get one externally approved record",
         "parameters": [
           {
-            "name": "record_id",
             "in": "path",
+            "name": "record_id",
             "required": true,
             "schema": {
               "type": "string"
@@ -293,41 +253,141 @@
           "404": {
             "description": "Not found"
           }
-        }
+        },
+        "summary": "Get one externally approved record"
       }
     },
-    "/v1/handoffs": {
-      "post": {
-        "summary": "Receive a typed platform handoff",
+    "/v1/workspaces": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Workspace"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "responses": {
-          "202": {
-            "description": "Accepted"
-          }
-        }
+        "summary": "List the authenticated client workspace"
       }
     },
-    "/v1/openapi.json": {
+    "/v1/workspaces/{workspace_id}/records": {
       "get": {
-        "summary": "OpenAPI document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OpenAPI"
+            "description": "Workspace records"
+          },
+          "403": {
+            "description": "Forbidden"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List authorized workspace records"
+      }
+    },
+    "/v2/platform": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Platform manifest"
+          }
+        },
+        "summary": "Connected platform manifest"
+      }
+    },
+    "/v2/platform/components": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Components"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Connected platform components"
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Registered"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register or version a platform component"
+      }
+    },
+    "/v2/platform/readiness": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Readiness"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Integrated platform readiness"
+      }
+    },
+    "/v2/platform/snapshots": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Snapshots"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Immutable platform release snapshots"
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Snapshot created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a platform release snapshot"
       }
     }
   },
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
-      }
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8765"
     }
-  }
+  ]
 }

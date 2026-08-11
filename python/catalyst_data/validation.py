@@ -266,9 +266,9 @@ def validate_record(record: Mapping[str, Any]) -> None:
     else:
         _strict_fallback(record)
 
-    # JSON Schema format validation is optional unless its RFC format
-    # dependencies are installed. URI validity is part of Catalyst's canonical
-    # contract, so enforce it independently for deterministic behavior.
+    # jsonschema format validation is intentionally optional unless its RFC
+    # format dependencies are installed. URI validity is part of Catalyst's
+    # canonical contract, so enforce it independently for deterministic behavior.
     _absolute_uri(record["source"].get("url"), "source.url")
     evidence_chain = record.get("evidence_chain")
     if isinstance(evidence_chain, Mapping):

@@ -14,8 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGIN_SOURCE = ROOT / "wordpress" / "catalyst-data-demo"
-PLUGIN_ZIP = ROOT / "dist" / "catalyst-data-demo.zip"
+PLUGIN_SOURCE = ROOT / "wordpress" / "sustainable-catalyst-data"
+PLUGIN_ZIP = ROOT / "dist" / "sustainable-catalyst-data.zip"
 FIXED_TIME = (2026, 7, 16, 12, 0, 0)
 FIXED_DATETIME = datetime(2026, 7, 16, 12, 0, 0, tzinfo=timezone.utc)
 sys.path.insert(0, str(ROOT / "python"))
@@ -86,7 +86,7 @@ def main() -> int:
     run(sys.executable, "scripts/sync_contract.py")
     run(sys.executable, "scripts/sync_record_contract.py")
     regenerate_examples()
-    deterministic_zip(PLUGIN_SOURCE, PLUGIN_ZIP, "catalyst-data-demo")
+    deterministic_zip(PLUGIN_SOURCE, PLUGIN_ZIP, "sustainable-catalyst-data")
 
     print(f"built {PLUGIN_ZIP.relative_to(ROOT)}")
     print(f"sha256 {checksum(PLUGIN_ZIP)}")

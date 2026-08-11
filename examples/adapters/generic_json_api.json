@@ -1,0 +1,16 @@
+{
+  "base_url": "https://api.example.org/v1/records",
+  "query": {"format": "json"},
+  "records_path": "results",
+  "pagination": {
+    "type": "page",
+    "param": "page",
+    "start": 1,
+    "page_size_param": "limit",
+    "page_size": 100,
+    "max_pages": 25
+  },
+  "metadata": {
+    "purpose": "Example non-secret adapter configuration"
+  }
+}

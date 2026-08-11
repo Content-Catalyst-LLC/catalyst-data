@@ -4,7 +4,7 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.1.0 — PostgreSQL Production Persistence & Storage Abstraction**
+**v2.2.0 — External Source Adapter Framework & WordPress Integration Foundation**
 
 The release adds PostgreSQL as the production persistence backend without abandoning SQLite. Existing repository, importer, connector, review, analysis, workspace, API, and platform contracts continue to operate through one database boundary; SQLite remains supported for development, testing, offline use, recovery, and portable evidence packages.
 
@@ -90,7 +90,8 @@ The release adds PostgreSQL as the production persistence backend without abando
 - `python/catalyst_data/handoff.py` — typed platform handoff contract and validation.
 - `python/catalyst_data/operations.py` — backup, restore, offline synchronization, performance, security, and release attestation.
 - `openapi/` — static OpenAPI 3.1 contract.
-- `wordpress/catalyst-data-demo/` — browser-only demo and persistent public API embed.
+- `wordpress/sustainable-catalyst-data/` — production-oriented public WordPress integration with same-origin proxying and health diagnostics.
+- `wordpress/catalyst-data-demo/` — legacy browser-contract demo retained for compatibility testing.
 
 ## Install
 
@@ -250,7 +251,7 @@ service.export_file("outputs/export.json")
 
 ## WordPress demo and persistent embed
 
-Install `dist/catalyst-data-demo.zip`. `[catalyst_data_demo]` remains browser-only and does not write to SQLite. `[catalyst_data_embed api_url="https://data.example.org" limit="12"]` reads externally approved records from the public API and never accepts a write token.
+Install `dist/sustainable-catalyst-data.zip`. Configure the public Catalyst Data API in **Settings → Catalyst Data**, then use `[sustainable_catalyst_data]`, `[catalyst_data_embed]`, or `[catalyst_data_status]`. The plugin proxies approved public reads through WordPress and never stores PostgreSQL credentials or private Catalyst bearer tokens.
 
 ## Build and validation
 
@@ -263,7 +264,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.1.0 provides PostgreSQL production persistence plus the connected capability and contract registry without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.2.0 adds governed external-source adapters and a production-oriented WordPress integration on top of PostgreSQL/SQLite persistence and the connected capability registry without claiming legal or regulatory compliance.
 
 ## License
 

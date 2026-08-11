@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sustainablecatalyst.com/schemas/catalyst-data-source-adapter-1.0.json",
+  "title": "Catalyst Data Source Adapter 1.0 Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "adapter_id", "name", "version", "provider", "response_format", "capabilities", "pagination", "description"],
+  "properties": {
+    "schema_version": {"const": "catalyst-data-source-adapter/1.0"},
+    "adapter_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{2,127}$"},
+    "name": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$"},
+    "provider": {"type": "string", "minLength": 1},
+    "response_format": {"enum": ["json", "csv"]},
+    "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "pagination": {"type": "array", "items": {"enum": ["none", "page", "offset", "cursor"]}, "uniqueItems": true},
+    "description": {"type": "string", "minLength": 1}
+  }
+}

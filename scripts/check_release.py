@@ -74,16 +74,16 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "2.1.0":
+    if version != "2.2.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
         fail("Manifest does not match VERSION and record contract")
     if __version__ != version:
         fail("Python package version does not match VERSION")
-    php = (ROOT / "wordpress/catalyst-data-demo/catalyst-data-demo.php").read_text(encoding="utf-8")
-    if f"Version: {version}" not in php or f"CATALYST_DATA_DEMO_VERSION', '{version}'" not in php:
-        fail("WordPress version does not match VERSION")
+    php = (ROOT / "wordpress/sustainable-catalyst-data/sustainable-catalyst-data.php").read_text(encoding="utf-8")
+    if f"Version: {version}" not in php or f"SUSTAINABLE_CATALYST_DATA_VERSION', '{version}'" not in php:
+        fail("Sustainable Catalyst Data WordPress version does not match VERSION")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     if f"## {version}" not in changelog:
         fail("CHANGELOG does not contain the release version")
@@ -156,6 +156,13 @@ def validate_schemas() -> None:
     platform_schema_payload = json.loads(platform_path.read_text(encoding="utf-8"))
     if platform_schema_payload.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-platform/2.0":
         fail("Platform schema identifier is invalid")
+    adapter_path = ROOT / "schemas/catalyst_data_source_adapter_1_0.schema.json"
+    adapter_package = ROOT / "python/catalyst_data/schemas/catalyst_data_source_adapter_1_0.schema.json"
+    if adapter_path.read_bytes() != adapter_package.read_bytes():
+        fail("Packaged source-adapter schema differs from canonical schema")
+    adapter_schema_payload = json.loads(adapter_path.read_text(encoding="utf-8"))
+    if adapter_schema_payload.get("properties", {}).get("schema_version", {}).get("const") != "catalyst-data-source-adapter/1.0":
+        fail("Source-adapter schema identifier is invalid")
     if canonical.get("$id") != "https://sustainablecatalyst.com/schemas/catalyst-data-record-1.0.json":
         fail("Canonical record schema ID is invalid")
     operations_path = ROOT / "schemas/catalyst_data_operational_hardening_1_0.schema.json"
@@ -178,6 +185,7 @@ def validate_schemas() -> None:
         Draft202012Validator.check_schema(access_schema)
         Draft202012Validator.check_schema(operations_schema)
         Draft202012Validator.check_schema(platform_schema_payload)
+        Draft202012Validator.check_schema(adapter_schema_payload)
         Draft202012Validator.check_schema(json.loads((ROOT / "schemas/catalyst_data_connector_operations_1_0.schema.json").read_text(encoding="utf-8")))
         analysis_schema_path = ROOT / "schemas/catalyst_data_analysis_artifact_1_0.schema.json"
         analysis_package_path = ROOT / "python/catalyst_data/schemas/catalyst_data_analysis_artifact_1_0.schema.json"
@@ -249,19 +257,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]:
-        fail("Expected contiguous migrations 1 through 14")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+        fail("Expected contiguous migrations 1 through 15")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]:
-            fail("Fresh repository did not apply migrations 1 through 14")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+            fail("Fresh repository did not apply migrations 1 through 15")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [14]:
-            fail("Migration 14 rollback failed")
-        if repository.migrate() != [14]:
-            fail("Migration 14 reapplication failed")
+        if repository.rollback(1) != [15]:
+            fail("Migration 15 rollback failed")
+        if repository.migrate() != [15]:
+            fail("Migration 15 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -405,7 +413,7 @@ def validate_repository_pipeline() -> None:
             fail("Release attestation failed")
         restored_path = Path(directory) / "restored.sqlite3"
         restored = operations.restore_backup(backup_path, restored_path, actor="principal:system")
-        if restored["migration_version"] != 14 or restored["record_count"] < 2:
+        if restored["migration_version"] != 15 or restored["record_count"] < 2:
             fail("Backup restore validation failed")
         readiness = operations.readiness()
         if readiness["verified_backup_count"] < 1 or readiness["release_attestation_count"] < 1:
@@ -429,7 +437,7 @@ def validate_repository_pipeline() -> None:
         platform_service = PlatformService(repository)
         platform_service.sync_builtin_contracts(actor="principal:system")
         platform_manifest = platform_service.manifest()
-        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 14:
+        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 15:
             fail("Connected platform manifest failed")
         platform_snapshot = platform_service.create_snapshot(actor="principal:system")
         if platform_service.verify_snapshot(platform_snapshot["snapshot_id"], actor="principal:system")["status"] != "pass":
@@ -498,19 +506,18 @@ def validate_python_metadata() -> None:
 
 
 def validate_plugin_zip(skip_build_check: bool) -> None:
-    path = ROOT / "dist/catalyst-data-demo.zip"
+    path = ROOT / "dist/sustainable-catalyst-data.zip"
     if not path.exists():
         fail("WordPress distribution ZIP is missing")
     with zipfile.ZipFile(path) as archive:
         names = set(archive.namelist())
         required = {
-            "catalyst-data-demo/catalyst-data-demo.php",
-            "catalyst-data-demo/assets/catalyst-data-demo.js",
-            "catalyst-data-demo/assets/catalyst-data-contract.js",
-            "catalyst-data-demo/assets/catalyst-data-record-contract.js",
-            "catalyst-data-demo/assets/catalyst-data-demo.css",
-            "catalyst-data-demo/assets/catalyst-data-embed.js",
-            "catalyst-data-demo/README.md",
+            "sustainable-catalyst-data/sustainable-catalyst-data.php",
+            "sustainable-catalyst-data/assets/sustainable-catalyst-data.js",
+            "sustainable-catalyst-data/assets/sustainable-catalyst-data.css",
+            "sustainable-catalyst-data/assets/catalyst-data-contract.js",
+            "sustainable-catalyst-data/assets/catalyst-data-record-contract.js",
+            "sustainable-catalyst-data/README.md",
         }
         missing = required - names
         if missing:
@@ -524,8 +531,8 @@ def validate_plugin_zip(skip_build_check: bool) -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     with tempfile.TemporaryDirectory() as directory:
-        candidate = Path(directory) / "catalyst-data-demo.zip"
-        module.deterministic_zip(ROOT / "wordpress/catalyst-data-demo", candidate, "catalyst-data-demo")
+        candidate = Path(directory) / "sustainable-catalyst-data.zip"
+        module.deterministic_zip(ROOT / "wordpress/sustainable-catalyst-data", candidate, "sustainable-catalyst-data")
         rebuilt = candidate.read_bytes()
     if hashlib.sha256(original).digest() != hashlib.sha256(rebuilt).digest():
         fail("WordPress ZIP is not reproducible or was stale")
@@ -578,7 +585,11 @@ def main() -> int:
         command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-demo.js"])
         command(["node", "--check", "wordpress/catalyst-data-demo/assets/catalyst-data-embed.js"])
         command(["node", "scripts/test_browser_contract.js"])
+        command(["node", "--check", "wordpress/sustainable-catalyst-data/assets/sustainable-catalyst-data.js"])
+        command(["node", "--check", "wordpress/sustainable-catalyst-data/assets/catalyst-data-contract.js"])
+        command(["node", "--check", "wordpress/sustainable-catalyst-data/assets/catalyst-data-record-contract.js"])
         command(["php", "-l", "wordpress/catalyst-data-demo/catalyst-data-demo.php"])
+        command(["php", "-l", "wordpress/sustainable-catalyst-data/sustainable-catalyst-data.php"])
     print("STEP: plugin package", flush=True)
     validate_plugin_zip(args.skip_build_check)
     print(f"Catalyst Data v{version} release contract passed.")

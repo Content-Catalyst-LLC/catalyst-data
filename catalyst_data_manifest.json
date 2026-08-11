@@ -1,7 +1,7 @@
 {
   "name": "Catalyst Data",
-  "version": "2.1.0",
-  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, SQLite local/offline portability, storage migration, provenance, governed connectors, public API, workspaces, review, lineage, and reproducible analysis",
+  "version": "2.2.0",
+  "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, external source adapters, governed connectors, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
   "review_contract": "contracts/review_contract.json",
@@ -72,9 +72,17 @@
     "platform integrity verification",
     "storage backend abstraction",
     "PostgreSQL production baseline",
-    "SQLite-to-PostgreSQL migration event"
+    "SQLite-to-PostgreSQL migration event",
+    "source adapter registry",
+    "source adapter binding",
+    "adapter run",
+    "adapter page",
+    "conditional HTTP state",
+    "pagination checkpoint",
+    "WordPress public API proxy",
+    "WordPress connection health"
   ],
-  "wordpress_shortcode": "[catalyst_data_demo] and [catalyst_data_embed api_url=\"https://data.example.org\"]",
+  "wordpress_shortcode": "[sustainable_catalyst_data], [catalyst_data_embed] compatibility alias, and [catalyst_data_status]",
   "repository": "https://github.com/Content-Catalyst-LLC/catalyst-data",
   "boundaries": [
     "educational",
@@ -82,7 +90,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "PostgreSQL Production Persistence & Storage Abstraction",
+  "release": "External Source Adapter Framework & WordPress Integration Foundation",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -114,7 +122,11 @@
     "schemas/catalyst_data_operational_hardening_1_0.schema.json",
     "python/catalyst_data/schemas/catalyst_data_platform_2_0.schema.json",
     "schemas/catalyst_data_platform_2_0.schema.json",
-    "python/catalyst_data/postgresql/schema.sql"
+    "python/catalyst_data/postgresql/schema.sql",
+    "python/catalyst_data/schemas/catalyst_data_source_adapter_1_0.schema.json",
+    "schemas/catalyst_data_source_adapter_1_0.schema.json",
+    "wordpress/sustainable-catalyst-data/assets/catalyst-data-contract.js",
+    "wordpress/sustainable-catalyst-data/assets/catalyst-data-record-contract.js"
   ],
   "legacy_upgrade": "catalyst-data upgrade INPUT.json OUTPUT.json",
   "validation_command": "catalyst-data validate RECORD.json",
@@ -251,7 +263,14 @@
     "platform-verify",
     "platform-integrity",
     "platform-readiness",
-    "platform-events"
+    "platform-events",
+    "adapter-list",
+    "adapter-bind",
+    "adapter-binding",
+    "adapter-bindings",
+    "adapter-run",
+    "adapter-runs",
+    "adapter-run-show"
   ],
   "import_formats": [
     "json",
@@ -276,7 +295,7 @@
   "api_version": "v2 with v1 compatibility",
   "access_governance_contract": "catalyst-data-access-governance/1.0",
   "access_governance_schema": "schemas/catalyst_data_access_governance_1_0.schema.json",
-  "current_migration": 13,
+  "current_migration": 15,
   "connector_operations_contract": "catalyst-data-connector-operations/1.0",
   "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json",
   "analysis_artifact_contract": "catalyst-data-analysis-artifact/1.0",
@@ -288,5 +307,9 @@
   "platform_schema": "schemas/catalyst_data_platform_2_0.schema.json",
   "database_url_env": "DATABASE_URL",
   "postgresql_schema": "python/catalyst_data/postgresql/schema.sql",
-  "storage_migration_command": "catalyst-data storage-migrate-postgres SOURCE.sqlite3 \"$DATABASE_URL\""
+  "storage_migration_command": "catalyst-data storage-migrate-postgres SOURCE.sqlite3 \"$DATABASE_URL\"",
+  "source_adapter_contract": "catalyst-data-source-adapter/1.0",
+  "source_adapter_schema": "schemas/catalyst_data_source_adapter_1_0.schema.json",
+  "wordpress_plugin": "dist/sustainable-catalyst-data.zip",
+  "wordpress_api_boundary": "public read-only WordPress REST proxy; no PostgreSQL credentials or private Catalyst bearer tokens stored in WordPress"
 }

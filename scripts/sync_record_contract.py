@@ -528,6 +528,7 @@ def rendered_outputs() -> dict[Path, str]:
         ROOT / "python/catalyst_data/schemas/catalyst_data_review_workflow_1_0.schema.json": workflow_text,
         ROOT / "python/catalyst_data/_record_contract.py": python_constants(record),
         ROOT / "wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js": javascript_constants(record, review),
+        ROOT / "wordpress/sustainable-catalyst-data/assets/catalyst-data-record-contract.js": javascript_constants(record, review),
     }
 
 

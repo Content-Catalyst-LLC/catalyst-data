@@ -28,6 +28,10 @@ from .connectors import (
     ConnectorService, ConnectorValidationError, connector_schema, map_source_row,
     normalize_connector_definition, schema_fingerprint,
 )
+from .adapters import (
+    ADAPTER_FRAMEWORK, AdapterError, AdapterManifest, AdapterRegistry, AdapterRunner,
+    AdapterValidationError, GenericHttpAdapter, SourceAdapter, default_adapter_registry,
+)
 from .analysis_artifacts import (
     ANALYSIS_SCHEMA_VERSION, PACKAGE_SCHEMA_VERSION, AnalysisArtifactError,
     AnalysisArtifactService, normalize_analysis_definition,
@@ -53,6 +57,8 @@ __all__ = [
     "CONNECTOR_CONTRACT", "ConnectorError", "ConnectorFetchError", "ConnectorRateLimited",
     "ConnectorService", "ConnectorValidationError", "connector_schema", "map_source_row",
     "normalize_connector_definition", "schema_fingerprint",
+    "ADAPTER_FRAMEWORK", "AdapterError", "AdapterManifest", "AdapterRegistry", "AdapterRunner",
+    "AdapterValidationError", "GenericHttpAdapter", "SourceAdapter", "default_adapter_registry",
     "PLATFORM_SCHEMA_VERSION", "PlatformError", "PlatformService", "platform_schema",
     "ANALYSIS_SCHEMA_VERSION", "PACKAGE_SCHEMA_VERSION", "AnalysisArtifactError",
     "AnalysisArtifactService", "normalize_analysis_definition",

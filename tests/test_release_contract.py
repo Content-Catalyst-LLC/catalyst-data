@@ -13,14 +13,14 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "2.1.0"
+    assert version == "2.2.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
     assert manifest["record_contract"] == "catalyst-data-record/1.0"
-    php = (ROOT / "wordpress/catalyst-data-demo/catalyst-data-demo.php").read_text(encoding="utf-8")
+    php = (ROOT / "wordpress/sustainable-catalyst-data/sustainable-catalyst-data.php").read_text(encoding="utf-8")
     assert f"Version: {version}" in php
-    assert f"CATALYST_DATA_DEMO_VERSION', '{version}'" in php
+    assert f"SUSTAINABLE_CATALYST_DATA_VERSION', '{version}'" in php
 
 
 def test_packaged_schema_matches_canonical_schema():
@@ -124,30 +124,45 @@ def test_packaged_platform_schema_matches_canonical_schema():
     assert payload["properties"]["schema_version"]["const"] == "catalyst-data-platform/2.0"
 
 
-def test_plugin_distribution_contains_both_contract_assets():
-    with zipfile.ZipFile(ROOT / "dist/catalyst-data-demo.zip") as archive:
+def test_packaged_source_adapter_schema_matches_canonical_schema():
+    canonical = ROOT / "schemas/catalyst_data_source_adapter_1_0.schema.json"
+    packaged = ROOT / "python/catalyst_data/schemas/catalyst_data_source_adapter_1_0.schema.json"
+    assert canonical.read_bytes() == packaged.read_bytes()
+    payload = json.loads(canonical.read_text(encoding="utf-8"))
+    assert payload["properties"]["schema_version"]["const"] == "catalyst-data-source-adapter/1.0"
+
+
+def test_plugin_distribution_contains_wordpress_integration_assets():
+    with zipfile.ZipFile(ROOT / "dist/sustainable-catalyst-data.zip") as archive:
         names = set(archive.namelist())
-    assert "catalyst-data-demo/assets/catalyst-data-contract.js" in names
-    assert "catalyst-data-demo/assets/catalyst-data-record-contract.js" in names
-    assert "catalyst-data-demo/catalyst-data-demo.php" in names
-    assert "catalyst-data-demo/assets/catalyst-data-embed.js" in names
+    assert "sustainable-catalyst-data/assets/catalyst-data-contract.js" in names
+    assert "sustainable-catalyst-data/assets/catalyst-data-record-contract.js" in names
+    assert "sustainable-catalyst-data/sustainable-catalyst-data.php" in names
+    assert "sustainable-catalyst-data/assets/sustainable-catalyst-data.js" in names
+    assert "sustainable-catalyst-data/assets/sustainable-catalyst-data.css" in names
 
 
 
-def test_wordpress_embed_has_accessible_offline_controls():
-    php = (ROOT / "wordpress/catalyst-data-demo/catalyst-data-demo.php").read_text(encoding="utf-8")
-    javascript = (ROOT / "wordpress/catalyst-data-demo/assets/catalyst-data-embed.js").read_text(encoding="utf-8")
-    css = (ROOT / "wordpress/catalyst-data-demo/assets/catalyst-data-demo.css").read_text(encoding="utf-8")
+def test_wordpress_integration_has_safe_public_proxy_and_accessible_controls():
+    php = (ROOT / "wordpress/sustainable-catalyst-data/sustainable-catalyst-data.php").read_text(encoding="utf-8")
+    javascript = (ROOT / "wordpress/sustainable-catalyst-data/assets/sustainable-catalyst-data.js").read_text(encoding="utf-8")
+    css = (ROOT / "wordpress/sustainable-catalyst-data/assets/sustainable-catalyst-data.css").read_text(encoding="utf-8")
+    assert "wp_safe_remote_get" in php
+    assert "limit_response_size" in php
+    assert "permission_callback" in php
+    assert "sustainable_catalyst_data" in php
+    assert "catalyst_data_status" in php
+    assert "DATABASE_URL" not in php
+    assert "Authorization: Bearer" not in php
     assert 'aria-busy="true"' in php
-    assert 'aria-atomic="true"' in php
-    assert 'data-cdata-embed-retry' in php
-    assert "localStorage" in javascript
-    assert "Offline fallback" in javascript
+    assert "data-scd-retry" in php
+    assert "fetch(" in javascript
     assert "prefers-reduced-motion" in css
     assert ":focus-visible" in css
 
+
 def test_release_documentation_exists():
-    assert (ROOT / "release/v2.1.0.md").exists()
+    assert (ROOT / "release/v2.2.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -167,6 +182,8 @@ def test_release_documentation_exists():
     assert (ROOT / "docs/accessibility-offline-performance.md").exists()
     assert (ROOT / "docs/connected-evidence-measurement-platform.md").exists()
     assert (ROOT / "docs/postgresql-production-persistence.md").exists()
+    assert (ROOT / "docs/external-source-adapter-framework.md").exists()
+    assert (ROOT / "docs/wordpress-plugin.md").exists()
     assert (ROOT / "openapi/catalyst-data-openapi.json").exists()
 
 def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
@@ -212,4 +229,6 @@ def test_python_package_declares_migration_resources():
         "013_connected_evidence_measurement_platform.up.sql",
         "014_postgresql_storage_abstraction.down.sql",
         "014_postgresql_storage_abstraction.up.sql",
+        "015_external_source_adapter_wordpress_foundation.down.sql",
+        "015_external_source_adapter_wordpress_foundation.up.sql",
     ]

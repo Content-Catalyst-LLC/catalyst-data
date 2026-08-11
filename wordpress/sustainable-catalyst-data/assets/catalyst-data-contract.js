@@ -1,0 +1,4 @@
+/* Generated from contracts/review_contract.json. Do not edit by hand. */
+(function(root){
+  root.CatalystDataReviewContract = Object.freeze({"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://sustainablecatalyst.com/contracts/catalyst-data-review-contract-1.0.json","contract":"catalyst-data-review/1.0","confidence":{"minimum":0,"maximum":100,"needs_evidence_below":40,"caution_below":70},"directions":["higher","lower","neutral"],"review_statuses":["missing source","needs evidence","reviewable with caution","reviewable"],"signal_statuses":["indeterminate","improving","declining","unchanged","descriptive"],"missing_source_names":["","Unspecified source"],"trace_path":["entity","indicator","period","measurement","source","confidence","review"],"zero_baseline_percent_change":null});
+})(typeof globalThis !== 'undefined' ? globalThis : this);

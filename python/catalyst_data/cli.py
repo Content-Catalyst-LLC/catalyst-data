@@ -16,6 +16,7 @@ from .public_api import ApiRegistry, openapi_document, serve
 from .validation import RecordValidationError, validate_record
 from .workspaces import AccessDenied, WorkspaceService
 from .connectors import ConnectorError, ConnectorService, normalize_connector_definition
+from .adapters import AdapterError, AdapterRunner, AdapterValidationError
 from .analysis_artifacts import AnalysisArtifactError, AnalysisArtifactService
 from .operations import OperationalError, OperationalService
 from .platform import PlatformError, PlatformService
@@ -369,6 +370,27 @@ def parser() -> argparse.ArgumentParser:
     connector_alert_update = subparsers.add_parser("connector-alert-update", help="acknowledge or resolve a connector alert")
     connector_alert_update.add_argument("database", type=str); connector_alert_update.add_argument("alert_id"); connector_alert_update.add_argument("status", choices=("acknowledged","resolved"))
 
+    adapter_list = subparsers.add_parser("adapter-list", help="list installed external source adapters")
+    adapter_list.add_argument("database", type=str)
+
+    adapter_bind = subparsers.add_parser("adapter-bind", help="bind a source adapter to an existing governed connector")
+    adapter_bind.add_argument("database", type=str); adapter_bind.add_argument("connector_id"); adapter_bind.add_argument("adapter_id"); adapter_bind.add_argument("config", type=Path); adapter_bind.add_argument("--actor", default="principal:system")
+
+    adapter_binding = subparsers.add_parser("adapter-binding", help="show a connector source-adapter binding")
+    adapter_binding.add_argument("database", type=str); adapter_binding.add_argument("connector_id")
+
+    adapter_bindings = subparsers.add_parser("adapter-bindings", help="list connector source-adapter bindings")
+    adapter_bindings.add_argument("database", type=str); adapter_bindings.add_argument("--status", choices=("active","paused","disabled")); adapter_bindings.add_argument("--limit", type=int, default=200)
+
+    adapter_run = subparsers.add_parser("adapter-run", help="fetch through a source adapter and hand records to the governed connector engine")
+    adapter_run.add_argument("database", type=str); adapter_run.add_argument("connector_id"); adapter_run.add_argument("--max-pages", type=int)
+
+    adapter_runs = subparsers.add_parser("adapter-runs", help="list external source adapter runs")
+    adapter_runs.add_argument("database", type=str); adapter_runs.add_argument("--connector-id"); adapter_runs.add_argument("--status", choices=("running","succeeded","failed","cancelled")); adapter_runs.add_argument("--limit", type=int, default=100)
+
+    adapter_run_show = subparsers.add_parser("adapter-run-show", help="show one source adapter run and page metadata")
+    adapter_run_show.add_argument("database", type=str); adapter_run_show.add_argument("adapter_run_id")
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -542,7 +564,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -812,6 +834,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(ConnectorService(repository).alerts(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
         if args.command == "connector-alert-update":
             print(json.dumps(ConnectorService(repository).set_alert_status(args.alert_id,args.status),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-list":
+            print(json.dumps(AdapterRunner(repository).adapters(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-bind":
+            print(json.dumps(AdapterRunner(repository).bind(args.connector_id,args.adapter_id,_read(args.config),actor=args.actor),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-binding":
+            print(json.dumps(AdapterRunner(repository).binding(args.connector_id),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-bindings":
+            print(json.dumps(AdapterRunner(repository).bindings(status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-run":
+            result=AdapterRunner(repository).run(args.connector_id,max_pages=args.max_pages); print(json.dumps(result,indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-runs":
+            print(json.dumps(AdapterRunner(repository).runs(connector_id=args.connector_id,status=args.status,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "adapter-run-show":
+            print(json.dumps(AdapterRunner(repository).run_details(args.adapter_run_id),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
@@ -946,7 +982,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AnalysisArtifactError, OperationalError, PlatformError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

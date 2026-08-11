@@ -167,6 +167,7 @@ def outputs(contract: dict) -> dict[Path, str]:
             f"__version__ = {version()!r}\n"
         ),
         ROOT / "wordpress" / "catalyst-data-demo" / "assets" / "catalyst-data-contract.js": javascript_contract(contract),
+        ROOT / "wordpress" / "sustainable-catalyst-data" / "assets" / "catalyst-data-contract.js": javascript_contract(contract),
         schema_path: schema,
     }
 

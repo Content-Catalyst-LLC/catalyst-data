@@ -1,3 +1,14 @@
+## 2.2.0 — External Source Adapter Framework & WordPress Integration Foundation
+
+- Added a governed source-adapter SDK layered over the existing connector engine.
+- Added generic HTTP JSON and CSV adapters with page, offset, and cursor pagination.
+- Added conditional HTTP support with ETag and Last-Modified state plus bounded checkpoints.
+- Added adapter binding, run, page, and operational-state persistence in migration 015.
+- Added source-adapter lineage to canonical records without bypassing connector quarantine, reconciliation, or provenance.
+- Added adapter CLI commands and authenticated public API operations.
+- Added the production-oriented **Sustainable Catalyst Data** WordPress plugin with server-side safe proxying, caching, health/version diagnostics, and backward-compatible embed shortcode support.
+- Kept database credentials and private Catalyst API bearer tokens outside WordPress.
+
 # Changelog
 
 ## 2.1.0 — PostgreSQL Production Persistence & Storage Abstraction

@@ -375,6 +375,13 @@ def map_source_row(row: Mapping[str, Any], definition: Mapping[str, Any], *, run
         "source_key": source_key,
         "source_payload_sha256": row_digest,
     }
+    adapter_meta = dict((definition.get("metadata") or {}).get("source_adapter") or {})
+    if adapter_meta:
+        extensions["org.sustainablecatalyst.source-adapter"] = {
+            "adapter_id": adapter_meta.get("adapter_id"),
+            "adapter_version": adapter_meta.get("adapter_version"),
+            "binding_id": adapter_meta.get("binding_id"),
+        }
     return payload
 
 

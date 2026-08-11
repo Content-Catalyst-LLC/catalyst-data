@@ -1,4 +1,4 @@
--- Catalyst Data v2.1.0 current schema snapshot
+-- Catalyst Data v2.2.0 current schema snapshot
 -- Repository initialization uses ordered migrations in python/catalyst_data/migrations.
 PRAGMA foreign_keys = ON;
 BEGIN TRANSACTION;

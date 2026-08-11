@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the PostgreSQL v2.1 schema from canonical Catalyst migrations.
+"""Generate the PostgreSQL v2.2 schema from canonical Catalyst migrations.
 
 SQLite remains the reference migration history. This generator translates the
 portable DDL and replaces SQLite trigger syntax with PostgreSQL trigger
@@ -32,7 +32,7 @@ IMMUTABLE_TABLES = [
     "analysis_package_exports", "operational_backups", "restore_events", "offline_sync_runs",
     "offline_sync_items", "performance_benchmarks", "security_audit_events",
     "release_attestations", "platform_contracts", "platform_component_versions",
-    "platform_release_snapshots", "platform_integrity_checks", "platform_events",
+    "platform_release_snapshots", "platform_integrity_checks", "platform_events", "connector_adapter_pages",
 ]
 
 NO_DELETE_TABLES = ["handoff_receipts"]

@@ -33,6 +33,9 @@ if command -v node >/dev/null 2>&1; then
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-record-contract.js
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-demo.js
   node --check wordpress/catalyst-data-demo/assets/catalyst-data-embed.js
+  node --check wordpress/sustainable-catalyst-data/assets/sustainable-catalyst-data.js
+  node --check wordpress/sustainable-catalyst-data/assets/catalyst-data-contract.js
+  node --check wordpress/sustainable-catalyst-data/assets/catalyst-data-record-contract.js
   node scripts/test_browser_contract.js
 else
   echo "SKIP: node is not installed"
@@ -40,6 +43,7 @@ fi
 
 if command -v php >/dev/null 2>&1; then
   php -l wordpress/catalyst-data-demo/catalyst-data-demo.php
+  php -l wordpress/sustainable-catalyst-data/sustainable-catalyst-data.php
 else
   echo "SKIP: php is not installed"
 fi
