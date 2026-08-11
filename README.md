@@ -4,12 +4,17 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.6.0 — Earth, Climate & Ocean Data Network**
+**v2.7.0 — Space & Scientific Data Network**
 
-The release adds provider-specific World Bank and United Nations SDG statistics connectors on top of the governed external-source adapter framework. Source-native country, M49 geography, indicator, period, unit, dimension, and provenance fields are cached in Catalyst Data for use by Site Intelligence, Workspace, Publications, Research Librarian, and other consumers without allowing public WordPress requests to trigger upstream acquisition.
+The release adds governed NASA DONKI, NASA/JPL small-body and close-approach, and NASA Exoplanet Archive TAP integrations on top of the shared source-adapter framework. Source-native identifiers and provider payloads are cached in Catalyst Data for use by Site Intelligence, Workspace, Publications, Research Librarian, and other consumers without allowing public WordPress requests to trigger upstream acquisition.
 
 ## Core capabilities
 
+- NASA DONKI space-weather event acquisition with backend-only API-key injection.
+- NASA/JPL Small-Body Database catalog acquisition with permanent/source designations and NEO/PHA metadata.
+- NASA/JPL close-approach observations with bounded query/paging controls.
+- NASA Exoplanet Archive TAP discovery with bounded table/column queries.
+- Cached public space/science API and WordPress rendering that cannot initiate upstream acquisition.
 - World Bank v2 country catalog, indicator metadata, date-range observations, pagination, and footnote-aware retrieval.
 - United Nations Statistics Division SDG goals, M49 geography catalog, indicators, published series metadata, and paginated observations.
 - Idempotent cached statistical observations with source request URI, raw provider payload, retrieval timestamp, and immutable fetch history.
@@ -268,7 +273,7 @@ The release suite validates generated contracts, schemas, review transitions, qu
 
 ## Boundary
 
-Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.6.0 adds governed NOAA NCEI, ERDDAP, IOOS, and USGS earthquake data alongside the existing archival, statistics, PostgreSQL/SQLite, provenance, and WordPress integration layers without claiming legal or regulatory compliance.
+Catalyst Data preserves validated structure, immutable revisions, provenance history, and controlled exchange. It does not certify truth, compliance, or impact. Platform Core and remote product integrations remain optional; v2.7.0 adds governed NASA/JPL space and scientific data alongside the existing environmental, archival, statistics, PostgreSQL/SQLite, provenance, and WordPress integration layers without claiming legal or regulatory compliance.
 
 ## License
 
@@ -283,3 +288,8 @@ See `docs/internet-archive-wayback-intelligence.md`. Catalyst Data catalogs Arch
 ## v2.6.0 Earth, Climate & Ocean Data Network
 
 Catalyst Data now includes governed NOAA NCEI, ERDDAP, U.S. IOOS catalog, and USGS earthquake integrations. See `docs/earth-climate-ocean-data-network.md`.
+
+## v2.7.0 Space & Scientific Data Network
+
+Catalyst Data now includes governed NASA DONKI, NASA/JPL Small-Body Database, JPL close-approach, and NASA Exoplanet Archive TAP integrations. See `docs/space-scientific-data-network.md`.
+

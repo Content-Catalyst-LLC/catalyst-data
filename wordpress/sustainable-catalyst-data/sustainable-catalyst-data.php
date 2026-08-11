@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, global and U.S. statistics, and cached earth, climate, ocean, IOOS, and earthquake data.
- * Version: 2.6.0
+ * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, statistics, earth/ocean observations, and cached NASA/JPL space-science data.
+ * Version: 2.7.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.6.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.7.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -207,7 +207,17 @@ function sustainable_catalyst_data_settings_page() {
                 <tr><th>USGS earthquakes</th><td><?php echo esc_html(isset($earth['usgs_earthquake_count']) ? $earth['usgs_earthquake_count'] : '0'); ?></td></tr>
             </tbody></table>
         <?php endif; ?>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery.</p>
+        <h2>Space &amp; scientific network</h2>
+        <?php $space = sustainable_catalyst_data_fetch('/v1/space/status', array(), 30); ?>
+        <?php if (!is_wp_error($space)) : ?>
+            <table class="widefat striped" style="max-width:760px"><tbody>
+                <tr><th>NASA DONKI events</th><td><?php echo esc_html(isset($space['nasa_space_weather_event_count']) ? $space['nasa_space_weather_event_count'] : '0'); ?></td></tr>
+                <tr><th>JPL small bodies / NEOs / PHAs</th><td><?php echo esc_html((isset($space['jpl_small_body_count']) ? $space['jpl_small_body_count'] : '0') . ' / ' . (isset($space['jpl_neo_count']) ? $space['jpl_neo_count'] : '0') . ' / ' . (isset($space['jpl_pha_count']) ? $space['jpl_pha_count'] : '0')); ?></td></tr>
+                <tr><th>JPL close approaches</th><td><?php echo esc_html(isset($space['jpl_close_approach_count']) ? $space['jpl_close_approach_count'] : '0'); ?></td></tr>
+                <tr><th>NASA exoplanets</th><td><?php echo esc_html(isset($space['nasa_exoplanet_count']) ? $space['nasa_exoplanet_count'] : '0'); ?></td></tr>
+            </tbody></table>
+        <?php endif; ?>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery. <code>[catalyst_data_space]</code> renders cached NASA/JPL space-weather, small-body, close-approach, or exoplanet data.</p>
     </div>
     <?php
 }
@@ -573,3 +583,71 @@ function sustainable_catalyst_data_ocean_shortcode($atts = array()) {
     <?php return ob_get_clean();
 }
 add_shortcode('catalyst_data_ocean', 'sustainable_catalyst_data_ocean_shortcode');
+
+function sustainable_catalyst_data_space_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'mode' => 'space-weather',
+        'query' => '',
+        'event_type' => '',
+        'body' => '',
+        'orbit_class' => '',
+        'discovery_method' => '',
+        'limit' => '20',
+        'title' => 'Space & Scientific Data',
+    ), $atts, 'catalyst_data_space');
+    $mode = sanitize_key((string) $atts['mode']);
+    $allowed = array('space-weather','small-bodies','close-approaches','exoplanets');
+    if (!in_array($mode, $allowed, true)) {
+        return '<div class="scd-status scd-status--attention"><strong>Catalyst Data space:</strong> invalid mode.</div>';
+    }
+    $limit = max(1, min(100, absint($atts['limit'])));
+    $params = array('limit' => $limit);
+    $path = '/v1/space/weather-events';
+    if ($mode === 'space-weather') {
+        $event_type = sanitize_text_field((string) $atts['event_type']);
+        if ($event_type !== '') { $params['event_type'] = $event_type; }
+    } elseif ($mode === 'small-bodies') {
+        $path = '/v1/space/small-bodies';
+        $query = sanitize_text_field((string) $atts['query']);
+        $orbit_class = sanitize_text_field((string) $atts['orbit_class']);
+        if ($query !== '') { $params['query'] = $query; }
+        if ($orbit_class !== '') { $params['orbit_class'] = $orbit_class; }
+    } elseif ($mode === 'close-approaches') {
+        $path = '/v1/space/close-approaches';
+        $body = sanitize_text_field((string) $atts['body']);
+        if ($body !== '') { $params['body'] = $body; }
+    } else {
+        $path = '/v1/space/exoplanets';
+        $query = sanitize_text_field((string) $atts['query']);
+        $method = sanitize_text_field((string) $atts['discovery_method']);
+        if ($query !== '') { $params['query'] = $query; }
+        if ($method !== '') { $params['discovery_method'] = $method; }
+    }
+    $payload = sustainable_catalyst_data_fetch($path, $params);
+    if (is_wp_error($payload)) {
+        return '<div class="scd-status scd-status--attention"><strong>Catalyst Data space:</strong> ' . esc_html($payload->get_error_message()) . '</div>';
+    }
+    if ($mode === 'space-weather') { $items = isset($payload['events']) && is_array($payload['events']) ? $payload['events'] : array(); }
+    elseif ($mode === 'small-bodies') { $items = isset($payload['objects']) && is_array($payload['objects']) ? $payload['objects'] : array(); }
+    elseif ($mode === 'close-approaches') { $items = isset($payload['approaches']) && is_array($payload['approaches']) ? $payload['approaches'] : array(); }
+    else { $items = isset($payload['planets']) && is_array($payload['planets']) ? $payload['planets'] : array(); }
+    wp_enqueue_style('sustainable-catalyst-data');
+    ob_start(); ?>
+    <section class="scd scd--statistics scd--space">
+        <header class="scd__header"><p class="scd__eyebrow">Space &amp; Scientific Data</p><h2><?php echo esc_html($atts['title']); ?></h2><p>Cached NASA and JPL records served through Catalyst Data with source identity and acquisition boundaries preserved.</p></header>
+        <div class="scd__grid scd__grid--statistics" role="list">
+        <?php foreach ($items as $item) :
+            if ($mode === 'space-weather') { $heading = isset($item['event_type']) ? $item['event_type'] : 'Space weather'; $meta = isset($item['event_time']) ? $item['event_time'] : ''; $value = isset($item['title']) ? $item['title'] : ''; }
+            elseif ($mode === 'small-bodies') { $heading = !empty($item['name']) ? $item['name'] : (!empty($item['full_name']) ? $item['full_name'] : $item['designation']); $meta = trim((!empty($item['orbit_class']) ? $item['orbit_class'] : '') . (!empty($item['is_neo']) ? ' · NEO' : '') . (!empty($item['is_pha']) ? ' · PHA' : '')); $value = isset($item['diameter_km']) && $item['diameter_km'] !== null ? $item['diameter_km'] . ' km' : ''; }
+            elseif ($mode === 'close-approaches') { $heading = !empty($item['full_name']) ? trim($item['full_name']) : $item['designation']; $meta = trim((isset($item['close_approach_time']) ? $item['close_approach_time'] : '') . ' · ' . (isset($item['body']) ? $item['body'] : '')); $value = isset($item['distance_au']) && $item['distance_au'] !== null ? $item['distance_au'] . ' au' : ''; }
+            else { $heading = isset($item['planet_name']) ? $item['planet_name'] : 'Exoplanet'; $meta = trim((isset($item['host_name']) ? $item['host_name'] : '') . (isset($item['discovery_method']) && $item['discovery_method'] ? ' · ' . $item['discovery_method'] : '')); $value = isset($item['radius_earth']) && $item['radius_earth'] !== null ? $item['radius_earth'] . ' R⊕' : ''; }
+        ?>
+            <article class="scd-card" role="listitem"><p class="scd-card__meta"><?php echo esc_html($meta); ?></p><h3><?php echo esc_html($heading); ?></h3><?php if ($value !== '') : ?><p class="scd-card__value"><?php echo esc_html($value); ?></p><?php endif; ?></article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$items) : ?><p class="scd__notice">No matching cached space-science records are available yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_space', 'sustainable_catalyst_data_space_shortcode');
+

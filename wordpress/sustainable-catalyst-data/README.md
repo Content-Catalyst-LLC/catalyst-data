@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.6.0 adds read-only earth, climate, ocean, IOOS, and USGS earthquake surfaces to the production WordPress integration while retaining archival and statistics features.
+Version 2.7.0 adds read-only NASA/JPL space-weather, small-body, close-approach, and exoplanet surfaces while retaining archival, statistics, and earth/ocean features.
 
 ## Configuration
 
@@ -36,3 +36,5 @@ These routes proxy only configured Catalyst Data public endpoints and never acce
 
 - `[catalyst_data_earth]` — cached NOAA/ERDDAP observations or USGS earthquake events.
 - `[catalyst_data_ocean]` — cached ERDDAP or IOOS dataset discovery.
+
+- `[catalyst_data_space]` — cached NASA/JPL space and scientific data; `mode` supports `space-weather`, `small-bodies`, `close-approaches`, and `exoplanets`.

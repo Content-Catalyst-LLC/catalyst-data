@@ -263,6 +263,9 @@ def default_adapter_registry() -> AdapterRegistry:
         NCEICDODataAdapter, ERDDAPCatalogAdapter, ERDDAPTabledapAdapter,
         IOOSCatalogAdapter, USGSEarthquakeAdapter,
     )
+    from .space_science import (
+        NASADONKIAdapter, JPLSBDBQueryAdapter, JPLCloseApproachAdapter, NASAExoplanetTAPAdapter,
+    )
     registry.register(InternetArchiveSearchAdapter())
     registry.register(InternetArchiveMetadataAdapter())
     registry.register(WaybackAvailabilityAdapter())
@@ -285,6 +288,10 @@ def default_adapter_registry() -> AdapterRegistry:
     registry.register(ERDDAPTabledapAdapter())
     registry.register(IOOSCatalogAdapter())
     registry.register(USGSEarthquakeAdapter())
+    registry.register(NASADONKIAdapter())
+    registry.register(JPLSBDBQueryAdapter())
+    registry.register(JPLCloseApproachAdapter())
+    registry.register(NASAExoplanetTAPAdapter())
     return registry
 
 

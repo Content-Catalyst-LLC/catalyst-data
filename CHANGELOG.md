@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.0 - 2026-08-11
+
+- Adds the Space & Scientific Data Network with governed NASA DONKI, JPL Small-Body Database, JPL close-approach, and NASA Exoplanet Archive TAP adapters.
+- Adds migration 020 for space-weather events, small bodies, close approaches, exoplanets, immutable fetch provenance, and network health.
+- Adds cached public API and WordPress `[catalyst_data_space]` surfaces without allowing public page views to initiate provider acquisition.
+- Keeps NASA API credentials backend-only, redacts secrets from persisted request URIs, and preserves source-native scientific identifiers and raw provider payloads.
+
 ## 2.6.0
 
 - Adds the Earth, Climate & Ocean Data Network with governed NOAA NCEI CDO v2, ERDDAP, U.S. IOOS catalog, and USGS earthquake adapters.
