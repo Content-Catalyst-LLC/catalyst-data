@@ -2,9 +2,9 @@
 
 Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst. It connects canonical records, normalized relational tables, provenance, confidence, review logic, migrations, imports, exports, and local analytical workflows with SQLite portability and a PostgreSQL production path.
 
-## Current release
+## Current release: **v2.9.0 — Canonical Entity & Identifier Resolution**
 
-**v2.8.0 — Dataset Catalog, Registry & Discovery**
+**v2.9.0 — Dataset Catalog, Registry & Discovery**
 
 The release adds a rebuildable cross-provider dataset registry over the governed caches introduced through v2.7. Provider-native tables remain authoritative; `catalog-sync` creates searchable discovery metadata, coverage, freshness, record counts, tags, and stable Catalyst catalog IDs without calling upstream providers.
 

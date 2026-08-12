@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catalyst Data Public API",
-    "version": "2.8.0",
+    "version": "2.9.0",
     "description": "Connected evidence and measurement platform with public-safe records, institutional workspaces, typed handoffs, governed connectors, reproducible analysis, and platform capability discovery."
   },
   "servers": [
@@ -416,6 +416,39 @@
           },
           "404": {
             "description": "Catalog entry not found"
+          }
+        }
+      }
+    },
+    "/v1/entities/status": {
+      "get": {
+        "summary": "Canonical entity registry status",
+        "responses": {
+          "200": {
+            "description": "Entity registry status"
+          }
+        }
+      }
+    },
+    "/v1/entities/resolve": {
+      "get": {
+        "summary": "Resolve a cached canonical entity identifier or name",
+        "responses": {
+          "200": {
+            "description": "Entity resolution result"
+          }
+        }
+      }
+    },
+    "/v1/entities/{entity_id}": {
+      "get": {
+        "summary": "Get one canonical entity with identifiers and aliases",
+        "responses": {
+          "200": {
+            "description": "Canonical entity"
+          },
+          "404": {
+            "description": "Entity not found"
           }
         }
       }

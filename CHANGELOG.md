@@ -1,3 +1,10 @@
+## 2.9.0 — Canonical Entity & Identifier Resolution
+
+- Added canonical entity, identifier, alias, and immutable resolution-event registry.
+- Added ISO alpha-2/alpha-3 and UN M49 country-area bootstrap plus World Bank/UN SDG provider crosswalk synchronization.
+- Added conservative exact identifier/name resolution, cached public `/v1/entities/*` endpoints, CLI commands, and `[catalyst_data_entity]`.
+- Added migration 022 and PostgreSQL parity.
+
 # Changelog
 
 ## 2.8.0 - 2026-08-11

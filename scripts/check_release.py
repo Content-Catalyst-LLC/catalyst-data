@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "2.8.0":
+    if version != "2.9.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -257,19 +257,19 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]:
-        fail("Expected contiguous migrations 1 through 21")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]:
+        fail("Expected contiguous migrations 1 through 22")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]:
-            fail("Fresh repository did not apply migrations 1 through 21")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]:
+            fail("Fresh repository did not apply migrations 1 through 22")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [21]:
-            fail("Migration 21 rollback failed")
-        if repository.migrate() != [21]:
-            fail("Migration 21 reapplication failed")
+        if repository.rollback(1) != [22]:
+            fail("Migration 22 rollback failed")
+        if repository.migrate() != [22]:
+            fail("Migration 22 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
         dry_run = service.run(source, dry_run=True)
@@ -413,7 +413,7 @@ def validate_repository_pipeline() -> None:
             fail("Release attestation failed")
         restored_path = Path(directory) / "restored.sqlite3"
         restored = operations.restore_backup(backup_path, restored_path, actor="principal:system")
-        if restored["migration_version"] != 21 or restored["record_count"] < 2:
+        if restored["migration_version"] != 22 or restored["record_count"] < 2:
             fail("Backup restore validation failed")
         readiness = operations.readiness()
         if readiness["verified_backup_count"] < 1 or readiness["release_attestation_count"] < 1:
@@ -437,7 +437,7 @@ def validate_repository_pipeline() -> None:
         platform_service = PlatformService(repository)
         platform_service.sync_builtin_contracts(actor="principal:system")
         platform_manifest = platform_service.manifest()
-        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 21:
+        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 22:
             fail("Connected platform manifest failed")
         platform_snapshot = platform_service.create_snapshot(actor="principal:system")
         if platform_service.verify_snapshot(platform_snapshot["snapshot_id"], actor="principal:system")["status"] != "pass":
@@ -457,7 +457,7 @@ def validate_python_metadata() -> None:
             fail(f"pyproject dependency is missing: {dependency}")
     for required in (
         'catalyst-data = "catalyst_data.cli:main"',
-        'catalyst_data = ["schemas/*.json", "migrations/*.sql", "postgresql/*.sql"]',
+        'catalyst_data = ["schemas/*.json", "migrations/*.sql", "postgresql/*.sql", "resources/*.json"]',
     ):
         if required not in pyproject:
             fail(f"pyproject metadata is missing: {required}")
@@ -493,8 +493,8 @@ def validate_python_metadata() -> None:
         fail("Migration 017 is missing from the package")
     if not (ROOT / "docs/global-statistics-connector-pack.md").exists():
         fail("Global statistics connector documentation is missing")
-    if not (ROOT / "python/catalyst_data/migrations/021_dataset_catalog_registry_discovery.up.sql").exists():
-        fail("Migration 021 is missing from the package")
+    if not (ROOT / "python/catalyst_data/migrations/022_canonical_entity_identifier_resolution.up.sql").exists():
+        fail("Migration 022 is missing from the package")
     if not (ROOT / "python/catalyst_data/dataset_catalog.py").exists():
         fail("Dataset catalog service is missing")
     if not (ROOT / "docs/dataset-catalog-registry-discovery.md").exists():

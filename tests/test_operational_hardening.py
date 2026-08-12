@@ -36,7 +36,7 @@ def test_backup_verify_restore_and_immutable_history(tmp_path: Path) -> None:
 
     restored_path = tmp_path / "restored.sqlite3"
     restored = service.restore_backup(backup_path, restored_path, actor="principal:operator")
-    assert restored["migration_version"] == 21
+    assert restored["migration_version"] == 22
     assert restored["record_count"] == 1
     assert CatalystRepository(restored_path).get_record(record["record_id"])["record_id"] == record["record_id"]
     restored_service = OperationalService(CatalystRepository(restored_path))
@@ -122,12 +122,12 @@ def test_migration_012_populated_rollback_and_reapply(tmp_path: Path) -> None:
     service.security_audit()
     with connect(repository.path) as connection:
         manager = MigrationManager(connection)
-        assert manager.current_version == 21
-        assert manager.rollback(10) == [21, 20, 19, 18, 17, 16, 15, 14, 13, 12]
+        assert manager.current_version == 22
+        assert manager.rollback(11) == [22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12]
         assert manager.current_version == 11
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='operational_backups'").fetchone() is None
-        assert manager.migrate() == [12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-        assert manager.current_version == 21
+        assert manager.migrate() == [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+        assert manager.current_version == 22
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='operational_readiness'").fetchone() is not None
 
 

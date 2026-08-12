@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.8.0 adds a read-only cross-provider dataset catalog and discovery surface while retaining archival, statistics, earth/ocean, and NASA/JPL space/science features.
+Version 2.9.0 adds a read-only cross-provider dataset catalog and discovery surface while retaining archival, statistics, earth/ocean, and NASA/JPL space/science features.
 
 ## Configuration
 

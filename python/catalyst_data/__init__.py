@@ -66,6 +66,6 @@ __all__ = [
     "AnalysisArtifactService", "normalize_analysis_definition",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
-    "USPublicDataError", "USPublicDataService", "DatasetCatalogError", "DatasetCatalogService",
+    "USPublicDataError", "USPublicDataService", "DatasetCatalogError", "DatasetCatalogService", "EntityResolutionService", "EntityResolutionError",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",
 ]

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Sustainable Catalyst Data
  * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, statistics, earth/ocean observations, and cached NASA/JPL space-science data.
- * Version: 2.8.0
+ * Version: 2.9.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.8.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.9.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -227,7 +227,17 @@ function sustainable_catalyst_data_settings_page() {
                 <tr><th>Latest catalog sync</th><td><?php echo esc_html(isset($catalog['latest_sync_at']) && $catalog['latest_sync_at'] ? $catalog['latest_sync_at'] : 'Not synchronized'); ?></td></tr>
             </tbody></table>
         <?php endif; ?>
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery. <code>[catalyst_data_space]</code> renders cached NASA/JPL space-weather, small-body, close-approach, or exoplanet data. <code>[catalyst_data_catalog]</code> searches the synchronized cross-provider dataset registry.</p>
+        <h2>Canonical entities &amp; identifiers</h2>
+        <?php $entities = sustainable_catalyst_data_fetch('/v1/entities/status', array(), 30); ?>
+        <?php if (!is_wp_error($entities)) : ?>
+        <table class="widefat striped"><tbody>
+            <tr><th>Active entities / country areas</th><td><?php echo esc_html((isset($entities['active_entity_count']) ? $entities['active_entity_count'] : '0') . ' / ' . (isset($entities['country_area_count']) ? $entities['country_area_count'] : '0')); ?></td></tr>
+            <tr><th>Identifiers / namespaces</th><td><?php echo esc_html((isset($entities['identifier_count']) ? $entities['identifier_count'] : '0') . ' / ' . (isset($entities['namespace_count']) ? $entities['namespace_count'] : '0')); ?></td></tr>
+            <tr><th>Latest entity sync</th><td><?php echo esc_html(isset($entities['latest_sync_at']) && $entities['latest_sync_at'] ? $entities['latest_sync_at'] : 'Not synchronized'); ?></td></tr>
+        </tbody></table>
+        <?php endif; ?>
+
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery. <code>[catalyst_data_space]</code> renders cached NASA/JPL space-weather, small-body, close-approach, or exoplanet data. <code>[catalyst_data_catalog]</code> searches the synchronized cross-provider dataset registry. <code>[catalyst_data_entity]</code> resolves cached canonical entities and identifiers.</p>
     </div>
     <?php
 }
@@ -723,3 +733,24 @@ function sustainable_catalyst_data_catalog_shortcode($atts = array()) {
 }
 add_shortcode('catalyst_data_catalog', 'sustainable_catalyst_data_catalog_shortcode');
 
+
+
+function sustainable_catalyst_data_entity_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('value' => '', 'namespace' => '', 'entity_type' => '', 'title' => 'Entity resolution'), $atts, 'catalyst_data_entity');
+    if (!$atts['value']) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data entity:</strong> value is required.</div>'; }
+    $params = array('value' => $atts['value']);
+    if ($atts['namespace']) { $params['namespace'] = $atts['namespace']; }
+    if ($atts['entity_type']) { $params['entity_type'] = $atts['entity_type']; }
+    $payload = sustainable_catalyst_data_fetch('/v1/entities/resolve', $params, 30);
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data entity:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    ob_start(); ?>
+    <section class="scd scd--entity">
+      <h3><?php echo esc_html($atts['title']); ?></h3>
+      <p><strong><?php echo esc_html(isset($payload['status']) ? $payload['status'] : 'unknown'); ?></strong> — <?php echo esc_html($atts['value']); ?></p>
+      <?php if (isset($payload['entity']) && is_array($payload['entity'])) : ?>
+        <p><?php echo esc_html($payload['entity']['canonical_name']); ?> <code><?php echo esc_html($payload['entity']['entity_id']); ?></code></p>
+      <?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_entity', 'sustainable_catalyst_data_entity_shortcode');

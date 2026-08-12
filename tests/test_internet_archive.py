@@ -35,7 +35,7 @@ def test_search_persists_catalog_without_measurement_coercion(tmp_path):
     def opener(req,timeout=0): calls.append(req); return FakeResponse(payload)
     svc=InternetArchiveService(CatalystRepository(db),opener=opener,sleeper=lambda _:None)
     result=svc.search('subject:energy',rows=10)
-    assert result['num_found']==1; assert svc.items(query='Energy')[0]['item_identifier']=='energy_test'; assert calls[0].headers['User-agent'].startswith('SustainableCatalyst-CatalystData/2.8.0')
+    assert result['num_found']==1; assert svc.items(query='Energy')[0]['item_identifier']=='energy_test'; assert calls[0].headers['User-agent'].startswith('SustainableCatalyst-CatalystData/2.9.0')
 
 def test_item_metadata_versions_and_files(tmp_path):
     db=tmp_path/'data.sqlite3'; payload={'metadata':{'identifier':'book1','title':'Book One','mediatype':'texts','creator':['A']},'files':[{'name':'book1.pdf','format':'Text PDF','size':'123','md5':'a'*32}]}
