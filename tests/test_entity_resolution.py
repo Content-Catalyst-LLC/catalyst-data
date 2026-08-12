@@ -46,8 +46,9 @@ def test_resolution_history_and_migration22_rollback(tmp_path: Path):
     result=svc.resolve('KEN',namespace='iso-alpha3'); assert result['status']=='resolved' and result['event_id'].startswith('resolution:')
     with sqlite3.connect(repo.path) as con:
         assert con.execute('SELECT COUNT(*) FROM entity_resolution_events').fetchone()[0]==1
-    repo.rollback(1); assert repo.health().migration_version==21
+    repo.rollback(2); assert repo.health().migration_version==21
     repo.migrate(target=22); assert repo.health().migration_version==22
+    repo.migrate(); assert repo.health().migration_version==23
 
 
 def test_public_entity_openapi_is_read_only_discovery(tmp_path: Path):

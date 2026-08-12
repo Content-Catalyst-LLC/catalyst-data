@@ -2,13 +2,19 @@
 
 Catalyst Data is the persistent evidence and measurement repository for Sustainable Catalyst. It connects canonical records, normalized relational tables, provenance, confidence, review logic, migrations, imports, exports, and local analytical workflows with SQLite portability and a PostgreSQL production path.
 
-## Current release: **v2.9.0 — Canonical Entity & Identifier Resolution**
+## Current release: **v3.0.0 — Connected Data Graph & Cross-Source Federation**
 
-**v2.9.0 — Dataset Catalog, Registry & Discovery**
+v3.0 builds a rebuildable relational property graph over canonical entities, the dataset registry, governed provider identifiers, statistical series, and scientific objects. Provider-native tables remain authoritative; graph edges carry source namespace, source record, URI, confidence, evidence, and lifecycle state so connections can be audited and rebuilt.
 
-The release adds a rebuildable cross-provider dataset registry over the governed caches introduced through v2.7. Provider-native tables remain authoritative; `catalog-sync` creates searchable discovery metadata, coverage, freshness, record counts, tags, and stable Catalyst catalog IDs without calling upstream providers.
+The graph exposes bounded path queries, cross-source entity federation, and JSON-LD-compatible export while preserving the existing public-read / backend-acquisition boundary.
 
 ## Core capabilities
+
+- Rebuildable connected-data graph across canonical entities, datasets, providers, statistical series, and scientific objects.
+- Typed, source-backed graph edges with confidence, evidence, immutable change events, and reversible synchronization.
+- Cross-source federation for World Bank, UN SDG, and Census observations through canonical entity identifiers.
+- Bounded shortest-path queries and JSON-LD-compatible graph export aligned with DCAT/PROV concepts.
+- Cached `/v1/graph/*` API and `[catalyst_data_graph]` WordPress rendering with no provider acquisition from public requests.
 
 - Rebuildable cross-provider dataset catalog spanning archival, statistical, environmental, ocean, and space/science source families.
 - Stable catalog IDs with provider-native keys, resource kinds, publisher, source URI, coverage, freshness, record counts, tags, and metadata.

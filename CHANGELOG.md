@@ -1,3 +1,11 @@
+## 3.0.0 — Connected Data Graph & Cross-Source Federation
+
+- Added migration 023 with connected graph nodes, typed/source-backed edges, immutable edge-change events, graph sync runs, and status views.
+- Added rebuildable graph synchronization over canonical entities, dataset catalog entries, provider identifiers, statistical series, JPL small bodies/close approaches, and NASA exoplanets/stellar hosts.
+- Added canonical-entity cross-source federation for World Bank, UN SDG, and Census cached observations.
+- Added bounded graph search, neighbors, shortest paths, and JSON-LD-compatible export with DCAT/PROV semantic mappings.
+- Added cached public `/v1/graph/*` API, CLI graph operations, and WordPress graph/federation rendering while preserving backend-only acquisition.
+
 ## 2.9.0 — Canonical Entity & Identifier Resolution
 
 - Added canonical entity, identifier, alias, and immutable resolution-event registry.

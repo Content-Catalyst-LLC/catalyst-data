@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Sustainable Catalyst Data
- * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, statistics, earth/ocean observations, and cached NASA/JPL space-science data.
- * Version: 2.9.0
+ * Description: Governed WordPress integration for Catalyst Data public records, archival intelligence, statistics, environmental and space-science data, canonical entities, and connected cross-source graph federation.
+ * Version: 3.0.0
  * Author: Content Catalyst LLC
  * License: MIT
  * Requires at least: 6.0
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SUSTAINABLE_CATALYST_DATA_VERSION', '2.9.0');
+define('SUSTAINABLE_CATALYST_DATA_VERSION', '3.0.0');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_API', 'sustainable_catalyst_data_api_base_url');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_TIMEOUT', 'sustainable_catalyst_data_timeout');
 define('SUSTAINABLE_CATALYST_DATA_OPTION_CACHE', 'sustainable_catalyst_data_cache_ttl');
@@ -236,8 +236,17 @@ function sustainable_catalyst_data_settings_page() {
             <tr><th>Latest entity sync</th><td><?php echo esc_html(isset($entities['latest_sync_at']) && $entities['latest_sync_at'] ? $entities['latest_sync_at'] : 'Not synchronized'); ?></td></tr>
         </tbody></table>
         <?php endif; ?>
+        <h2>Connected data graph</h2>
+        <?php $graph = sustainable_catalyst_data_fetch('/v1/graph/status', array(), 30); ?>
+        <?php if (!is_wp_error($graph)) : ?>
+        <table class="widefat striped" style="max-width:760px"><tbody>
+            <tr><th>Active nodes / edges</th><td><?php echo esc_html((isset($graph['active_node_count']) ? $graph['active_node_count'] : '0') . ' / ' . (isset($graph['active_edge_count']) ? $graph['active_edge_count'] : '0')); ?></td></tr>
+            <tr><th>Node types / providers</th><td><?php echo esc_html((isset($graph['node_type_count']) ? $graph['node_type_count'] : '0') . ' / ' . (isset($graph['provider_count']) ? $graph['provider_count'] : '0')); ?></td></tr>
+            <tr><th>Latest graph sync</th><td><?php echo esc_html(isset($graph['latest_sync_at']) && $graph['latest_sync_at'] ? $graph['latest_sync_at'] : 'Not synchronized'); ?></td></tr>
+        </tbody></table>
+        <?php endif; ?>
 
-        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery. <code>[catalyst_data_space]</code> renders cached NASA/JPL space-weather, small-body, close-approach, or exoplanet data. <code>[catalyst_data_catalog]</code> searches the synchronized cross-provider dataset registry. <code>[catalyst_data_entity]</code> resolves cached canonical entities and identifiers.</p>
+        <p><code>[sustainable_catalyst_data]</code> renders approved public records. <code>[catalyst_data_embed]</code> remains as a backward-compatible alias. <code>[catalyst_data_status]</code> renders compact status. <code>[catalyst_data_archive_search]</code> explores the locally cached Internet Archive catalog. <code>[catalyst_data_wayback]</code> renders locally cached Wayback history. <code>[catalyst_data_statistics]</code> renders cached World Bank or UN SDG observations. <code>[catalyst_data_us_public]</code> renders cached Census, BLS, BEA, EIA, or USGS observations. <code>[catalyst_data_earth]</code> renders cached NOAA/ERDDAP observations or USGS earthquakes. <code>[catalyst_data_ocean]</code> renders cached ERDDAP or IOOS dataset discovery. <code>[catalyst_data_space]</code> renders cached NASA/JPL space-weather, small-body, close-approach, or exoplanet data. <code>[catalyst_data_catalog]</code> searches the synchronized cross-provider dataset registry. <code>[catalyst_data_entity]</code> resolves cached canonical entities and identifiers. <code>[catalyst_data_graph]</code> federates cached cross-source observations through the connected data graph.</p>
     </div>
     <?php
 }
@@ -346,6 +355,21 @@ function sustainable_catalyst_data_rest_catalog_datasets($request) {
     return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
 }
 
+function sustainable_catalyst_data_rest_graph_status() {
+    $payload = sustainable_catalyst_data_fetch('/v1/graph/status', array(), 30);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
+function sustainable_catalyst_data_rest_graph_federate($request) {
+    $params = array('limit_per_source' => max(1, min(100, absint($request->get_param('limit_per_source') ?: 25))));
+    foreach (array('entity_id','value','namespace') as $key) {
+        $value = sanitize_text_field((string) ($request->get_param($key) ?: ''));
+        if ($value !== '') { $params[$key] = $value; }
+    }
+    $payload = sustainable_catalyst_data_fetch('/v1/graph/federate', $params);
+    return is_wp_error($payload) ? sustainable_catalyst_data_rest_error($payload) : rest_ensure_response($payload);
+}
+
 function sustainable_catalyst_data_register_rest_routes() {
     register_rest_route('sustainable-catalyst-data/v1', '/health', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_health', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/records', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_records', 'permission_callback' => '__return_true'));
@@ -358,6 +382,8 @@ function sustainable_catalyst_data_register_rest_routes() {
     register_rest_route('sustainable-catalyst-data/v1', '/statistics/un-sdg/observations', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_un_sdg_observations', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/catalog/status', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_catalog_status', 'permission_callback' => '__return_true'));
     register_rest_route('sustainable-catalyst-data/v1', '/catalog/datasets', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_catalog_datasets', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/graph/status', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_graph_status', 'permission_callback' => '__return_true'));
+    register_rest_route('sustainable-catalyst-data/v1', '/graph/federate', array('methods' => WP_REST_Server::READABLE, 'callback' => 'sustainable_catalyst_data_rest_graph_federate', 'permission_callback' => '__return_true'));
 }
 add_action('rest_api_init', 'sustainable_catalyst_data_register_rest_routes');
 
@@ -754,3 +780,34 @@ function sustainable_catalyst_data_entity_shortcode($atts = array()) {
     <?php return ob_get_clean();
 }
 add_shortcode('catalyst_data_entity', 'sustainable_catalyst_data_entity_shortcode');
+
+
+function sustainable_catalyst_data_graph_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('value' => '', 'namespace' => '', 'entity_id' => '', 'limit' => '8', 'title' => 'Connected data'), $atts, 'catalyst_data_graph');
+    $params = array('limit_per_source' => max(1, min(25, absint($atts['limit']))));
+    if ($atts['entity_id']) { $params['entity_id'] = $atts['entity_id']; }
+    elseif ($atts['value']) { $params['value'] = $atts['value']; if ($atts['namespace']) { $params['namespace'] = $atts['namespace']; } }
+    else { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data graph:</strong> value or entity_id is required.</div>'; }
+    $payload = sustainable_catalyst_data_fetch('/v1/graph/federate', $params, 30);
+    if (is_wp_error($payload)) { return '<div class="scd-status scd-status--attention"><strong>Catalyst Data graph:</strong> ' . esc_html($payload->get_error_message()) . '</div>'; }
+    ob_start(); ?>
+    <section class="scd scd--graph">
+      <header class="scd__header"><p class="scd__eyebrow">Connected Data Graph</p><h2><?php echo esc_html($atts['title']); ?></h2></header>
+      <?php if (!empty($payload['entity']['canonical_name'])) : ?><p><strong><?php echo esc_html($payload['entity']['canonical_name']); ?></strong> · <?php echo esc_html(isset($payload['source_count']) ? $payload['source_count'] : 0); ?> connected source families</p><?php endif; ?>
+      <div class="scd__grid">
+      <?php foreach ((isset($payload['sources']) && is_array($payload['sources']) ? $payload['sources'] : array()) as $source) : ?>
+        <article class="scd__card">
+          <p class="scd__card-eyebrow"><?php echo esc_html(strtoupper(isset($source['provider']) ? $source['provider'] : 'SOURCE')); ?></p>
+          <h3><?php echo esc_html(isset($source['total']) ? $source['total'] . ' cached observations' : 'Cached observations'); ?></h3>
+          <?php $observations = isset($source['observations']) && is_array($source['observations']) ? array_slice($source['observations'], 0, 3) : array(); ?>
+          <?php foreach ($observations as $observation) : ?>
+            <p class="scd__archive-date"><?php echo esc_html(wp_trim_words(wp_strip_all_tags(wp_json_encode($observation)), 18)); ?></p>
+          <?php endforeach; ?>
+        </article>
+      <?php endforeach; ?>
+      </div>
+      <?php if (empty($payload['sources'])) : ?><p class="scd__notice">No connected cached observations are available for this entity yet.</p><?php endif; ?>
+    </section>
+    <?php return ob_get_clean();
+}
+add_shortcode('catalyst_data_graph', 'sustainable_catalyst_data_graph_shortcode');

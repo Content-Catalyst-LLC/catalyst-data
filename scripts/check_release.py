@@ -74,7 +74,7 @@ def validate_versions() -> str:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"Invalid VERSION: {version!r}")
-    if version != "2.9.0":
+    if version != "3.0.0":
         fail("Unexpected release version")
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     if manifest.get("version") != version or manifest.get("record_contract") != "catalyst-data-record/1.0":
@@ -257,18 +257,18 @@ def validate_sql() -> None:
 
 def validate_repository_pipeline() -> None:
     migrations = discover_migrations()
-    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]:
-        fail("Expected contiguous migrations 1 through 22")
+    if [migration.version for migration in migrations] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]:
+        fail("Expected contiguous migrations 1 through 23")
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "catalyst-data.sqlite3"
         repository = CatalystRepository(database)
-        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]:
-            fail("Fresh repository did not apply migrations 1 through 22")
+        if repository.initialize() != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]:
+            fail("Fresh repository did not apply migrations 1 through 23")
         if not repository.health().healthy:
             fail("Fresh repository health check failed")
-        if repository.rollback(1) != [22]:
+        if repository.rollback(1) != [23]:
             fail("Migration 22 rollback failed")
-        if repository.migrate() != [22]:
+        if repository.migrate() != [23]:
             fail("Migration 22 reapplication failed")
         service = ImportService(repository)
         source = ROOT / "examples/imports/records.json"
@@ -413,7 +413,7 @@ def validate_repository_pipeline() -> None:
             fail("Release attestation failed")
         restored_path = Path(directory) / "restored.sqlite3"
         restored = operations.restore_backup(backup_path, restored_path, actor="principal:system")
-        if restored["migration_version"] != 22 or restored["record_count"] < 2:
+        if restored["migration_version"] != 23 or restored["record_count"] < 2:
             fail("Backup restore validation failed")
         readiness = operations.readiness()
         if readiness["verified_backup_count"] < 1 or readiness["release_attestation_count"] < 1:
@@ -437,7 +437,7 @@ def validate_repository_pipeline() -> None:
         platform_service = PlatformService(repository)
         platform_service.sync_builtin_contracts(actor="principal:system")
         platform_manifest = platform_service.manifest()
-        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 22:
+        if platform_manifest.get("schema_version") != "catalyst-data-platform/2.0" or platform_manifest.get("migration_version") != 23:
             fail("Connected platform manifest failed")
         platform_snapshot = platform_service.create_snapshot(actor="principal:system")
         if platform_service.verify_snapshot(platform_snapshot["snapshot_id"], actor="principal:system")["status"] != "pass":
@@ -495,6 +495,12 @@ def validate_python_metadata() -> None:
         fail("Global statistics connector documentation is missing")
     if not (ROOT / "python/catalyst_data/migrations/022_canonical_entity_identifier_resolution.up.sql").exists():
         fail("Migration 022 is missing from the package")
+    if not (ROOT / "python/catalyst_data/migrations/023_connected_data_graph_cross_source_federation.up.sql").exists():
+        fail("Migration 023 is missing from the package")
+    if not (ROOT / "python/catalyst_data/connected_graph.py").exists():
+        fail("Connected data graph service is missing")
+    if not (ROOT / "docs/connected-data-graph-cross-source-federation.md").exists():
+        fail("Connected data graph documentation is missing")
     if not (ROOT / "python/catalyst_data/dataset_catalog.py").exists():
         fail("Dataset catalog service is missing")
     if not (ROOT / "docs/dataset-catalog-registry-discovery.md").exists():

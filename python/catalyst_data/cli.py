@@ -28,6 +28,7 @@ from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanServic
 from .space_science import SpaceScienceError, SpaceScienceService
 from .dataset_catalog import DatasetCatalogError, DatasetCatalogService
 from .entity_resolution import EntityResolutionError, EntityResolutionService
+from .connected_graph import ConnectedGraphError, ConnectedGraphService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -585,6 +586,23 @@ def parser() -> argparse.ArgumentParser:
     entity_status = subparsers.add_parser("entity-status", help="show canonical entity registry status")
     entity_status.add_argument("database", type=str)
 
+    graph_sync = subparsers.add_parser("graph-sync", help="rebuild the connected data graph from governed local caches")
+    graph_sync.add_argument("database", type=str)
+    graph_search = subparsers.add_parser("graph-search", help="search connected graph nodes")
+    graph_search.add_argument("database", type=str); graph_search.add_argument("--query"); graph_search.add_argument("--node-type"); graph_search.add_argument("--provider"); graph_search.add_argument("--limit", type=int, default=50); graph_search.add_argument("--offset", type=int, default=0)
+    graph_node = subparsers.add_parser("graph-node", help="show one connected graph node")
+    graph_node.add_argument("database", type=str); graph_node.add_argument("node_id")
+    graph_neighbors = subparsers.add_parser("graph-neighbors", help="list typed graph neighbors")
+    graph_neighbors.add_argument("database", type=str); graph_neighbors.add_argument("node_id"); graph_neighbors.add_argument("--predicate"); graph_neighbors.add_argument("--direction", choices=("out","in","both"), default="both"); graph_neighbors.add_argument("--limit", type=int, default=100)
+    graph_path = subparsers.add_parser("graph-path", help="find a bounded shortest path between graph nodes")
+    graph_path.add_argument("database", type=str); graph_path.add_argument("start_node_id"); graph_path.add_argument("end_node_id"); graph_path.add_argument("--max-depth", type=int, default=4)
+    graph_federate = subparsers.add_parser("federate-entity", help="read cross-source observations for one canonical entity")
+    graph_federate.add_argument("database", type=str); graph_federate.add_argument("entity_id"); graph_federate.add_argument("--limit-per-source", type=int, default=100)
+    graph_export = subparsers.add_parser("graph-export", help="export a bounded JSON-LD-compatible connected graph")
+    graph_export.add_argument("database", type=str); graph_export.add_argument("--node-id"); graph_export.add_argument("--limit", type=int, default=500)
+    graph_status = subparsers.add_parser("graph-status", help="show connected graph status")
+    graph_status.add_argument("database", type=str)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -758,7 +776,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "ncei-cdo-fetch", "erddap-catalog-fetch", "erddap-tabledap-fetch", "ioos-catalog-fetch", "usgs-earthquake-fetch", "earth-observations", "erddap-datasets", "ioos-datasets", "earthquakes", "earth-data-status", "nasa-donki-fetch", "jpl-small-bodies-fetch", "jpl-close-approaches-fetch", "nasa-exoplanets-fetch", "space-weather", "small-bodies", "close-approaches", "exoplanets", "space-data-status", "catalog-sync", "catalog-search", "catalog-get", "catalog-status", "entity-sync", "entity-seed-countries", "entity-resolve", "entity-get", "entity-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "ncei-cdo-fetch", "erddap-catalog-fetch", "erddap-tabledap-fetch", "ioos-catalog-fetch", "usgs-earthquake-fetch", "earth-observations", "erddap-datasets", "ioos-datasets", "earthquakes", "earth-data-status", "nasa-donki-fetch", "jpl-small-bodies-fetch", "jpl-close-approaches-fetch", "nasa-exoplanets-fetch", "space-weather", "small-bodies", "close-approaches", "exoplanets", "space-data-status", "catalog-sync", "catalog-search", "catalog-get", "catalog-status", "entity-sync", "entity-seed-countries", "entity-resolve", "entity-get", "entity-status", "graph-sync", "graph-search", "graph-node", "graph-neighbors", "graph-path", "federate-entity", "graph-export", "graph-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -1151,6 +1169,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(EntityResolutionService(repository).get(args.entity_id),indent=2,ensure_ascii=False)); return 0
         if args.command == "entity-status":
             print(json.dumps(EntityResolutionService(repository).status(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-sync":
+            print(json.dumps(ConnectedGraphService(repository).sync(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-search":
+            print(json.dumps(ConnectedGraphService(repository).search_nodes(query=args.query,node_type=args.node_type,provider=args.provider,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-node":
+            payload=ConnectedGraphService(repository).get_node(args.node_id)
+            if payload is None: raise ConnectedGraphError("graph node not found")
+            print(json.dumps(payload,indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-neighbors":
+            print(json.dumps(ConnectedGraphService(repository).neighbors(args.node_id,predicate=args.predicate,direction=args.direction,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-path":
+            print(json.dumps(ConnectedGraphService(repository).shortest_path(args.start_node_id,args.end_node_id,max_depth=args.max_depth),indent=2,ensure_ascii=False)); return 0
+        if args.command == "federate-entity":
+            print(json.dumps(ConnectedGraphService(repository).federate_entity(args.entity_id,limit_per_source=args.limit_per_source),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-export":
+            print(json.dumps(ConnectedGraphService(repository).export_jsonld(node_id=args.node_id,limit=args.limit),indent=2,ensure_ascii=False)); return 0
+        if args.command == "graph-status":
+            print(json.dumps(ConnectedGraphService(repository).status(),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))

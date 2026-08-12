@@ -20,7 +20,7 @@ from catalyst_data.repository import CatalystRepository
 
 def prepared_repository(tmp_path: Path) -> tuple[CatalystRepository, AnalysisArtifactService, list[str]]:
     repository = CatalystRepository(tmp_path / "analysis.sqlite3")
-    assert repository.initialize() == list(range(1, 23))
+    assert repository.initialize() == list(range(1, 24))
     assert ImportService(repository).run(ROOT / "examples/imports/records.json").inserted == 2
     records = sorted(record["record_id"] for record in repository.list_records())
     service = AnalysisArtifactService(repository)
@@ -123,10 +123,10 @@ def test_derived_lineage_and_replication_review_are_append_only(tmp_path: Path):
 def test_populated_migration_011_rolls_back_and_reapplies(tmp_path: Path):
     repository, service, _ = prepared_repository(tmp_path)
     service.run("analysis:evidence-quality-summary")
-    assert repository.rollback(12) == [22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11]
+    assert repository.rollback(13) == [23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11]
     assert repository.health().migration_version == 10
     assert repository.stats if True else None
-    assert repository.migrate() == [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+    assert repository.migrate() == [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
     assert repository.health().healthy
     assert repository.stats()["records"] == 2
     assert repository.stats()["analysis_artifacts"] == 0

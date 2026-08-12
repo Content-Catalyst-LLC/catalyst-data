@@ -30,6 +30,7 @@ from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanServic
 from .space_science import SpaceScienceError, SpaceScienceService
 from .dataset_catalog import DatasetCatalogError, DatasetCatalogService
 from .entity_resolution import EntityResolutionError, EntityResolutionService
+from .connected_graph import ConnectedGraphError, ConnectedGraphService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -126,6 +127,13 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/entities/status": {"get": {"summary": "Canonical entity registry status", "responses": {"200": {"description": "Entity registry status"}}}},
             "/v1/entities/resolve": {"get": {"summary": "Resolve a cached canonical entity identifier or name", "responses": {"200": {"description": "Entity resolution result"}}}},
             "/v1/entities/{entity_id}": {"get": {"summary": "Get one canonical entity with identifiers and aliases", "responses": {"200": {"description": "Canonical entity"}, "404": {"description": "Entity not found"}}}},
+            "/v1/graph/status": {"get": {"summary": "Connected data graph status", "responses": {"200": {"description": "Graph status"}}}},
+            "/v1/graph/nodes": {"get": {"summary": "Search connected graph nodes", "responses": {"200": {"description": "Graph node search"}}}},
+            "/v1/graph/nodes/{node_id}": {"get": {"summary": "Get one connected graph node", "responses": {"200": {"description": "Graph node"}, "404": {"description": "Node not found"}}}},
+            "/v1/graph/neighbors": {"get": {"summary": "Read typed neighbors for a graph node", "responses": {"200": {"description": "Graph neighbors"}}}},
+            "/v1/graph/path": {"get": {"summary": "Find a bounded shortest path between graph nodes", "responses": {"200": {"description": "Graph path"}}}},
+            "/v1/graph/federate": {"get": {"summary": "Federate cached observations for a canonical entity", "responses": {"200": {"description": "Cross-source federation"}}}},
+            "/v1/graph/export": {"get": {"summary": "Export a bounded JSON-LD-compatible graph", "responses": {"200": {"description": "Graph export"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -459,6 +467,36 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 if item is None:
                     self._error(404,"entity-not-found","Canonical entity is not cached"); return
                 self._json(200,item); return
+            if path == "/v1/graph/status":
+                self._json(200,ConnectedGraphService(self.server.repository).status()); return
+            if path == "/v1/graph/nodes":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[50])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=ConnectedGraphService(self.server.repository).search_nodes(query=query.get("query",[None])[0],node_type=query.get("node_type",[None])[0],provider=query.get("provider",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"nodes":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path.startswith("/v1/graph/nodes/"):
+                node_id=unquote(path[len("/v1/graph/nodes/"):]); item=ConnectedGraphService(self.server.repository).get_node(node_id)
+                if item is None: self._error(404,"graph-node-not-found","Connected graph node is not cached"); return
+                self._json(200,item); return
+            if path == "/v1/graph/neighbors":
+                query=parse_qs(parsed.query); node_id=(query.get("node_id") or [""])[0]
+                if not node_id: self._error(400,"missing-node-id","node_id is required"); return
+                items=ConnectedGraphService(self.server.repository).neighbors(node_id,predicate=(query.get("predicate") or [None])[0],direction=(query.get("direction") or ["both"])[0],limit=int((query.get("limit") or [100])[0]))
+                self._json(200,{"node_id":node_id,"neighbors":items}); return
+            if path == "/v1/graph/path":
+                query=parse_qs(parsed.query); start=(query.get("from") or [""])[0]; end=(query.get("to") or [""])[0]
+                if not start or not end: self._error(400,"missing-node-id","from and to are required"); return
+                self._json(200,ConnectedGraphService(self.server.repository).shortest_path(start,end,max_depth=int((query.get("max_depth") or [4])[0]))); return
+            if path == "/v1/graph/federate":
+                query=parse_qs(parsed.query); entity_id=(query.get("entity_id") or [None])[0]
+                if not entity_id:
+                    value=(query.get("value") or [""])[0]; namespace=(query.get("namespace") or [None])[0]
+                    if not value: self._error(400,"missing-entity","entity_id or value is required"); return
+                    resolved=EntityResolutionService(self.server.repository).resolve(value,namespace=namespace,record_event=False)
+                    if resolved["status"]!="resolved": self._json(200,{"resolution":resolved,"source_count":0,"sources":[]}); return
+                    entity_id=resolved["entity"]["entity_id"]
+                self._json(200,ConnectedGraphService(self.server.repository).federate_entity(entity_id,limit_per_source=int((query.get("limit_per_source") or [100])[0]))); return
+            if path == "/v1/graph/export":
+                query=parse_qs(parsed.query); self._json(200,ConnectedGraphService(self.server.repository).export_jsonld(node_id=(query.get("node_id") or [None])[0],limit=int((query.get("limit") or [500])[0]))); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -477,7 +515,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError, SpaceScienceError, DatasetCatalogError, EntityResolutionError) as exc:
+        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError, SpaceScienceError, DatasetCatalogError, EntityResolutionError, ConnectedGraphError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:
@@ -561,7 +599,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 result = self.server.registry.receive_handoff(self._body())
                 self._json(202, result); self.server.registry.audit(method="POST",path=path,status_code=202,client=client,scope="handoffs:write",handoff_id=result["handoff_id"],remote_address=self.client_address[0]); return
             self._error(404, "not-found", "Endpoint not found")
-        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, InternetArchiveError, sqlite3.Error) as exc:
+        except (ValueError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, InternetArchiveError, ConnectedGraphError, sqlite3.Error) as exc:
             self._error(400, "invalid-request", str(exc))
             try: self.server.registry.audit(method="POST",path=path,status_code=400,client=client,remote_address=self.client_address[0],details={"error": str(exc)})
             except Exception: pass

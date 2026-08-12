@@ -1,6 +1,6 @@
 {
   "name": "Catalyst Data",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "module_type": "connected evidence and measurement platform with PostgreSQL production persistence, governed external source adapters, archival intelligence, global and U.S. public statistics, earth/climate/ocean intelligence, space and scientific intelligence, cross-provider dataset catalog and discovery, WordPress public integration, provenance, workspaces, review, lineage, and reproducible analysis",
   "record_contract": "catalyst-data-record/1.0",
   "record_schema": "schemas/catalyst_data_record_1_0.schema.json",
@@ -121,7 +121,7 @@
     "not compliance certification",
     "not professional advice"
   ],
-  "release": "Space & Scientific Data Network",
+  "release": "Connected Data Graph & Cross-Source Federation",
   "version_source": "VERSION",
   "generated_contract_artifacts": [
     "python/catalyst_data/_contract.py",
@@ -329,7 +329,24 @@
     "small-bodies",
     "close-approaches",
     "exoplanets",
-    "space-data-status"
+    "space-data-status",
+    "catalog-sync",
+    "catalog-search",
+    "catalog-get",
+    "catalog-status",
+    "entity-sync",
+    "entity-seed-countries",
+    "entity-resolve",
+    "entity-get",
+    "entity-status",
+    "graph-sync",
+    "graph-search",
+    "graph-node",
+    "graph-neighbors",
+    "graph-path",
+    "federate-entity",
+    "graph-export",
+    "graph-status"
   ],
   "import_formats": [
     "json",
@@ -354,7 +371,7 @@
   "api_version": "v2 with v1 compatibility",
   "access_governance_contract": "catalyst-data-access-governance/1.0",
   "access_governance_schema": "schemas/catalyst_data_access_governance_1_0.schema.json",
-  "current_migration": 20,
+  "current_migration": 23,
   "connector_operations_contract": "catalyst-data-connector-operations/1.0",
   "connector_operations_schema": "schemas/catalyst_data_connector_operations_1_0.schema.json",
   "analysis_artifact_contract": "catalyst-data-analysis-artifact/1.0",
@@ -394,7 +411,12 @@
     "freshness-index",
     "canonical-entities",
     "identifier-resolution",
-    "provider-crosswalks"
+    "provider-crosswalks",
+    "connected-data-graph",
+    "typed-graph-edges",
+    "cross-source-federation",
+    "graph-path-query",
+    "jsonld-graph-export"
   ],
-  "release_name": "Canonical Entity & Identifier Resolution"
+  "release_name": "Connected Data Graph & Cross-Source Federation"
 }

@@ -1,0 +1,10 @@
+DROP VIEW IF EXISTS connected_graph_status;
+DROP TRIGGER IF EXISTS connected_graph_sync_runs_immutable_delete;
+DROP TRIGGER IF EXISTS connected_graph_sync_runs_immutable_update;
+DROP TABLE IF EXISTS connected_graph_sync_runs;
+DROP TRIGGER IF EXISTS connected_graph_edge_events_immutable_delete;
+DROP TRIGGER IF EXISTS connected_graph_edge_events_immutable_update;
+DROP TABLE IF EXISTS connected_graph_edge_events;
+DROP TABLE IF EXISTS connected_graph_edges;
+DROP TABLE IF EXISTS connected_graph_nodes;
+UPDATE platform_components SET current_version='2.9.0', capabilities_json='["records","evidence","measurements","provenance","indicator-governance","observation-lineage","review-workflow","queries","exports","public-api","typed-handoffs","workspaces","connectors","external-source-adapters","conditional-http","adapter-pagination","internet-archive-catalog","internet-archive-metadata","internet-archive-file-inventory","wayback-availability","wayback-cdx-history","world-bank-statistics","un-sdg-statistics","global-statistics-catalog","us-census-data","us-bls-data","us-bea-data","us-eia-data","us-epa-envirofacts","us-usgs-water-data","us-public-data-catalog","noaa-ncei-climate-data","erddap-dataset-catalog","erddap-ocean-observations","ioos-data-catalog","usgs-earthquake-events","earth-climate-ocean-network","nasa-donki-space-weather","jpl-small-body-database","jpl-close-approaches","nasa-exoplanet-archive","space-science-network","dataset-catalog","dataset-registry","cross-provider-discovery","freshness-index","canonical-entities","identifier-resolution","iso-country-identifiers","un-m49-identifiers","provider-crosswalks","analysis-artifacts","offline-operations","backup-restore","postgresql-production-persistence","sqlite-portable-persistence","wordpress-data-integration","platform-manifest"]', updated_at=datetime('now') WHERE component_id='component:catalyst-data';

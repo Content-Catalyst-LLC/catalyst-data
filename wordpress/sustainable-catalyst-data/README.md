@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.9.0 adds a read-only cross-provider dataset catalog and discovery surface while retaining archival, statistics, earth/ocean, and NASA/JPL space/science features.
+Version 3.0.0 adds the connected data graph and cached cross-source federation surface while retaining the full archive, statistics, earth/ocean, space/science, dataset catalog, and canonical-entity capabilities.
 
 ## Configuration
 
@@ -18,6 +18,7 @@ The plugin never stores PostgreSQL credentials, provider credentials, or private
 - `[catalyst_data_statistics provider="world-bank" country="KEN" indicator="SP.POP.TOTL" limit="20"]` — cached World Bank observations.
 - `[catalyst_data_statistics provider="un-sdg" area_code="404" indicator="1.1.1" limit="20"]` — cached UN SDG observations.
 - `[catalyst_data_catalog query="climate" provider="erddap" limit="18"]` — synchronized cross-provider dataset discovery.
+- `[catalyst_data_graph value="KEN" namespace="iso-alpha3" limit="8"]` — cached connected-graph federation for a canonical entity.
 
 ## WordPress REST routes
 
@@ -30,6 +31,8 @@ The plugin never stores PostgreSQL credentials, provider credentials, or private
 - `/wp-json/sustainable-catalyst-data/v1/statistics/un-sdg/observations`
 - `/wp-json/sustainable-catalyst-data/v1/catalog/status`
 - `/wp-json/sustainable-catalyst-data/v1/catalog/datasets`
+- `/wp-json/sustainable-catalyst-data/v1/graph/status`
+- `/wp-json/sustainable-catalyst-data/v1/graph/federate`
 
 These routes proxy only configured Catalyst Data public endpoints and never accept upstream provider URLs or credentials from visitors.
 
