@@ -28,6 +28,7 @@ from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 from .us_public_data import USPublicDataError, USPublicDataService
 from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanService
 from .space_science import SpaceScienceError, SpaceScienceService
+from .dataset_catalog import DatasetCatalogError, DatasetCatalogService
 
 API_VERSION = "v2"
 DEFAULT_SCOPES = ("records:write", "handoffs:write", "connectors:read", "connectors:run", "platform:read", "platform:write", "admin:keys")
@@ -118,6 +119,9 @@ def openapi_document(base_url: str = "http://127.0.0.1:8765") -> dict[str, Any]:
             "/v1/space/small-bodies": {"get": {"summary": "List cached NASA/JPL SBDB small bodies", "responses": {"200": {"description": "Small-body catalog records"}}}},
             "/v1/space/close-approaches": {"get": {"summary": "List cached NASA/JPL close approaches", "responses": {"200": {"description": "Close-approach records"}}}},
             "/v1/space/exoplanets": {"get": {"summary": "List cached NASA Exoplanet Archive records", "responses": {"200": {"description": "Exoplanet records"}}}},
+            "/v1/catalog/status": {"get": {"summary": "Dataset catalog status and freshness counts", "responses": {"200": {"description": "Dataset catalog status"}}}},
+            "/v1/catalog/datasets": {"get": {"summary": "Search the cross-provider Catalyst Data dataset catalog", "responses": {"200": {"description": "Dataset catalog search results"}}}},
+            "/v1/catalog/datasets/{catalog_id}": {"get": {"summary": "Get one dataset catalog entry", "responses": {"200": {"description": "Dataset catalog entry"}, "404": {"description": "Catalog entry not found"}}}},
             "/v2/platform": {"get": {"summary": "Connected platform manifest", "responses": {"200": {"description": "Platform manifest"}}}},
             "/v2/platform/readiness": {"get": {"summary": "Integrated platform readiness", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Readiness"}, "401": {"description": "Unauthorized"}}}},
             "/v2/platform/components": {"get": {"summary": "Connected platform components", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Components"}}}, "post": {"summary": "Register or version a platform component", "security": [{"bearerAuth": []}], "responses": {"200": {"description": "Registered"}}}},
@@ -293,7 +297,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                     self._error(401, "unauthorized", "A platform:read bearer token is required"); return
                 self._json(200, {"snapshots": PlatformService(self.server.repository).snapshots()}); return
             if path == "/v1/capabilities":
-                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history", "world-bank-statistics", "un-sdg-statistics", "us-census-data", "us-bls-series", "us-bea-data", "us-eia-data", "us-epa-envirofacts", "us-usgs-water-data", "noaa-ncei-climate-data", "erddap-datasets", "erddap-ocean-observations", "ioos-data-catalog", "usgs-earthquake-events", "earth-climate-ocean-network", "nasa-donki-space-weather", "jpl-small-body-database", "jpl-close-approaches", "nasa-exoplanet-archive", "space-science-network"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
+                self._json(200, {"api_version": API_VERSION, "compatibility": ["v1"], "product": "catalyst-data", "version": __version__, "contracts": ["catalyst-data-record/1.0", "catalyst-data-handoff/1.0", "catalyst-data-access-governance/1.0", "catalyst-data-connector-operations/1.0", "catalyst-data-analysis-artifact/1.0", "catalyst-data-operational-hardening/1.0", "catalyst-data-platform/2.0"], "capabilities": ["public-records", "protected-record-writes", "typed-handoffs", "persistent-embeds", "institutional-workspaces", "role-based-access", "retention-governance", "connector-registry", "connector-refresh", "payload-replay", "reconciliation", "quarantine", "reproducible-analysis", "offline-operations", "postgresql-production-persistence", "sqlite-portable-persistence", "platform-manifest", "platform-registry", "release-snapshots", "integrity-verification", "openapi", "internet-archive-catalog", "internet-archive-metadata", "internet-archive-file-inventory", "wayback-availability", "wayback-cdx-history", "world-bank-statistics", "un-sdg-statistics", "us-census-data", "us-bls-series", "us-bea-data", "us-eia-data", "us-epa-envirofacts", "us-usgs-water-data", "noaa-ncei-climate-data", "erddap-datasets", "erddap-ocean-observations", "ioos-data-catalog", "usgs-earthquake-events", "earth-climate-ocean-network", "nasa-donki-space-weather", "jpl-small-body-database", "jpl-close-approaches", "nasa-exoplanet-archive", "space-science-network", "dataset-catalog", "dataset-registry", "cross-provider-discovery", "freshness-index"], "platform_targets": ["knowledge-library", "research-librarian", "site-intelligence", "workbench", "research-lab", "catalyst-analytics-r", "catalyst-canvas", "decision-studio", "platform-core"]}); return
             if path == "/v1/workspaces":
                 client = self._auth("records:read")
                 if not client:
@@ -428,6 +432,17 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
                 query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[100])[0]))); offset=max(0,int(query.get("offset",[0])[0])); minr=query.get("min_radius_earth",[None])[0]; maxr=query.get("max_radius_earth",[None])[0]
                 items=SpaceScienceService(self.server.repository).exoplanets(query=query.get("query",[None])[0],discovery_method=query.get("discovery_method",[None])[0],min_radius_earth=float(minr) if minr not in (None,"") else None,max_radius_earth=float(maxr) if maxr not in (None,"") else None,limit=limit,offset=offset)
                 self._json(200,{"provider":"nasa-exoplanet-archive","planets":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path == "/v1/catalog/status":
+                self._json(200,DatasetCatalogService(self.server.repository).status()); return
+            if path == "/v1/catalog/datasets":
+                query=parse_qs(parsed.query); limit=min(500,max(1,int(query.get("limit",[50])[0]))); offset=max(0,int(query.get("offset",[0])[0]))
+                items=DatasetCatalogService(self.server.repository).search(query=query.get("query",[None])[0],provider=query.get("provider",[None])[0],resource_kind=query.get("resource_kind",[None])[0],freshness=query.get("freshness",[None])[0],limit=limit,offset=offset)
+                self._json(200,{"datasets":items,"pagination":{"limit":limit,"offset":offset,"returned":len(items)}}); return
+            if path.startswith("/v1/catalog/datasets/"):
+                catalog_id=unquote(path[len("/v1/catalog/datasets/"):]); item=DatasetCatalogService(self.server.repository).get(catalog_id)
+                if item is None:
+                    self._error(404,"dataset-not-found","Dataset catalog entry is not cached"); return
+                self._json(200,item); return
             if path == "/v1/records":
                 query = parse_qs(parsed.query); limit = min(100, max(1, int(query.get("limit", [20])[0]))); offset = max(0, int(query.get("offset", [0])[0]))
                 with connect(self.server.repository.path, readonly=True) as connection:
@@ -446,7 +461,7 @@ class CatalystApiHandler(BaseHTTPRequestHandler):
             self._error(404, "not-found", "Endpoint not found")
         except AccessDenied as exc:
             self._error(403, "forbidden", str(exc))
-        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError, SpaceScienceError) as exc:
+        except (ValueError, sqlite3.Error, PlatformError, AdapterError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError, SpaceScienceError, DatasetCatalogError) as exc:
             self._error(400, "invalid-request", str(exc))
 
     def do_POST(self) -> None:

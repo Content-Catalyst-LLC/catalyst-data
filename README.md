@@ -4,12 +4,15 @@ Catalyst Data is the persistent evidence and measurement repository for Sustaina
 
 ## Current release
 
-**v2.7.0 — Space & Scientific Data Network**
+**v2.8.0 — Dataset Catalog, Registry & Discovery**
 
-The release adds governed NASA DONKI, NASA/JPL small-body and close-approach, and NASA Exoplanet Archive TAP integrations on top of the shared source-adapter framework. Source-native identifiers and provider payloads are cached in Catalyst Data for use by Site Intelligence, Workspace, Publications, Research Librarian, and other consumers without allowing public WordPress requests to trigger upstream acquisition.
+The release adds a rebuildable cross-provider dataset registry over the governed caches introduced through v2.7. Provider-native tables remain authoritative; `catalog-sync` creates searchable discovery metadata, coverage, freshness, record counts, tags, and stable Catalyst catalog IDs without calling upstream providers.
 
 ## Core capabilities
 
+- Rebuildable cross-provider dataset catalog spanning archival, statistical, environmental, ocean, and space/science source families.
+- Stable catalog IDs with provider-native keys, resource kinds, publisher, source URI, coverage, freshness, record counts, tags, and metadata.
+- Cached `/v1/catalog/*` discovery endpoints and `[catalyst_data_catalog]` WordPress rendering with no public acquisition path.
 - NASA DONKI space-weather event acquisition with backend-only API-key injection.
 - NASA/JPL Small-Body Database catalog acquisition with permanent/source designations and NEO/PHA metadata.
 - NASA/JPL close-approach observations with bounded query/paging controls.
@@ -293,3 +296,7 @@ Catalyst Data now includes governed NOAA NCEI, ERDDAP, U.S. IOOS catalog, and US
 
 Catalyst Data now includes governed NASA DONKI, NASA/JPL Small-Body Database, JPL close-approach, and NASA Exoplanet Archive TAP integrations. See `docs/space-scientific-data-network.md`.
 
+
+## v2.8.0 Dataset Catalog, Registry & Discovery
+
+Catalyst Data now provides one synchronized discovery index across the provider-specific caches introduced in v2.3–v2.7. See `docs/dataset-catalog-registry-discovery.md`.

@@ -13,7 +13,7 @@ from catalyst_data import __version__, schema
 def test_versions_and_contract_are_synchronized():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+", version)
-    assert version == "2.7.0"
+    assert version == "2.8.0"
     assert __version__ == version
     manifest = json.loads((ROOT / "catalyst_data_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == version
@@ -174,7 +174,7 @@ def test_wordpress_integration_has_safe_public_proxy_and_accessible_controls():
 
 
 def test_release_documentation_exists():
-    assert (ROOT / "release/v2.7.0.md").exists()
+    assert (ROOT / "release/v2.8.0.md").exists()
     assert (ROOT / "docs/data-contract.md").exists()
     assert (ROOT / "docs/migration-v1.0.md").exists()
     assert (ROOT / "docs/extension-rules.md").exists()
@@ -211,6 +211,8 @@ def test_release_check_isolates_stale_bytecode_before_package_import() -> None:
 
 def test_python_package_declares_migration_resources():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'version = { attr = "catalyst_data._version.__version__" }' in pyproject
+    assert 'version = { attr = "catalyst_data.__version__" }' not in pyproject
     assert '"migrations/*.sql"' in pyproject
     assert '"postgresql/*.sql"' in pyproject
     migrations = sorted((ROOT / "python/catalyst_data/migrations").glob("*.sql"))
@@ -255,4 +257,6 @@ def test_python_package_declares_migration_resources():
         "019_earth_climate_ocean_data_network.up.sql",
         "020_space_scientific_data_network.down.sql",
         "020_space_scientific_data_network.up.sql",
+        "021_dataset_catalog_registry_discovery.down.sql",
+        "021_dataset_catalog_registry_discovery.up.sql",
     ]

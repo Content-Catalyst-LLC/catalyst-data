@@ -43,6 +43,7 @@ from .storage_migration import StorageMigrationError, migrate_sqlite_to_postgres
 from .service import CatalystDataService
 from .validation import RecordValidationError, jsonschema_available, schema, validate_record
 from .us_public_data import USPublicDataError, USPublicDataService
+from .dataset_catalog import DatasetCatalogError, DatasetCatalogService
 
 __all__ = [
     "__version__", "CatalystDataService", "CatalystRepository", "DatabaseHealth", "DatabaseTarget", "DatabaseConfigurationError",
@@ -65,6 +66,6 @@ __all__ = [
     "AnalysisArtifactService", "normalize_analysis_definition",
     "classify_review", "classify_signal", "convert_legacy_record", "discover_migrations",
     "export_repository", "is_canonical_record", "jsonschema_available", "percent_change", "schema",
-    "USPublicDataError", "USPublicDataService",
+    "USPublicDataError", "USPublicDataService", "DatasetCatalogError", "DatasetCatalogService",
     "stable_id", "validate_payload", "validate_record", "validate_record_semantics",
 ]

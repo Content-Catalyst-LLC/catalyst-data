@@ -33,7 +33,7 @@ include-package-data = true
 catalyst_data = ["schemas/*.json", "migrations/*.sql", "postgresql/*.sql"]
 
 [tool.setuptools.dynamic]
-version = { attr = "catalyst_data.__version__" }
+version = { attr = "catalyst_data._version.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.8.0 - 2026-08-11
+
+- Added migration 021 for a rebuildable cross-provider dataset catalog and immutable sync history.
+- Added catalog indexing across archival, global statistics, U.S. public, earth/ocean, and space/science caches.
+- Added cross-provider search, provider/resource-kind/freshness filters, record counts, temporal/geographic coverage, and stable catalog IDs.
+- Added cached catalog public API endpoints, CLI operations, and the `[catalyst_data_catalog]` WordPress discovery surface.
+- Preserved provider-native caches as authoritative data and kept all upstream acquisition outside public WordPress requests.
+
 ## 2.7.0 - 2026-08-11
 
 - Adds the Space & Scientific Data Network with governed NASA DONKI, JPL Small-Body Database, JPL close-approach, and NASA Exoplanet Archive TAP adapters.

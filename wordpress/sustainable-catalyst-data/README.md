@@ -1,6 +1,6 @@
 # Sustainable Catalyst Data WordPress Integration
 
-Version 2.7.0 adds read-only NASA/JPL space-weather, small-body, close-approach, and exoplanet surfaces while retaining archival, statistics, and earth/ocean features.
+Version 2.8.0 adds a read-only cross-provider dataset catalog and discovery surface while retaining archival, statistics, earth/ocean, and NASA/JPL space/science features.
 
 ## Configuration
 
@@ -17,6 +17,7 @@ The plugin never stores PostgreSQL credentials, provider credentials, or private
 - `[catalyst_data_wayback url="https://example.org" limit="20"]` — cached Wayback capture history.
 - `[catalyst_data_statistics provider="world-bank" country="KEN" indicator="SP.POP.TOTL" limit="20"]` — cached World Bank observations.
 - `[catalyst_data_statistics provider="un-sdg" area_code="404" indicator="1.1.1" limit="20"]` — cached UN SDG observations.
+- `[catalyst_data_catalog query="climate" provider="erddap" limit="18"]` — synchronized cross-provider dataset discovery.
 
 ## WordPress REST routes
 
@@ -27,6 +28,8 @@ The plugin never stores PostgreSQL credentials, provider credentials, or private
 - `/wp-json/sustainable-catalyst-data/v1/statistics/status`
 - `/wp-json/sustainable-catalyst-data/v1/statistics/world-bank/observations`
 - `/wp-json/sustainable-catalyst-data/v1/statistics/un-sdg/observations`
+- `/wp-json/sustainable-catalyst-data/v1/catalog/status`
+- `/wp-json/sustainable-catalyst-data/v1/catalog/datasets`
 
 These routes proxy only configured Catalyst Data public endpoints and never accept upstream provider URLs or credentials from visitors.
 

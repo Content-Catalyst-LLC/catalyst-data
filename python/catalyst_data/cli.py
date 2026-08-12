@@ -26,6 +26,7 @@ from .global_statistics import GlobalStatisticsError, GlobalStatisticsService
 from .us_public_data import USPublicDataError, USPublicDataService
 from .earth_climate_ocean import EarthClimateOceanError, EarthClimateOceanService
 from .space_science import SpaceScienceError, SpaceScienceService
+from .dataset_catalog import DatasetCatalogError, DatasetCatalogService
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -560,6 +561,18 @@ def parser() -> argparse.ArgumentParser:
     space_status = subparsers.add_parser("space-data-status", help="show NASA/JPL space and scientific cache status")
     space_status.add_argument("database", type=str)
 
+    catalog_sync = subparsers.add_parser("catalog-sync", help="rebuild the cross-provider dataset catalog from governed local caches")
+    catalog_sync.add_argument("database", type=str)
+
+    catalog_search = subparsers.add_parser("catalog-search", help="search the cached Catalyst Data dataset catalog")
+    catalog_search.add_argument("database", type=str); catalog_search.add_argument("--query"); catalog_search.add_argument("--provider"); catalog_search.add_argument("--resource-kind"); catalog_search.add_argument("--freshness", choices=("fresh","aging","stale","unknown")); catalog_search.add_argument("--limit", type=int, default=50); catalog_search.add_argument("--offset", type=int, default=0)
+
+    catalog_get = subparsers.add_parser("catalog-get", help="show one cached dataset catalog entry")
+    catalog_get.add_argument("database", type=str); catalog_get.add_argument("catalog_id")
+
+    catalog_status = subparsers.add_parser("catalog-status", help="show dataset catalog provider and freshness counts")
+    catalog_status.add_argument("database", type=str)
+
     handoff_receipts = subparsers.add_parser("handoff-receipts", help="list immutable handoff receipts")
     handoff_receipts.add_argument("database", type=str); handoff_receipts.add_argument("--limit", type=int, default=100)
 
@@ -733,7 +746,7 @@ def _print_status(repository: CatalystRepository, *, as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args_list = list(argv) if argv is not None else sys.argv[1:]
-    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "ncei-cdo-fetch", "erddap-catalog-fetch", "erddap-tabledap-fetch", "ioos-catalog-fetch", "usgs-earthquake-fetch", "earth-observations", "erddap-datasets", "ioos-datasets", "earthquakes", "earth-data-status", "nasa-donki-fetch", "jpl-small-bodies-fetch", "jpl-close-approaches-fetch", "nasa-exoplanets-fetch", "space-weather", "small-bodies", "close-approaches", "exoplanets", "space-data-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
+    commands = {"brief", "validate", "upgrade", "init", "migrate", "rollback", "status", "storage-migrate-postgres", "import", "export", "inspect", "review", "sources", "provenance", "evidence", "indicators", "methods", "units", "convert", "compare", "governance-events", "questions", "instruments", "datasets", "observations", "lineage", "reviews", "review-history", "review-assign", "review-submit", "review-start", "review-decide", "review-comment", "quality-assess", "revisions", "query-save", "queries", "query-run", "query-runs", "query-results", "query-brief", "export-bundle", "api-key-create", "api-keys", "api-key-revoke", "serve", "openapi", "handoff-create", "handoff-validate", "handoff-receive", "handoff-receipts", "institution-create", "institutions", "workspace-create", "workspaces", "project-create", "principal-create", "principals", "workspace-member-add", "workspace-members", "record-access-set", "record-access", "workspace-records", "record-visibility-set", "retention-policy-create", "retention-policies", "legal-hold", "disposition-check", "access-events", "workspace-export-manifest", "connector-register", "connectors", "connector-versions", "connector-activate", "connector-run", "connector-runs", "connector-run-show", "connector-replay", "connector-schedule", "connector-due", "connector-run-due", "connector-quarantine", "connector-quarantine-recover", "connector-dead-letters", "connector-dead-letter-replay", "connector-alerts", "connector-alert-update", "adapter-list", "adapter-bind", "adapter-binding", "adapter-bindings", "adapter-run", "adapter-runs", "adapter-run-show", "archive-search", "archive-item-fetch", "archive-items", "archive-item", "archive-status", "wayback-available", "wayback-fetch", "wayback-captures", "world-bank-countries-fetch", "world-bank-indicators-fetch", "world-bank-data-fetch", "world-bank-observations", "un-sdg-catalog-fetch", "un-sdg-data-fetch", "un-sdg-observations", "statistics-status", "census-data-fetch", "bls-series-fetch", "bea-data-fetch", "eia-data-fetch", "epa-data-fetch", "usgs-water-fetch", "us-public-observations", "epa-records", "us-public-status", "ncei-cdo-fetch", "erddap-catalog-fetch", "erddap-tabledap-fetch", "ioos-catalog-fetch", "usgs-earthquake-fetch", "earth-observations", "erddap-datasets", "ioos-datasets", "earthquakes", "earth-data-status", "nasa-donki-fetch", "jpl-small-bodies-fetch", "jpl-close-approaches-fetch", "nasa-exoplanets-fetch", "space-weather", "small-bodies", "close-approaches", "exoplanets", "space-data-status", "catalog-sync", "catalog-search", "catalog-get", "catalog-status", "analysis-register", "analyses", "analysis-show", "analysis-versions", "analysis-activate", "analysis-run", "analysis-runs", "analysis-run-show", "analysis-package", "analysis-packages", "analysis-invalidate", "analysis-invalidation-resolve", "analysis-lineage-add", "analysis-lineage", "analysis-replication-review", "backup-create", "backup-verify", "backups", "restore", "restore-history", "offline-queue", "offline-operations", "offline-sync", "offline-sync-runs", "benchmark", "benchmarks", "security-audit", "security-events", "release-attest", "attestations", "operational-readiness", "platform-register", "platform-components", "platform-component-versions", "platform-contract-sync", "platform-contracts", "platform-link", "platform-links", "platform-manifest", "platform-snapshot", "platform-snapshots", "platform-verify", "platform-integrity", "platform-readiness", "platform-events", "-h", "--help"}
     if len(args_list) == 2 and args_list[0] not in commands:
         args_list = ["brief", *args_list]
     args = parser().parse_args(args_list)
@@ -1106,6 +1119,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(SpaceScienceService(repository).exoplanets(query=args.query,discovery_method=args.discovery_method,min_radius_earth=args.min_radius_earth,max_radius_earth=args.max_radius_earth,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
         if args.command == "space-data-status":
             print(json.dumps(SpaceScienceService(repository).status(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "catalog-sync":
+            print(json.dumps(DatasetCatalogService(repository).sync(),indent=2,ensure_ascii=False)); return 0
+        if args.command == "catalog-search":
+            print(json.dumps(DatasetCatalogService(repository).search(query=args.query,provider=args.provider,resource_kind=args.resource_kind,freshness=args.freshness,limit=args.limit,offset=args.offset),indent=2,ensure_ascii=False)); return 0
+        if args.command == "catalog-get":
+            payload=DatasetCatalogService(repository).get(args.catalog_id)
+            if payload is None: raise DatasetCatalogError("dataset catalog entry not found")
+            print(json.dumps(payload,indent=2,ensure_ascii=False)); return 0
+        if args.command == "catalog-status":
+            print(json.dumps(DatasetCatalogService(repository).status(),indent=2,ensure_ascii=False)); return 0
         if args.command == "api-key-create":
             payload = ApiRegistry(repository).create_key(args.name, args.scope, workspace_id=args.workspace_id, principal_id=args.principal_id)
             print(json.dumps(payload, indent=2))
@@ -1240,7 +1263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.summary, payload)
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 1
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, StorageMigrationError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RecordValidationError, RepositoryError, AccessDenied, ConnectorError, AdapterError, AdapterValidationError, AnalysisArtifactError, OperationalError, PlatformError, InternetArchiveError, GlobalStatisticsError, USPublicDataError, EarthClimateOceanError, SpaceScienceError, DatasetCatalogError, StorageMigrationError) as exc:
         print(f"ERROR: {exc}")
         return 1
 
