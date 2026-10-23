@@ -692,6 +692,11 @@ class CatalystRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (event_id, record_id, measurement_id, source_id, event_type, actor, canonical_json(details), previous[0] if previous else None, occurred_at))
 
+    # Normalize missing observation/review lineage before validating and
+    # hashing a record. Repeated identical payloads may reuse revision data;
+    # force flags are repair controls and must not be inferred from ordinary
+    # caller input. With an injected connection, transaction ownership stays
+    # with the caller; otherwise this method manages its own connection.
     def upsert_record(self, record: Mapping[str, Any], *, connection: sqlite3.Connection | None = None, import_run_id: int | None = None, row_number: int | None = None, _force_evidence_rebuild: bool = False, _force_governance_rebuild: bool = False, _force_lineage_rebuild: bool = False, _force_review_rebuild: bool = False) -> str:
         record = deepcopy(dict(record))
         if "observation_lineage" not in record:
