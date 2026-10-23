@@ -37,6 +37,12 @@ def _sqlite_columns(connection: sqlite3.Connection, table: str) -> list[str]:
     return [str(row[1]) for row in connection.execute(f"PRAGMA table_info({_safe_identifier(table)})").fetchall()]
 
 
+# Copy a SQLite repository into a PostgreSQL target after initializing both
+# schemas. This is a destructive replacement of target tables (TRUNCATE), not
+# a merge or dry run. The source is opened read-only for row copy; the target
+# is mutated in a transaction and sequence/trigger state is adjusted. Require
+# an approved target backup and isolated restore rehearsal before using it.
+# Invalid paths/backends and copy failures raise StorageMigrationError.
 def migrate_sqlite_to_postgresql(source: str | Path, target_url: str, *, actor: str = "principal:system") -> dict[str, Any]:
     source_target = resolve_database_target(source)
     target = resolve_database_target(target_url)
